@@ -40,10 +40,26 @@ export async function getTodayViewRepository(dateISO: string, dayOfWeek: number)
 
     let activeWorkout = scheduledWorkout
     let session = existingSession as WorkoutSession | null
+    let existingSessionHasLogs = false
+    const existingSessionNotes = existingSession?.notes ?? ''
+    const existingSessionIsSkipped = existingSessionNotes.startsWith('[SKIPPED]')
 
-    if (existingSession && scheduledWorkout && existingSession.workout_id !== scheduledWorkout.id) {
+    if (existingSession) {
+        const { count, error: countError } = await supabase
+            .from('set_logs')
+            .select('id', { head: true, count: 'exact' })
+            .eq('session_id', existingSession.id)
+
+        if (countError) {
+            throw new Error(countError.message)
+        }
+
+        existingSessionHasLogs = (count ?? 0) > 0
+    }
+
+    if (existingSession && scheduledWorkout && !existingSessionIsSkipped && existingSession.workout_id !== scheduledWorkout.id) {
         activeWorkout = (existingSession as SessionWithWorkout).workouts
-    } else if (existingSession && !scheduledWorkout) {
+    } else if (existingSession && !scheduledWorkout && !existingSessionIsSkipped && existingSessionHasLogs) {
         activeWorkout = (existingSession as SessionWithWorkout).workouts
     }
 
