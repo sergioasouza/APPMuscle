@@ -1,17 +1,17 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useSupabase } from '@/lib/supabase/client'
 import { useRouter, useParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/toast'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { useLanguage } from '@/components/language-provider'
 import type { Exercise, WorkoutExercise } from '@/lib/types'
 
 type WorkoutExerciseWithDetails = WorkoutExercise & { exercises: Exercise }
 
 export default function EditWorkoutPage() {
-    const { t } = useLanguage()
+    const t = useTranslations()
     const params = useParams()
     const workoutId = params.id as string
     const router = useRouter()
@@ -38,29 +38,39 @@ export default function EditWorkoutPage() {
     // Delete state
     const [deleteTarget, setDeleteTarget] = useState<WorkoutExerciseWithDetails | null>(null)
 
-    const fetchData = useCallback(async () => {
-        const [workoutRes, exercisesRes, allExercisesRes] = await Promise.all([
-            supabase.from('workouts').select('*').eq('id', workoutId).single(),
-            supabase
-                .from('workout_exercises')
-                .select('*, exercises(*)')
-                .eq('workout_id', workoutId)
-                .order('display_order'),
-            supabase.from('exercises').select('*').order('name'),
-        ])
-
-        if (workoutRes.data) {
-            setWorkoutName(workoutRes.data.name)
-            setOriginalName(workoutRes.data.name)
-        }
-        setWorkoutExercises((exercisesRes.data as WorkoutExerciseWithDetails[]) || [])
-        setAllExercises(allExercisesRes.data || [])
-        setLoading(false)
-    }, [supabase, workoutId])
-
     useEffect(() => {
-        fetchData()
-    }, [fetchData])
+        let isMounted = true
+
+        async function loadData() {
+            const [workoutRes, exercisesRes, allExercisesRes] = await Promise.all([
+                supabase.from('workouts').select('*').eq('id', workoutId).single(),
+                supabase
+                    .from('workout_exercises')
+                    .select('*, exercises(*)')
+                    .eq('workout_id', workoutId)
+                    .order('display_order'),
+                supabase.from('exercises').select('*').order('name'),
+            ])
+
+            if (!isMounted) {
+                return
+            }
+
+            if (workoutRes.data) {
+                setWorkoutName(workoutRes.data.name)
+                setOriginalName(workoutRes.data.name)
+            }
+            setWorkoutExercises((exercisesRes.data as WorkoutExerciseWithDetails[]) || [])
+            setAllExercises(allExercisesRes.data || [])
+            setLoading(false)
+        }
+
+        void loadData()
+
+        return () => {
+            isMounted = false
+        }
+    }, [supabase, workoutId])
 
     // Save workout name
     async function handleSaveName() {
@@ -73,7 +83,7 @@ export default function EditWorkoutPage() {
             showToast(error.message, 'error')
         } else {
             setOriginalName(workoutName.trim())
-            showToast('Name updated')
+            showToast(t('Workouts.toastNameUpdated'))
         }
     }
 
@@ -82,21 +92,25 @@ export default function EditWorkoutPage() {
         if (!selectedExerciseId) return
 
         const nextOrder = workoutExercises.length
-        const { error } = await supabase.from('workout_exercises').insert({
-            workout_id: workoutId,
-            exercise_id: selectedExerciseId,
-            target_sets: 3,
-            display_order: nextOrder,
-        })
+        const { data, error } = await supabase
+            .from('workout_exercises')
+            .insert({
+                workout_id: workoutId,
+                exercise_id: selectedExerciseId,
+                target_sets: 3,
+                display_order: nextOrder,
+            })
+            .select('*, exercises(*)')
+            .single()
 
         if (error) {
             showToast(error.message, 'error')
         } else {
-            showToast('Exercise added')
+            showToast(t('Workouts.toastExerciseAdded'))
             setSelectedExerciseId(null)
             setShowAddExercise(false)
             setExerciseSearch('')
-            fetchData()
+            setWorkoutExercises((prev) => [...prev, data as WorkoutExerciseWithDetails])
         }
     }
 
@@ -121,20 +135,25 @@ export default function EditWorkoutPage() {
 
         // Add to workout
         const nextOrder = workoutExercises.length
-        const { error: addError } = await supabase.from('workout_exercises').insert({
-            workout_id: workoutId,
-            exercise_id: exercise.id,
-            target_sets: 3,
-            display_order: nextOrder,
-        })
+        const { data: addedExercise, error: addError } = await supabase
+            .from('workout_exercises')
+            .insert({
+                workout_id: workoutId,
+                exercise_id: exercise.id,
+                target_sets: 3,
+                display_order: nextOrder,
+            })
+            .select('*, exercises(*)')
+            .single()
 
         if (addError) {
             showToast(addError.message, 'error')
         } else {
-            showToast(`"${exercise.name}" created & added`)
+            showToast(t('Workouts.toastExerciseCreatedAndAdded', { name: exercise.name }))
             setNewExerciseName('')
             setShowAddExercise(false)
-            fetchData()
+            setAllExercises((prev) => [...prev, exercise])
+            setWorkoutExercises((prev) => [...prev, addedExercise as WorkoutExerciseWithDetails])
         }
     }
 
@@ -161,7 +180,7 @@ export default function EditWorkoutPage() {
         if (error) {
             showToast(error.message, 'error')
         } else {
-            showToast(`"${deleteTarget.exercises.name}" removed`)
+            showToast(t('Workouts.toastExerciseRemoved', { name: deleteTarget.exercises.name }))
             setWorkoutExercises((prev) => prev.filter((we) => we.id !== deleteTarget.id))
         }
         setDeleteTarget(null)
@@ -174,6 +193,10 @@ export default function EditWorkoutPage() {
             (direction === 'down' && index === workoutExercises.length - 1)
         ) return
 
+        const previousExercises = workoutExercises.map((item) => ({
+            ...item,
+            exercises: { ...item.exercises },
+        }))
         const newExercises = [...workoutExercises]
         const swapIndex = direction === 'up' ? index - 1 : index + 1
 
@@ -200,8 +223,8 @@ export default function EditWorkoutPage() {
             .eq('id', newExercises[swapIndex].id)
 
         if (err1 || err2) {
-            showToast('Failed to save order', 'error')
-            fetchData() // Revert to DB state
+            showToast(t('Workouts.toastOrderSaveError'), 'error')
+            setWorkoutExercises(previousExercises)
         }
     }
 
@@ -393,7 +416,7 @@ export default function EditWorkoutPage() {
                             setNewExerciseName(e.target.value)
                             setSelectedExerciseId(null)
                         }}
-                        placeholder='e.g., "Incline Bench Smith"'
+                        placeholder={t('Workouts.newExercisePlaceholder')}
                         className="w-full px-4 py-3 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-white
               placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-600
               focus:border-transparent text-base mb-3"

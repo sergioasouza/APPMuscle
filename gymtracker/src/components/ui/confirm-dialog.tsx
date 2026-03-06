@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 interface ConfirmDialogProps {
     open: boolean
@@ -17,12 +18,13 @@ export function ConfirmDialog({
     open,
     title,
     description,
-    confirmLabel = 'Confirm',
-    cancelLabel = 'Cancel',
+    confirmLabel,
+    cancelLabel,
     variant = 'default',
     onConfirm,
     onCancel,
 }: ConfirmDialogProps) {
+    const t = useTranslations('Common')
     const [loading, setLoading] = useState(false)
 
     if (!open) return null
@@ -57,7 +59,7 @@ export function ConfirmDialog({
                         className="flex-1 py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium rounded-xl
               hover:bg-zinc-700 transition-colors active:scale-[0.98]"
                     >
-                        {cancelLabel}
+                        {cancelLabel ?? t('cancel')}
                     </button>
                     <button
                         onClick={handleConfirm}
@@ -69,7 +71,7 @@ export function ConfirmDialog({
                                 : 'bg-violet-600 text-zinc-900 dark:text-white hover:bg-violet-500'
                             }`}
                     >
-                        {loading ? 'Loading...' : confirmLabel}
+                        {loading ? t('loading') : (confirmLabel ?? t('confirm'))}
                     </button>
                 </div>
             </div>

@@ -1,14 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useLocale, useTranslations } from 'next-intl'
 import { useSupabase } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/toast'
-import { useLanguage } from '@/components/language-provider'
-import { DAY_NAMES, formatDateISO } from '@/lib/utils'
-import type { Workout, Exercise, WorkoutExercise, WorkoutSession, SetLog } from '@/lib/types'
+import { formatDateISO, getLocalizedWeekdayNames } from '@/lib/utils'
+import type { Workout, Exercise, WorkoutExercise, WorkoutSession } from '@/lib/types'
 
 type WorkoutExerciseWithExercise = WorkoutExercise & { exercises: Exercise }
+type ScheduleWithWorkout = { workouts: Workout }
+type SessionWithWorkout = WorkoutSession & { workouts: Workout }
 
 interface ExerciseLogState {
     exerciseId: string
@@ -21,7 +23,8 @@ function TodayContent() {
     const supabase = useSupabase()
     const { showToast } = useToast()
     const searchParams = useSearchParams()
-    const { t } = useLanguage()
+    const t = useTranslations()
+    const locale = useLocale()
 
     // Parse historical date if provided
     const dateParam = searchParams.get('date')
@@ -30,21 +33,20 @@ function TodayContent() {
     const dayOfWeek = today.getDay()
     const todayISO = formatDateISO(today)
     const isHistorical = !!dateParam
+    const dayNames = getLocalizedWeekdayNames(locale)
 
     const [loading, setLoading] = useState(true)
     const [workout, setWorkout] = useState<Workout | null>(null)
-    const [workoutExercises, setWorkoutExercises] = useState<WorkoutExerciseWithExercise[]>([])
     const [session, setSession] = useState<WorkoutSession | null>(null)
     const [exerciseLogs, setExerciseLogs] = useState<ExerciseLogState[]>([])
     const [notes, setNotes] = useState('')
-    const [savingNotes, setSavingNotes] = useState(false)
 
     // Override State
     const [showOverrideModal, setShowOverrideModal] = useState(false)
     const [allWorkouts, setAllWorkouts] = useState<Workout[]>([])
     const [showRescheduleModal, setShowRescheduleModal] = useState(false)
 
-    const fetchData = useCallback(async () => {
+    async function fetchData() {
         // Get today's schedule
         const { data: scheduleData } = await supabase
             .from('schedule')
@@ -57,7 +59,7 @@ function TodayContent() {
             return
         }
 
-        const workoutData = (scheduleData as any).workouts as Workout
+        const workoutData = (scheduleData as ScheduleWithWorkout).workouts
         setWorkout(workoutData)
 
         // Get exercises for this workout
@@ -68,7 +70,6 @@ function TodayContent() {
             .order('display_order')
 
         const exerciseList = (wExercises as WorkoutExerciseWithExercise[]) || []
-        setWorkoutExercises(exerciseList)
 
         // Check for existing session today
         const { data: { user } } = await supabase.auth.getUser()
@@ -89,19 +90,8 @@ function TodayContent() {
             sessionData = existingSession
             // If the existing session is for a different workout, override the active one
             if (existingSession.workout_id !== workoutData?.id) {
-                activeWorkoutData = (existingSession as any).workouts as Workout
+                activeWorkoutData = (existingSession as SessionWithWorkout).workouts
                 setWorkout(activeWorkoutData)
-
-                // Need to fetch exercises for the overridden workout
-                const { data: overrideExercises } = await supabase
-                    .from('workout_exercises')
-                    .select('*, exercises(*)')
-                    .eq('workout_id', activeWorkoutData.id)
-                    .order('display_order')
-
-                const ovList = (overrideExercises as WorkoutExerciseWithExercise[]) || []
-                setWorkoutExercises(ovList)
-                // Need to use ovList for logs building instead of exerciseList
             }
         } else if (workoutData) {
             // Create new session for today based on schedule
@@ -121,12 +111,6 @@ function TodayContent() {
             setSession(sessionData)
             setNotes(sessionData.notes || '')
 
-            // Re-eval which exercise list to iterate over
-            const currentExecList = existingSession && existingSession.workout_id !== workoutData?.id
-                ? (workoutExercises.length > 0 ? workoutExercises : []) // Fallback, will be populated next render 
-                : exerciseList
-
-            // But we actually need to fetch them cleanly here if we overrode it
             let finalExerciseList = exerciseList
             if (existingSession && existingSession.workout_id !== workoutData?.id) {
                 const { data: overrideExercises } = await supabase
@@ -135,7 +119,6 @@ function TodayContent() {
                     .eq('workout_id', activeWorkoutData.id)
                     .order('display_order')
                 finalExerciseList = (overrideExercises as WorkoutExerciseWithExercise[]) || []
-                setWorkoutExercises(finalExerciseList)
             }
 
             // Get existing set logs
@@ -173,11 +156,13 @@ function TodayContent() {
         }
 
         setLoading(false)
-    }, [supabase, dayOfWeek, todayISO])
+    }
 
+    /* eslint-disable react-hooks/exhaustive-deps */
     useEffect(() => {
-        fetchData()
-    }, [fetchData])
+        void fetchData()
+    }, [dayOfWeek, supabase, todayISO])
+    /* eslint-enable react-hooks/exhaustive-deps */
 
     // Load all workouts for the override modal
     async function loadAllWorkouts() {
@@ -226,7 +211,7 @@ function TodayContent() {
             .eq('id', session.id)
 
         if (error) showToast(error.message, 'error')
-        else showToast('Workout skipped for today')
+        else showToast(t('Today.toastWorkoutSkippedForToday'))
 
         setShowOverrideModal(false)
         setLoading(true)
@@ -265,14 +250,14 @@ function TodayContent() {
         if (session) {
             await supabase.from('set_logs').delete().eq('session_id', session.id)
             await supabase.from('workout_sessions').update({
-                notes: `[RESCHEDULED TO ${DAY_NAMES[targetDay]}]`
+                notes: `[RESCHEDULED TO ${dayNames[targetDay]}]`
             }).eq('id', session.id)
         } else {
             await supabase.from('workout_sessions').insert({
                 user_id: user.id,
                 workout_id: workout.id,
                 performed_at: todayISO,
-                notes: `[RESCHEDULED TO ${DAY_NAMES[targetDay]}]`
+                notes: `[RESCHEDULED TO ${dayNames[targetDay]}]`
             })
         }
 
@@ -282,10 +267,10 @@ function TodayContent() {
             user_id: user.id,
             workout_id: workout.id,
             performed_at: targetDateISO,
-            notes: `[RESCHEDULED FROM ${DAY_NAMES[dayOfWeek]}]`
+            notes: `[RESCHEDULED FROM ${dayNames[dayOfWeek]}]`
         })
 
-        showToast(`Workout moved to ${DAY_NAMES[targetDay]}`)
+        showToast(t('Today.toastWorkoutMovedToDay', { day: dayNames[targetDay] }))
         setShowRescheduleModal(false)
         setLoading(true)
         fetchData()
@@ -299,7 +284,7 @@ function TodayContent() {
         const reps = parseInt(set.reps)
 
         if (isNaN(weight) || isNaN(reps) || weight < 0 || reps < 1) {
-            showToast('Enter valid weight and reps', 'error')
+            showToast(t('Today.toastEnterValidWeightAndReps'), 'error')
             return
         }
 
@@ -330,9 +315,13 @@ function TodayContent() {
                 showToast(error.message, 'error')
                 return
             }
-            if (data) {
-                set.id = data.id
+
+            const nextLogs = [...exerciseLogs]
+            nextLogs[exerciseIndex].sets[setIndex] = {
+                ...nextLogs[exerciseIndex].sets[setIndex],
+                id: data.id,
             }
+            setExerciseLogs(nextLogs)
         }
 
         // Update state
@@ -344,7 +333,7 @@ function TodayContent() {
             reps: String(reps),
         }
         setExerciseLogs(newLogs)
-        showToast(`Set ${setIndex + 1} saved ✓`)
+        showToast(t('Today.toastSetSaved', { setNumber: setIndex + 1 }))
     }
 
     function handleSetChange(
@@ -364,7 +353,6 @@ function TodayContent() {
 
     async function handleSaveNotes() {
         if (!session) return
-        setSavingNotes(true)
         const { error } = await supabase
             .from('workout_sessions')
             .update({ notes: notes.trim() || null })
@@ -372,9 +360,8 @@ function TodayContent() {
         if (error) {
             showToast(error.message, 'error')
         } else {
-            showToast('Notes saved')
+            showToast(t('Today.toastNotesSaved'))
         }
-        setSavingNotes(false)
     }
 
     // Calculate completion
@@ -409,7 +396,7 @@ function TodayContent() {
                     </div>
                 )}
                 <div className="flex items-center justify-between mb-1">
-                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">{DAY_NAMES[dayOfWeek]}</h1>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">{dayNames[dayOfWeek]}</h1>
                 </div>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">{isHistorical ? t('Today.historical') : t('Today.today')} • {todayISO}</p>
                 <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -526,7 +513,7 @@ function TodayContent() {
                 </button>
             </div>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-                {DAY_NAMES[dayOfWeek]} • {todayISO}
+                {dayNames[dayOfWeek]} • {todayISO}
             </p>
 
             {/* Progress bar */}
@@ -545,7 +532,7 @@ function TodayContent() {
                 </div>
                 {progress === 100 && (
                     <p className="text-xs text-emerald-400 font-semibold mt-1.5 text-center">
-                        🎉 Workout complete!
+                        {t('Today.workoutComplete')}
                     </p>
                 )}
             </div>
@@ -724,7 +711,7 @@ function TodayContent() {
                                         onClick={() => handleReschedule(dayIndex)}
                                         className="py-3 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-sm font-semibold rounded-xl hover:bg-zinc-800 transition-colors border border-zinc-200 dark:border-zinc-800"
                                     >
-                                        {DAY_NAMES[dayIndex]}
+                                        {dayNames[dayIndex]}
                                     </button>
                                 )
                             })}

@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSupabase } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { DAY_NAMES_SHORT, formatDateISO } from '@/lib/utils'
-import { useLanguage } from '@/components/language-provider'
+import { useLocale, useTranslations } from 'next-intl'
+import { formatDateISO, formatMonthYear, getLocalizedWeekdayNames } from '@/lib/utils'
 import type { Workout, WorkoutSession, SetLog, Exercise } from '@/lib/types'
 
 type SessionWithDetails = WorkoutSession & {
@@ -16,7 +16,8 @@ type SetLogWithExercise = SetLog & {
 }
 
 export default function CalendarPage() {
-    const { t } = useLanguage()
+    const t = useTranslations()
+    const locale = useLocale()
     const supabase = useSupabase()
     const [currentDate, setCurrentDate] = useState(new Date())
     const [sessions, setSessions] = useState<SessionWithDetails[]>([])
@@ -28,6 +29,18 @@ export default function CalendarPage() {
 
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
+
+    const loadSessionSets = useCallback(async (sessionId: string) => {
+        setLoadingSets(true)
+        const { data } = await supabase
+            .from('set_logs')
+            .select('*, exercises(*)')
+            .eq('session_id', sessionId)
+            .order('exercise_id')
+            .order('set_number')
+        setSessionSets((data as SetLogWithExercise[]) || [])
+        setLoadingSets(false)
+    }, [supabase])
 
     const fetchSessions = useCallback(async () => {
         setLoading(true)
@@ -45,8 +58,9 @@ export default function CalendarPage() {
         setLoading(false)
     }, [supabase, year, month])
 
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
-        fetchSessions()
+        void fetchSessions()
     }, [fetchSessions])
 
     useEffect(() => {
@@ -54,25 +68,14 @@ export default function CalendarPage() {
             const session = sessions.find((s) => s.performed_at === selectedDate)
             if (session) {
                 setSelectedSession(session)
-                loadSessionSets(session.id)
+                void loadSessionSets(session.id)
             } else {
                 setSelectedSession(null)
                 setSessionSets([])
             }
         }
-    }, [selectedDate, sessions])
-
-    async function loadSessionSets(sessionId: string) {
-        setLoadingSets(true)
-        const { data } = await supabase
-            .from('set_logs')
-            .select('*, exercises(*)')
-            .eq('session_id', sessionId)
-            .order('exercise_id')
-            .order('set_number')
-        setSessionSets((data as SetLogWithExercise[]) || [])
-        setLoadingSets(false)
-    }
+    }, [loadSessionSets, selectedDate, sessions])
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     function prevMonth() {
         setCurrentDate(new Date(year, month - 1, 1))
@@ -112,7 +115,17 @@ export default function CalendarPage() {
         {}
     )
 
-    const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    const monthName = formatMonthYear(currentDate, locale)
+    const dayNamesShort = getLocalizedWeekdayNames(locale, 'short')
+
+    if (loading) {
+        return (
+            <div className="px-4 pt-6 pb-8">
+                <div className="h-8 w-32 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse mb-4" />
+                <div className="h-72 bg-white dark:bg-zinc-900 rounded-2xl animate-pulse" />
+            </div>
+        )
+    }
 
     return (
         <div className="px-4 pt-6 pb-8">
@@ -137,7 +150,7 @@ export default function CalendarPage() {
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/50 rounded-2xl p-3 mb-4">
                 {/* Day headers */}
                 <div className="grid grid-cols-7 gap-1 mb-1">
-                    {DAY_NAMES_SHORT.map((d) => (
+                    {dayNamesShort.map((d) => (
                         <div key={d} className="text-center text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 py-1">
                             {d}
                         </div>

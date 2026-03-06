@@ -1,34 +1,47 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useSupabase } from '@/lib/supabase/client'
+import { useLocale, useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/toast'
-import { DAY_NAMES } from '@/lib/utils'
-import { useLanguage } from '@/components/language-provider'
+import { getLocalizedWeekdayNames } from '@/lib/utils'
 import type { Workout, Schedule } from '@/lib/types'
 
 export default function SchedulePage() {
-    const { t } = useLanguage()
+    const t = useTranslations()
+    const locale = useLocale()
     const [workouts, setWorkouts] = useState<Workout[]>([])
     const [schedule, setSchedule] = useState<(Schedule & { workouts: Workout })[]>([])
     const [loading, setLoading] = useState(true)
     const [editingDay, setEditingDay] = useState<number | null>(null)
     const supabase = useSupabase()
     const { showToast } = useToast()
-
-    const fetchData = useCallback(async () => {
-        const [workoutsRes, scheduleRes] = await Promise.all([
-            supabase.from('workouts').select('*').order('name'),
-            supabase.from('schedule').select('*, workouts(*)').order('day_of_week'),
-        ])
-        setWorkouts(workoutsRes.data || [])
-        setSchedule((scheduleRes.data as (Schedule & { workouts: Workout })[]) || [])
-        setLoading(false)
-    }, [supabase])
+    const dayNames = getLocalizedWeekdayNames(locale)
 
     useEffect(() => {
-        fetchData()
-    }, [fetchData])
+        let isMounted = true
+
+        async function loadData() {
+            const [workoutsRes, scheduleRes] = await Promise.all([
+                supabase.from('workouts').select('*').order('name'),
+                supabase.from('schedule').select('*, workouts(*)').order('day_of_week'),
+            ])
+
+            if (!isMounted) {
+                return
+            }
+
+            setWorkouts(workoutsRes.data || [])
+            setSchedule((scheduleRes.data as (Schedule & { workouts: Workout })[]) || [])
+            setLoading(false)
+        }
+
+        void loadData()
+
+        return () => {
+            isMounted = false
+        }
+    }, [supabase])
 
     function getScheduleForDay(day: number) {
         return schedule.find((s) => s.day_of_week === day)
@@ -55,9 +68,28 @@ export default function SchedulePage() {
             return
         }
 
+        const selectedWorkout = workouts.find((workout) => workout.id === workoutId)
+
         showToast(t('Schedule.toastUpdated'))
         setEditingDay(null)
-        fetchData()
+        setSchedule((prev) => {
+            const nextSchedule = prev.filter((item) => item.day_of_week !== dayOfWeek)
+
+            if (!selectedWorkout) {
+                return nextSchedule
+            }
+
+            return [
+                ...nextSchedule,
+                {
+                    id: existing?.id ?? `schedule-${dayOfWeek}`,
+                    user_id: user.id,
+                    workout_id: workoutId,
+                    day_of_week: dayOfWeek,
+                    workouts: selectedWorkout,
+                },
+            ].sort((a, b) => a.day_of_week - b.day_of_week)
+        })
     }
 
     async function handleUnlink(dayOfWeek: number) {
@@ -70,7 +102,7 @@ export default function SchedulePage() {
         } else {
             showToast(t('Schedule.toastCleared'))
             setEditingDay(null)
-            fetchData()
+            setSchedule((prev) => prev.filter((item) => item.day_of_week !== dayOfWeek))
         }
     }
 
@@ -101,7 +133,7 @@ export default function SchedulePage() {
                 </div>
             ) : (
                 <div className="space-y-2">
-                    {DAY_NAMES.map((dayName, dayIndex) => {
+                    {dayNames.map((dayName, dayIndex) => {
                         const slot = getScheduleForDay(dayIndex)
                         const isToday = dayIndex === today
                         const isEditing = editingDay === dayIndex

@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useSupabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/toast'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { useLanguage } from '@/components/language-provider'
 import type { Workout } from '@/lib/types'
 
 export default function WorkoutsPage() {
-    const { t } = useLanguage()
+    const t = useTranslations()
     const [workouts, setWorkouts] = useState<Workout[]>([])
     const [loading, setLoading] = useState(true)
     const [showNewForm, setShowNewForm] = useState(false)
@@ -20,18 +20,29 @@ export default function WorkoutsPage() {
     const router = useRouter()
     const { showToast } = useToast()
 
-    const fetchWorkouts = useCallback(async () => {
-        const { data } = await supabase
-            .from('workouts')
-            .select('*')
-            .order('created_at', { ascending: true })
-        setWorkouts(data || [])
-        setLoading(false)
-    }, [supabase])
-
     useEffect(() => {
-        fetchWorkouts()
-    }, [fetchWorkouts])
+        let isMounted = true
+
+        async function loadWorkouts() {
+            const { data } = await supabase
+                .from('workouts')
+                .select('*')
+                .order('created_at', { ascending: true })
+
+            if (!isMounted) {
+                return
+            }
+
+            setWorkouts(data || [])
+            setLoading(false)
+        }
+
+        void loadWorkouts()
+
+        return () => {
+            isMounted = false
+        }
+    }, [supabase])
 
     async function handleCreate(e: React.FormEvent) {
         e.preventDefault()
@@ -52,7 +63,7 @@ export default function WorkoutsPage() {
         } else if (data) {
             setShowNewForm(false)
             setNewName('')
-            showToast(`"${data.name}" created!`)
+            showToast(t('Workouts.toastCreated', { name: data.name }))
             router.push(`/workouts/${data.id}`)
         }
         setCreating(false)
@@ -64,7 +75,7 @@ export default function WorkoutsPage() {
         if (error) {
             showToast(error.message, 'error')
         } else {
-            showToast(`"${deleteTarget.name}" deleted`)
+            showToast(t('Workouts.toastDeleted', { name: deleteTarget.name }))
             setWorkouts((prev) => prev.filter((w) => w.id !== deleteTarget.id))
         }
         setDeleteTarget(null)
@@ -93,7 +104,7 @@ export default function WorkoutsPage() {
                     className="px-4 py-2.5 bg-violet-600 text-zinc-900 dark:text-white text-sm font-semibold rounded-xl
             hover:bg-violet-500 active:scale-95 transition-all"
                 >
-                    + New
+                    + {t('Workouts.newButton')}
                 </button>
             </div>
 
@@ -167,7 +178,7 @@ export default function WorkoutsPage() {
                                 className="flex-1 text-left"
                             >
                                 <h3 className="text-base font-semibold text-zinc-900 dark:text-white">{workout.name}</h3>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Tap to edit exercises</p>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{t('Workouts.tapToEdit')}</p>
                             </button>
 
                             <button

@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import { useSupabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 
 export default function LoginPage() {
+    const t = useTranslations('Login')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
@@ -51,8 +53,8 @@ export default function LoginPage() {
                             />
                         </svg>
                     </div>
-                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">GymTracker</h1>
-                    <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Log in to start your session</p>
+                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">{t('title')}</h1>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">{t('subtitle')}</p>
                 </div>
 
                 {/* Login Form */}
@@ -65,7 +67,7 @@ export default function LoginPage() {
 
                     <div>
                         <label htmlFor="email" className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">
-                            Email
+                            {t('email')}
                         </label>
                         <input
                             id="email"
@@ -77,13 +79,13 @@ export default function LoginPage() {
                             className="w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-white
                 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-600
                 focus:border-transparent transition-all text-base"
-                            placeholder="you@email.com"
+                            placeholder={t('emailPlaceholder')}
                         />
                     </div>
 
                     <div>
                         <label htmlFor="password" className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">
-                            Password
+                            {t('password')}
                         </label>
                         <input
                             id="password"
@@ -126,16 +128,16 @@ export default function LoginPage() {
                                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                                     />
                                 </svg>
-                                Signing in…
+                                {t('signingIn')}
                             </span>
                         ) : (
-                            'Sign In'
+                            t('signIn')
                         )}
                     </button>
                 </form>
 
                 <p className="text-center text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 text-xs mt-8">
-                    GymTracker • Built for the grind 💪
+                    {t('footer')}
                 </p>
             </div>
         </div>

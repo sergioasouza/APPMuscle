@@ -2,19 +2,24 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLocale, useTranslations } from 'next-intl'
 import { useSupabase } from '@/lib/supabase/client'
 import { useTheme } from 'next-themes'
-import { useLanguage } from '@/components/language-provider'
+import { useToast } from '@/components/ui/toast'
+import type { AppLocale } from '@/i18n/config'
 import type { User } from '@supabase/supabase-js'
 
 export default function ProfilePage() {
     const router = useRouter()
     const supabase = useSupabase()
     const { theme, setTheme } = useTheme()
-    const { language, setLanguage, t } = useLanguage()
+    const t = useTranslations()
+    const locale = useLocale() as AppLocale
+    const { showToast } = useToast()
     const [user, setUser] = useState<User | null>(null)
     const [profile, setProfile] = useState<{ display_name: string } | null>(null)
     const [loading, setLoading] = useState(true)
+    const [updatingLocale, setUpdatingLocale] = useState(false)
 
     // Ensure hydration mismatch doesn't happen with next-themes
     const [mounted, setMounted] = useState(false)
@@ -43,6 +48,34 @@ export default function ProfilePage() {
     const handleSignOut = async () => {
         await supabase.auth.signOut()
         router.refresh()
+    }
+
+    const handleLanguageChange = async (nextLocale: AppLocale) => {
+        if (nextLocale === locale) {
+            return
+        }
+
+        try {
+            setUpdatingLocale(true)
+
+            const response = await fetch('/api/locale', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ locale: nextLocale }),
+            })
+
+            if (!response.ok) {
+                throw new Error('Unable to update locale')
+            }
+
+            router.refresh()
+        } catch {
+            showToast(t('Profile.languageUpdateError'), 'error')
+        } finally {
+            setUpdatingLocale(false)
+        }
     }
 
     if (loading) {
@@ -101,9 +134,9 @@ export default function ProfilePage() {
                                 onChange={(e) => setTheme(e.target.value)}
                                 className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm text-zinc-900 dark:text-white rounded-lg py-1.5 px-3 focus:outline-none focus:ring-1 focus:ring-violet-500"
                             >
-                                <option value="system">System</option>
-                                <option value="dark">Dark</option>
-                                <option value="light">Light</option>
+                                <option value="system">{t('Profile.themeSystem')}</option>
+                                <option value="dark">{t('Profile.themeDark')}</option>
+                                <option value="light">{t('Profile.themeLight')}</option>
                             </select>
                         )}
                     </div>
@@ -123,11 +156,12 @@ export default function ProfilePage() {
                         </div>
                         <select
                             className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm text-zinc-900 dark:text-white rounded-lg py-1.5 px-3 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                            value={language}
-                            onChange={(e) => setLanguage(e.target.value as 'en' | 'pt')}
+                            value={locale}
+                            onChange={(e) => handleLanguageChange(e.target.value as AppLocale)}
+                            disabled={updatingLocale}
                         >
-                            <option value="en">English</option>
-                            <option value="pt">Português</option>
+                            <option value="en">{t('Profile.languageEnglish')}</option>
+                            <option value="pt">{t('Profile.languagePortuguese')}</option>
                         </select>
                     </div>
 

@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSupabase } from '@/lib/supabase/client'
+import { useTranslations } from 'next-intl'
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, Cell
 } from 'recharts'
-import { useLanguage } from '@/components/language-provider'
 import type { Workout, WorkoutSession, SetLog, WorkoutExercise, Exercise } from '@/lib/types'
 
 type SessionWithTotals = WorkoutSession & {
@@ -17,7 +17,7 @@ type SessionWithTotals = WorkoutSession & {
 type WorkoutExerciseWithExercise = WorkoutExercise & { exercises: Exercise }
 
 export default function AnalyticsPage() {
-    const { t } = useLanguage()
+    const t = useTranslations()
     const supabase = useSupabase()
     const [workouts, setWorkouts] = useState<Workout[]>([])
     const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
@@ -31,28 +31,7 @@ export default function AnalyticsPage() {
     const [loadingData, setLoadingData] = useState(false)
     const [viewMode, setViewMode] = useState<'chart' | 'table'>('table')
 
-    const fetchWorkouts = useCallback(async () => {
-        const { data } = await supabase.from('workouts').select('*').order('name')
-        setWorkouts(data || [])
-        setLoading(false)
-    }, [supabase])
-
-    useEffect(() => {
-        fetchWorkouts()
-    }, [fetchWorkouts])
-
-    useEffect(() => {
-        if (selectedWorkoutId) {
-            fetchWorkoutData(selectedWorkoutId)
-        } else {
-            setSessions([])
-            setSelectedSessionIds([])
-            setWorkoutExercises([])
-            setAllSetLogs([])
-        }
-    }, [selectedWorkoutId])
-
-    async function fetchWorkoutData(workoutId: string) {
+    const fetchWorkoutData = useCallback(async (workoutId: string) => {
         setLoadingData(true)
 
         // 1. Get exercises for this workout
@@ -68,7 +47,7 @@ export default function AnalyticsPage() {
             .from('workout_sessions')
             .select('*')
             .eq('workout_id', workoutId)
-            .order('performed_at', { ascending: false }) // newest first
+            .order('performed_at', { ascending: false })
 
         if (!sessionData || sessionData.length === 0) {
             setSessions([])
@@ -78,7 +57,7 @@ export default function AnalyticsPage() {
             return
         }
 
-        const sessionIds = sessionData.map(s => s.id)
+        const sessionIds = sessionData.map((session) => session.id)
 
         // 3. Get all set logs for these sessions
         const { data: setLogsData } = await supabase
@@ -89,25 +68,49 @@ export default function AnalyticsPage() {
         setAllSetLogs(setLogsData || [])
 
         // 4. Aggregate totals
-        const enrichedSessions = sessionData.map(session => {
-            const sessionSets = (setLogsData || []).filter(s => s.session_id === session.id)
-            const totalVolume = sessionSets.reduce((sum, set) => sum + (set.weight_kg * set.reps), 0)
+        const enrichedSessions = sessionData.map((session) => {
+            const sessionSets = (setLogsData || []).filter((setLog) => setLog.session_id === session.id)
+            const totalVolume = sessionSets.reduce((sum, setLog) => sum + (setLog.weight_kg * setLog.reps), 0)
             const totalSets = sessionSets.length
+
             return {
                 ...session,
                 totalVolume,
-                totalSets
+                totalSets,
             }
         })
 
         setSessions(enrichedSessions)
 
         // Auto-select up to 2 most recent by default
-        const defaultSelected = enrichedSessions.slice(0, 2).map(s => s.id).reverse()
+        const defaultSelected = enrichedSessions.slice(0, 2).map((session) => session.id).reverse()
         setSelectedSessionIds(defaultSelected)
 
         setLoadingData(false)
-    }
+    }, [supabase])
+
+    const fetchWorkouts = useCallback(async () => {
+        const { data } = await supabase.from('workouts').select('*').order('name')
+        setWorkouts(data || [])
+        setLoading(false)
+    }, [supabase])
+
+    /* eslint-disable react-hooks/set-state-in-effect */
+    useEffect(() => {
+        void fetchWorkouts()
+    }, [fetchWorkouts])
+
+    useEffect(() => {
+        if (selectedWorkoutId) {
+            void fetchWorkoutData(selectedWorkoutId)
+        } else {
+            setSessions([])
+            setSelectedSessionIds([])
+            setWorkoutExercises([])
+            setAllSetLogs([])
+        }
+    }, [fetchWorkoutData, selectedWorkoutId])
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     const toggleSessionSelection = (sessionId: string) => {
         setSelectedSessionIds(prev => {
@@ -289,12 +292,11 @@ export default function AnalyticsPage() {
                                                         fontSize: '12px',
                                                     }}
                                                     cursor={{ fill: '#27272a', opacity: 0.4 }}
-                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                    formatter={((value: any, name: any) => {
+                                                    formatter={(value, name) => {
                                                         const v = Number(value)
                                                         if (name === 'volume') return [`${v.toLocaleString()} ${t('Today.kg')}`, t('Analytics.volume')]
                                                         return [v, name]
-                                                    }) as any}
+                                                    }}
                                                 />
                                                 <Bar
                                                     dataKey="volume"
