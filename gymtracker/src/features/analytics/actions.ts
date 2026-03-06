@@ -1,17 +1,15 @@
 'use server'
 
 import { getWorkoutAnalytics } from '@/features/analytics/service'
-import type { ActionResult, WorkoutAnalyticsData } from '@/features/analytics/types'
-
-function getErrorMessage(error: unknown) {
-    return error instanceof Error ? error.message : 'Unexpected error'
-}
+import type { WorkoutAnalyticsData } from '@/features/analytics/types'
+import { errorResult, okResult } from '@/lib/action-result'
+import type { ActionResult } from '@/lib/action-result'
 
 export async function getWorkoutAnalyticsAction(workoutId: string): Promise<ActionResult<WorkoutAnalyticsData>> {
     try {
         const data = await getWorkoutAnalytics(workoutId)
-        return { ok: true, data }
+        return okResult(data)
     } catch (error) {
-        return { ok: false, message: getErrorMessage(error) }
+        return errorResult(error)
     }
 }

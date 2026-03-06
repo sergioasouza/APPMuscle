@@ -1,7 +1,6 @@
 import 'server-only'
 
 import { getOptionalUserServerContext } from '@/lib/supabase/auth'
-import { createClient } from '@/lib/supabase/server'
 
 export async function getProfilePageDataRepository() {
     const { supabase, user } = await getOptionalUserServerContext()
@@ -26,14 +25,5 @@ export async function getProfilePageDataRepository() {
     return {
         email: user.email ?? null,
         displayName: profile?.display_name ?? null,
-    }
-}
-
-export async function signOutRepository() {
-    const supabase = await createClient()
-    const { error } = await supabase.auth.signOut()
-
-    if (error) {
-        throw new Error(error.message)
     }
 }

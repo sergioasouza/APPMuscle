@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -22,6 +22,14 @@ interface WorkoutEditorClientProps {
     initialWorkoutExercises: WorkoutEditorExercise[]
 }
 
+function createClientMutationId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID()
+    }
+
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
 export function WorkoutEditorClient({
     initialWorkout,
     initialWorkoutExercises,
@@ -41,6 +49,14 @@ export function WorkoutEditorClient({
     const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null)
     const [exerciseSearch, setExerciseSearch] = useState('')
     const [deleteTarget, setDeleteTarget] = useState<WorkoutEditorExercise | null>(null)
+    const [savingName, setSavingName] = useState(false)
+    const [savingSetByExerciseId, setSavingSetByExerciseId] = useState<Record<string, boolean>>({})
+    const [reordering, setReordering] = useState(false)
+    const [addingExercise, setAddingExercise] = useState(false)
+    const [removingExercise, setRemovingExercise] = useState(false)
+    const latestNameMutationRef = useRef<string | null>(null)
+    const latestSetMutationByExerciseRef = useRef<Record<string, string>>({})
+    const latestReorderMutationRef = useRef<string | null>(null)
 
     const filteredAvailableExercises = useMemo(() => {
         const normalizedSearch = exerciseSearch.trim().toLowerCase()
@@ -55,16 +71,25 @@ export function WorkoutEditorClient({
     }, [availableExercises, exerciseSearch])
 
     async function handleSaveName() {
-        if (workoutName.trim() === originalName) {
+        if (savingName || workoutName.trim() === originalName) {
             return
         }
 
         const previousName = originalName
         const normalizedName = workoutName.trim()
+        const clientMutationId = createClientMutationId()
+        latestNameMutationRef.current = clientMutationId
+        setSavingName(true)
         setOriginalName(normalizedName)
         setWorkoutName(normalizedName)
 
         const result = await updateWorkoutNameAction(initialWorkout.id, normalizedName)
+
+        if (latestNameMutationRef.current !== clientMutationId) {
+            return
+        }
+
+        setSavingName(false)
 
         if (!result.ok || !result.data) {
             setOriginalName(previousName)
@@ -100,11 +125,15 @@ export function WorkoutEditorClient({
     }
 
     async function handleAddExistingExercise() {
-        if (!selectedExerciseId) {
+        if (addingExercise || !selectedExerciseId) {
             return
         }
 
+        setAddingExercise(true)
+
         const result = await addExistingExerciseToWorkoutAction(initialWorkout.id, selectedExerciseId)
+
+        setAddingExercise(false)
 
         if (!result.ok || !result.data) {
             showToast(result.message ?? 'Unable to add exercise', 'error')
@@ -120,11 +149,15 @@ export function WorkoutEditorClient({
     }
 
     async function handleCreateAndAddExercise() {
-        if (!newExerciseName.trim()) {
+        if (addingExercise || !newExerciseName.trim()) {
             return
         }
 
+        setAddingExercise(true)
+
         const result = await createExerciseAndAddToWorkoutAction(initialWorkout.id, newExerciseName)
+
+        setAddingExercise(false)
 
         if (!result.ok || !result.data) {
             showToast(result.message ?? 'Unable to create exercise', 'error')
@@ -144,7 +177,17 @@ export function WorkoutEditorClient({
             return
         }
 
-        const previousExercises = workoutExercises
+        if (savingSetByExerciseId[workoutExerciseId]) {
+            return
+        }
+
+        const clientMutationId = createClientMutationId()
+        latestSetMutationByExerciseRef.current[workoutExerciseId] = clientMutationId
+        setSavingSetByExerciseId((prev) => ({ ...prev, [workoutExerciseId]: true }))
+        const previousExercises = workoutExercises.map((exercise) => ({
+            ...exercise,
+            exercises: { ...exercise.exercises },
+        }))
         setWorkoutExercises((prev) =>
             prev.map((exercise) =>
                 exercise.id === workoutExerciseId ? { ...exercise, target_sets: newSets } : exercise
@@ -153,6 +196,12 @@ export function WorkoutEditorClient({
 
         const result = await updateWorkoutExerciseTargetSetsAction(initialWorkout.id, workoutExerciseId, newSets)
 
+        if (latestSetMutationByExerciseRef.current[workoutExerciseId] !== clientMutationId) {
+            return
+        }
+
+        setSavingSetByExerciseId((prev) => ({ ...prev, [workoutExerciseId]: false }))
+
         if (!result.ok) {
             setWorkoutExercises(previousExercises)
             showToast(result.message ?? 'Unable to update target sets', 'error')
@@ -160,17 +209,19 @@ export function WorkoutEditorClient({
     }
 
     async function handleRemoveExercise() {
-        if (!deleteTarget) {
+        if (!deleteTarget || removingExercise) {
             return
         }
 
         const target = deleteTarget
         const previousExercises = workoutExercises
+        setRemovingExercise(true)
 
         setDeleteTarget(null)
         setWorkoutExercises((prev) => prev.filter((exercise) => exercise.id !== target.id))
 
         const result = await deleteWorkoutExerciseAction(initialWorkout.id, target.id)
+        setRemovingExercise(false)
 
         if (!result.ok) {
             setWorkoutExercises(previousExercises)
@@ -186,9 +237,17 @@ export function WorkoutEditorClient({
     }
 
     async function handleReorder(index: number, direction: 'up' | 'down') {
-        if ((direction === 'up' && index === 0) || (direction === 'down' && index === workoutExercises.length - 1)) {
+        if (
+            reordering
+            || (direction === 'up' && index === 0)
+            || (direction === 'down' && index === workoutExercises.length - 1)
+        ) {
             return
         }
+
+        const clientMutationId = createClientMutationId()
+        latestReorderMutationRef.current = clientMutationId
+        setReordering(true)
 
         const previousExercises = workoutExercises.map((exercise) => ({
             ...exercise,
@@ -211,6 +270,12 @@ export function WorkoutEditorClient({
             initialWorkout.id,
             normalizedExercises.map((exercise) => exercise.id)
         )
+
+        if (latestReorderMutationRef.current !== clientMutationId) {
+            return
+        }
+
+        setReordering(false)
 
         if (!result.ok) {
             setWorkoutExercises(previousExercises)
@@ -236,8 +301,9 @@ export function WorkoutEditorClient({
                     value={workoutName}
                     onChange={(event) => setWorkoutName(event.target.value)}
                     onBlur={handleSaveName}
+                    disabled={savingName}
                     className="text-2xl font-bold text-zinc-900 dark:text-white bg-transparent border-b-2 border-transparent
-            focus:border-violet-600 focus:outline-none transition-colors flex-1 py-1"
+            focus:border-violet-600 focus:outline-none transition-colors flex-1 py-1 disabled:opacity-70 disabled:cursor-not-allowed"
                 />
             </div>
 
@@ -253,6 +319,10 @@ export function WorkoutEditorClient({
             ) : (
                 <div className="space-y-3 mb-4">
                     {workoutExercises.map((workoutExercise, index) => (
+                        (() => {
+                            const isSavingSets = !!savingSetByExerciseId[workoutExercise.id]
+
+                            return (
                         <div
                             key={workoutExercise.id}
                             className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/50 rounded-2xl p-4"
@@ -271,7 +341,7 @@ export function WorkoutEditorClient({
                                         <div className="flex items-center gap-0">
                                             <button
                                                 onClick={() => handleUpdateSets(workoutExercise.id, workoutExercise.target_sets - 1)}
-                                                disabled={workoutExercise.target_sets <= 1}
+                                                disabled={workoutExercise.target_sets <= 1 || isSavingSets}
                                                 className="w-9 h-9 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-l-xl flex items-center justify-center hover:bg-zinc-700 disabled:opacity-30 active:scale-95 transition-all border border-zinc-300 dark:border-zinc-700"
                                             >
                                                 −
@@ -281,7 +351,7 @@ export function WorkoutEditorClient({
                                             </div>
                                             <button
                                                 onClick={() => handleUpdateSets(workoutExercise.id, workoutExercise.target_sets + 1)}
-                                                disabled={workoutExercise.target_sets >= 20}
+                                                disabled={workoutExercise.target_sets >= 20 || isSavingSets}
                                                 className="w-9 h-9 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-r-xl flex items-center justify-center hover:bg-zinc-700 disabled:opacity-30 active:scale-95 transition-all border border-zinc-300 dark:border-zinc-700"
                                             >
                                                 +
@@ -294,7 +364,7 @@ export function WorkoutEditorClient({
                                     <div className="flex items-center gap-1">
                                         <button
                                             onClick={() => handleReorder(index, 'up')}
-                                            disabled={index === 0}
+                                            disabled={index === 0 || reordering}
                                             className="p-1.5 text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 hover:text-white disabled:opacity-20 disabled:hover:text-zinc-600 transition-colors"
                                         >
                                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -303,7 +373,7 @@ export function WorkoutEditorClient({
                                         </button>
                                         <button
                                             onClick={() => handleReorder(index, 'down')}
-                                            disabled={index === workoutExercises.length - 1}
+                                            disabled={index === workoutExercises.length - 1 || reordering}
                                             className="p-1.5 text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 hover:text-white disabled:opacity-20 disabled:hover:text-zinc-600 transition-colors"
                                         >
                                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -311,8 +381,9 @@ export function WorkoutEditorClient({
                                             </svg>
                                         </button>
                                         <button
+                                            disabled={removingExercise}
                                             onClick={() => setDeleteTarget(workoutExercise)}
-                                            className="p-1.5 text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 hover:text-red-400 transition-colors ml-1"
+                                            className="p-1.5 text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 hover:text-red-400 transition-colors ml-1 disabled:opacity-30 disabled:cursor-not-allowed"
                                         >
                                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -322,6 +393,8 @@ export function WorkoutEditorClient({
                                 </div>
                             </div>
                         </div>
+                            )
+                        })()
                     ))}
                 </div>
             )}
@@ -333,6 +406,7 @@ export function WorkoutEditorClient({
                     <input
                         type="text"
                         value={exerciseSearch}
+                        disabled={addingExercise}
                         onChange={(event) => setExerciseSearch(event.target.value)}
                         placeholder={t('Workouts.searchExercises')}
                         className="w-full px-4 py-3 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-white
@@ -351,6 +425,7 @@ export function WorkoutEditorClient({
                             {filteredAvailableExercises.map((exercise) => (
                                 <button
                                     key={exercise.id}
+                                    disabled={addingExercise}
                                     onClick={() => {
                                         setSelectedExerciseId(exercise.id)
                                         setNewExerciseName('')
@@ -358,7 +433,7 @@ export function WorkoutEditorClient({
                                     className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors ${selectedExerciseId === exercise.id
                                         ? 'bg-violet-600/20 text-violet-300 border border-violet-600/30'
                                         : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-800'
-                                        }`}
+                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                                 >
                                     {exercise.name}
                                 </button>
@@ -379,6 +454,7 @@ export function WorkoutEditorClient({
                     <input
                         type="text"
                         value={newExerciseName}
+                        disabled={addingExercise}
                         onChange={(event) => {
                             setNewExerciseName(event.target.value)
                             setSelectedExerciseId(null)
@@ -391,29 +467,31 @@ export function WorkoutEditorClient({
 
                     <div className="flex gap-2">
                         <button
+                            disabled={addingExercise}
                             onClick={() => {
                                 setShowAddExercise(false)
                                 setExerciseSearch('')
                                 setSelectedExerciseId(null)
                                 setNewExerciseName('')
                             }}
-                            className="flex-1 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-medium rounded-xl hover:bg-zinc-700 transition-colors text-sm"
+                            className="flex-1 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-medium rounded-xl hover:bg-zinc-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {t('Common.cancel')}
                         </button>
                         <button
                             onClick={selectedExerciseId ? handleAddExistingExercise : handleCreateAndAddExercise}
-                            disabled={!selectedExerciseId && !newExerciseName.trim()}
+                            disabled={addingExercise || (!selectedExerciseId && !newExerciseName.trim())}
                             className="flex-1 py-2.5 bg-violet-600 text-zinc-900 dark:text-white font-medium rounded-xl hover:bg-violet-500 transition-colors disabled:opacity-50 text-sm"
                         >
-                            {selectedExerciseId ? t('Workouts.addSelected') : t('Workouts.createAndAdd')}
+                            {addingExercise ? '...' : (selectedExerciseId ? t('Workouts.addSelected') : t('Workouts.createAndAdd'))}
                         </button>
                     </div>
                 </div>
             ) : (
                 <button
+                    disabled={addingExercise}
                     onClick={openAddExercise}
-                    className="w-full py-3 border-2 border-dashed border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 font-medium rounded-2xl hover:border-zinc-700 hover:text-zinc-400 transition-colors text-sm"
+                    className="w-full py-3 border-2 border-dashed border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 font-medium rounded-2xl hover:border-zinc-700 hover:text-zinc-400 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     + {t('Workouts.addExercise')}
                 </button>

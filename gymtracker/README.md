@@ -47,6 +47,12 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
+If your local environment hits a Turbopack cache/lock issue, use:
+
+```bash
+npm run dev:stable
+```
+
 ## Quality checks
 
 ```bash
@@ -68,12 +74,35 @@ Reference docs:
 
 Recommended path: Vercel + Supabase.
 
-### Vercel
+### Option A (recommended): Vercel
 
-1. Import the repository.
+Use this when you want the fastest and safest production path for this Next.js app.
+
+1. In Vercel, either:
+	- update your existing project to this repository/branch, or
+	- create a new Vercel project from the same repository (good for staging first).
 2. Add the environment variables from `.env.local.example`.
-3. Set `NEXT_PUBLIC_SITE_URL` to the final production domain.
-4. Deploy.
+3. Set `NEXT_PUBLIC_SITE_URL` to the final production domain of that Vercel project.
+4. In Supabase Auth URL settings, add the same production URL to allowed redirect URLs.
+5. Deploy.
+
+Practical rollout suggestion:
+
+- create a new Vercel project first,
+- validate with your account switching and workout flows,
+- then move your main domain to it.
+
+### Option B: DigitalOcean VPS
+
+Use this if you want full server control and are ready to operate Node/PM2/Nginx yourself.
+
+High-level flow:
+
+1. Build and run `next start` behind Nginx (or Docker).
+2. Configure SSL, process manager (PM2/systemd), and logs.
+3. Set the same env vars and Supabase redirect URLs.
+
+For this project, VPS is viable, but Vercel is lower operational risk for immediate go-live.
 
 ### Supabase
 

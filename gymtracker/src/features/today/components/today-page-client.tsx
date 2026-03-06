@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useOptimistic, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/toast'
 import { getLocalizedWeekdayNames } from '@/lib/utils'
@@ -19,6 +19,7 @@ import type { ExerciseLogSetState, ExerciseLogState, TodayViewData } from '@/fea
 
 interface PendingSetQueueItem {
     clientId: string
+    clientMutationId: string
     dateISO: string
     sessionId: string
     exerciseId: string
@@ -26,6 +27,12 @@ interface PendingSetQueueItem {
     weight: number
     reps: number
     setLogId?: string
+}
+
+interface SetPatchMutation {
+    exerciseIndex: number
+    setIndex: number
+    patch: Partial<ExerciseLogSetState>
 }
 
 const PENDING_SET_QUEUE_KEY = 'gymtracker.pending-set-queue'
@@ -56,7 +63,17 @@ function readPendingQueue(): PendingSetQueueItem[] {
         }
 
         const parsed = JSON.parse(raw)
-        return Array.isArray(parsed) ? parsed : []
+        if (!Array.isArray(parsed)) {
+            return []
+        }
+
+        return parsed.map((item) => ({
+            ...item,
+            clientMutationId:
+                typeof item?.clientMutationId === 'string'
+                    ? item.clientMutationId
+                    : `${item?.sessionId ?? 'unknown'}:${item?.exerciseId ?? 'unknown'}:${item?.setNumber ?? '0'}`,
+        }))
     } catch {
         return []
     }
@@ -88,6 +105,18 @@ function upsertQueueItem(queue: PendingSetQueueItem[], item: PendingSetQueueItem
 
 function removeQueueItem(queue: PendingSetQueueItem[], item: PendingSetQueueItem) {
     return queue.filter((queueItem) => queueItem.clientId !== item.clientId)
+}
+
+function setMutationKey(exerciseId: string, setNumber: number) {
+    return `${exerciseId}:${setNumber}`
+}
+
+function createClientMutationId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID()
+    }
+
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
 function isOfflineLikeError(message?: string) {
@@ -139,6 +168,29 @@ function applyPendingStateToLogsForSession(
     }))
 }
 
+function applySetPatch(
+    logs: ExerciseLogState[],
+    exerciseIndex: number,
+    setIndex: number,
+    patch: Partial<ExerciseLogSetState>
+) {
+    return logs.map((log, logIndex) => {
+        if (logIndex !== exerciseIndex) return log
+
+        return {
+            ...log,
+            sets: log.sets.map((set, currentIndex): ExerciseLogSetState => {
+                if (currentIndex !== setIndex) return set
+
+                return {
+                    ...set,
+                    ...patch,
+                }
+            }),
+        }
+    })
+}
+
 export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData }: TodayPageClientProps) {
     const t = useTranslations()
     const locale = useLocale()
@@ -160,6 +212,32 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
     const [allWorkouts, setAllWorkouts] = useState<Workout[]>([])
     const [showRescheduleModal, setShowRescheduleModal] = useState(false)
     const [loadingWorkouts, setLoadingWorkouts] = useState(false)
+    const latestMutationRef = useRef<Record<string, string>>({})
+    const [optimisticExerciseLogs, addOptimisticSetPatch] = useOptimistic(
+        exerciseLogs,
+        (currentLogs, mutation: SetPatchMutation) =>
+            applySetPatch(currentLogs, mutation.exerciseIndex, mutation.setIndex, mutation.patch)
+    )
+
+    const commitSetPatch = useCallback(
+        (
+            exerciseIndex: number,
+            setIndex: number,
+            patch: Partial<ExerciseLogSetState>,
+            options?: { optimistic?: boolean }
+        ) => {
+            if (options?.optimistic !== false) {
+                addOptimisticSetPatch({
+                    exerciseIndex,
+                    setIndex,
+                    patch,
+                })
+            }
+
+            setExerciseLogs((prev) => applySetPatch(prev, exerciseIndex, setIndex, patch))
+        },
+        [addOptimisticSetPatch]
+    )
 
     const applyPendingStateToLogs = useCallback((logs: ExerciseLogState[], queue: PendingSetQueueItem[]) => {
         return applyPendingStateToLogsForSession(logs, queue, session?.id, dateISO)
@@ -191,6 +269,12 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
 
             syncedCount += 1
             nextQueue = removeQueueItem(nextQueue, item)
+
+            const mutationKey = setMutationKey(item.exerciseId, item.setNumber)
+            const latestMutationId = latestMutationRef.current[mutationKey]
+            if (latestMutationId && latestMutationId !== item.clientMutationId) {
+                continue
+            }
 
             if (session?.id === item.sessionId && item.dateISO === dateISO) {
                 setExerciseLogs((prev) => prev.map((log) => {
@@ -343,7 +427,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
     async function handleSaveSet(exerciseIndex: number, setIndex: number) {
         if (!session) return
 
-        const currentLog = exerciseLogs[exerciseIndex]
+        const currentLog = optimisticExerciseLogs[exerciseIndex]
         const currentSet = currentLog.sets[setIndex]
         const weight = parseFloat(currentSet.weight)
         const reps = parseInt(currentSet.reps)
@@ -354,26 +438,17 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         }
 
         const previousLogs = cloneLogs(exerciseLogs)
+        const clientMutationId = createClientMutationId()
+        const mutationKey = setMutationKey(currentLog.exerciseId, setIndex + 1)
+        latestMutationRef.current[mutationKey] = clientMutationId
 
-        setExerciseLogs((prev) => prev.map((log, logIndex) => {
-            if (logIndex !== exerciseIndex) return log
-
-            return {
-                ...log,
-                sets: log.sets.map((set, currentIndex) => {
-                    if (currentIndex !== setIndex) return set
-
-                    return {
-                        ...set,
-                        weight: String(weight),
-                        reps: String(reps),
-                        saved: true,
-                        saving: true,
-                        pendingSync: false,
-                    }
-                }),
-            }
-        }))
+        commitSetPatch(exerciseIndex, setIndex, {
+            weight: String(weight),
+            reps: String(reps),
+            saved: true,
+            saving: true,
+            pendingSync: false,
+        })
 
         let result
 
@@ -395,6 +470,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
 
         const queueItem: PendingSetQueueItem = {
             clientId: `${session.id}:${currentLog.exerciseId}:${setIndex + 1}`,
+            clientMutationId,
             dateISO,
             sessionId: session.id,
             exerciseId: currentLog.exerciseId,
@@ -410,30 +486,22 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             const nextQueue = upsertQueueItem(readPendingQueue(), queueItem)
             writePendingQueue(nextQueue)
             setPendingQueue(nextQueue)
-            setExerciseLogs((prev) => prev.map((log, logIndex) => {
-                if (logIndex !== exerciseIndex) return log
-
-                return {
-                    ...log,
-                    sets: log.sets.map((set, currentIndex) => {
-                        if (currentIndex !== setIndex) return set
-
-                        return {
-                            ...set,
-                            weight: String(weight),
-                            reps: String(reps),
-                            saved: true,
-                            saving: false,
-                            pendingSync: true,
-                        }
-                    }),
-                }
-            }))
+            commitSetPatch(exerciseIndex, setIndex, {
+                weight: String(weight),
+                reps: String(reps),
+                saved: true,
+                saving: false,
+                pendingSync: true,
+            })
             showToast(t('Today.toastSetQueuedOffline'))
             return
         }
 
         if (!result.ok || !result.data) {
+            if (latestMutationRef.current[mutationKey] !== clientMutationId) {
+                return
+            }
+
             setExerciseLogs(previousLogs)
             showToast(
                 result.message === 'Invalid set values'
@@ -444,48 +512,33 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             return
         }
 
-        setExerciseLogs((prev) => prev.map((log, logIndex) => {
-            if (logIndex !== exerciseIndex) return log
+        if (latestMutationRef.current[mutationKey] !== clientMutationId) {
+            return
+        }
 
-            return {
-                ...log,
-                sets: log.sets.map((set, currentIndex) => {
-                    if (currentIndex !== setIndex) return set
-
-                    return {
-                        ...set,
-                        id: result.data!.id,
-                        weight: String(weight),
-                        reps: String(reps),
-                        saved: true,
-                        saving: false,
-                        pendingSync: false,
-                    }
-                }),
-            }
-        }))
+        commitSetPatch(
+            exerciseIndex,
+            setIndex,
+            {
+                id: result.data!.id,
+                weight: String(weight),
+                reps: String(reps),
+                saved: true,
+                saving: false,
+                pendingSync: false,
+            },
+            { optimistic: false }
+        )
 
         showToast(t('Today.toastSetSaved', { setNumber: setIndex + 1 }))
     }
 
     function handleSetChange(exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: string) {
-        setExerciseLogs((prev) => prev.map((log, logIndex) => {
-            if (logIndex !== exerciseIndex) return log
-
-            return {
-                ...log,
-                sets: log.sets.map((set, currentIndex): ExerciseLogSetState => {
-                    if (currentIndex !== setIndex) return set
-
-                    return {
-                        ...set,
-                        [field]: value,
-                        saved: false,
-                        pendingSync: false,
-                    }
-                }),
-            }
-        }))
+        commitSetPatch(exerciseIndex, setIndex, {
+            [field]: value,
+            saved: false,
+            pendingSync: false,
+        })
     }
 
     async function handleSaveNotes() {
@@ -501,16 +554,16 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         showToast(t('Today.toastNotesSaved'))
     }
 
-    const totalSets = useMemo(() => exerciseLogs.reduce((acc, exerciseLog) => acc + exerciseLog.targetSets, 0), [exerciseLogs])
+    const totalSets = useMemo(() => optimisticExerciseLogs.reduce((acc, exerciseLog) => acc + exerciseLog.targetSets, 0), [optimisticExerciseLogs])
     const completedSets = useMemo(
-        () => exerciseLogs.reduce((acc, exerciseLog) => acc + exerciseLog.sets.filter((set) => set.saved).length, 0),
-        [exerciseLogs]
+        () => optimisticExerciseLogs.reduce((acc, exerciseLog) => acc + exerciseLog.sets.filter((set) => set.saved).length, 0),
+        [optimisticExerciseLogs]
     )
     const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0
     const isSkipped = session?.notes?.startsWith('[SKIPPED]')
     const pendingSyncCount = useMemo(
-        () => exerciseLogs.reduce((acc, exerciseLog) => acc + exerciseLog.sets.filter((set) => set.pendingSync).length, 0),
-        [exerciseLogs]
+        () => optimisticExerciseLogs.reduce((acc, exerciseLog) => acc + exerciseLog.sets.filter((set) => set.pendingSync).length, 0),
+        [optimisticExerciseLogs]
     )
 
     if (loading) {
@@ -659,7 +712,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             </div>
 
             <div className="space-y-4">
-                {exerciseLogs.map((exerciseLog, exerciseIndex) => {
+                {optimisticExerciseLogs.map((exerciseLog, exerciseIndex) => {
                     const completed = exerciseLog.sets.filter((set) => set.saved).length
 
                     return (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -10,6 +10,14 @@ import type { WorkoutListItem } from '@/features/workouts/types'
 
 interface WorkoutsPageClientProps {
     initialWorkouts: WorkoutListItem[]
+}
+
+function createClientMutationId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID()
+    }
+
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
 export function WorkoutsPageClient({ initialWorkouts }: WorkoutsPageClientProps) {
@@ -22,28 +30,34 @@ export function WorkoutsPageClient({ initialWorkouts }: WorkoutsPageClientProps)
     const [newName, setNewName] = useState('')
     const [creating, setCreating] = useState(false)
     const [deleteTarget, setDeleteTarget] = useState<WorkoutListItem | null>(null)
+    const [deletingWorkoutId, setDeletingWorkoutId] = useState<string | null>(null)
+    const latestDeleteMutationByWorkoutRef = useRef<Record<string, string>>({})
 
     async function handleCreate(e: React.FormEvent) {
         e.preventDefault()
 
-        if (!newName.trim()) {
+        if (creating || !newName.trim()) {
             return
         }
 
         setCreating(true)
-        const result = await createWorkoutAction(newName)
-        setCreating(false)
 
-        if (!result.ok || !result.data) {
-            showToast(result.message ?? 'Unable to create workout', 'error')
-            return
+        try {
+            const result = await createWorkoutAction(newName)
+
+            if (!result.ok || !result.data) {
+                showToast(result.message ?? 'Unable to create workout', 'error')
+                return
+            }
+
+            setWorkouts((prev) => [result.data!, ...prev])
+            setShowNewForm(false)
+            setNewName('')
+            showToast(t('Workouts.toastCreated', { name: result.data.name }))
+            router.push(`/workouts/${result.data.id}`)
+        } finally {
+            setCreating(false)
         }
-
-        setWorkouts((prev) => [result.data!, ...prev])
-        setShowNewForm(false)
-        setNewName('')
-        showToast(t('Workouts.toastCreated', { name: result.data.name }))
-        router.push(`/workouts/${result.data.id}`)
     }
 
     async function handleDelete() {
@@ -52,20 +66,37 @@ export function WorkoutsPageClient({ initialWorkouts }: WorkoutsPageClientProps)
         }
 
         const target = deleteTarget
+        if (deletingWorkoutId === target.id) {
+            return
+        }
+
+        const clientMutationId = createClientMutationId()
+        latestDeleteMutationByWorkoutRef.current[target.id] = clientMutationId
+        setDeletingWorkoutId(target.id)
         const previousWorkouts = workouts
 
         setDeleteTarget(null)
         setWorkouts((prev) => prev.filter((workout) => workout.id !== target.id))
 
-        const result = await deleteWorkoutAction(target.id)
+        try {
+            const result = await deleteWorkoutAction(target.id)
 
-        if (!result.ok) {
-            setWorkouts(previousWorkouts)
-            showToast(result.message ?? 'Unable to delete workout', 'error')
-            return
+            if (latestDeleteMutationByWorkoutRef.current[target.id] !== clientMutationId) {
+                return
+            }
+
+            if (!result.ok) {
+                setWorkouts(previousWorkouts)
+                showToast(result.message ?? 'Unable to delete workout', 'error')
+                return
+            }
+
+            showToast(t('Workouts.toastDeleted', { name: target.name }))
+        } finally {
+            if (latestDeleteMutationByWorkoutRef.current[target.id] === clientMutationId) {
+                setDeletingWorkoutId(null)
+            }
         }
-
-        showToast(t('Workouts.toastDeleted', { name: target.name }))
     }
 
     return (
@@ -73,9 +104,10 @@ export function WorkoutsPageClient({ initialWorkouts }: WorkoutsPageClientProps)
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">{t('Workouts.title')}</h1>
                 <button
+                    disabled={creating || deletingWorkoutId !== null}
                     onClick={() => setShowNewForm(true)}
                     className="px-4 py-2.5 bg-violet-600 text-zinc-900 dark:text-white text-sm font-semibold rounded-xl
-            hover:bg-violet-500 active:scale-95 transition-all"
+            hover:bg-violet-500 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     + {t('Workouts.newButton')}
                 </button>
@@ -148,16 +180,18 @@ export function WorkoutsPageClient({ initialWorkouts }: WorkoutsPageClientProps)
                 flex items-center justify-between group hover:border-zinc-700 transition-colors"
                         >
                             <button
+                                disabled={deletingWorkoutId !== null}
                                 onClick={() => router.push(`/workouts/${workout.id}`)}
-                                className="flex-1 text-left"
+                                className="flex-1 text-left disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 <h3 className="text-base font-semibold text-zinc-900 dark:text-white">{workout.name}</h3>
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{t('Workouts.tapToEdit')}</p>
                             </button>
 
                             <button
+                                disabled={deletingWorkoutId !== null}
                                 onClick={() => setDeleteTarget(workout)}
-                                className="p-2 text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 hover:text-red-400 transition-colors ml-2"
+                                className="p-2 text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 hover:text-red-400 transition-colors ml-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />

@@ -15,24 +15,28 @@ export async function getTodayViewRepository(dateISO: string, dayOfWeek: number)
         .select('*, workouts(*)')
         .eq('day_of_week', dayOfWeek)
         .eq('user_id', user.id)
-        .maybeSingle()
+        .order('id', { ascending: false })
+        .limit(1)
 
     if (scheduleError) {
         throw new Error(scheduleError.message)
     }
 
-    const scheduledWorkout = (scheduleData as ScheduleWithWorkout | null)?.workouts ?? null
+    const scheduledWorkout = ((scheduleData?.[0] as ScheduleWithWorkout | undefined)?.workouts) ?? null
 
-    const { data: existingSession, error: sessionError } = await supabase
+    const { data: existingSessions, error: sessionError } = await supabase
         .from('workout_sessions')
         .select('*, workouts(*)')
         .eq('performed_at', dateISO)
         .eq('user_id', user.id)
-        .maybeSingle()
+        .order('created_at', { ascending: false })
+        .limit(1)
 
     if (sessionError) {
         throw new Error(sessionError.message)
     }
+
+    const existingSession = ((existingSessions?.[0] as SessionWithWorkout | undefined) ?? null)
 
     let activeWorkout = scheduledWorkout
     let session = existingSession as WorkoutSession | null

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { useToast } from '@/components/ui/toast'
-import { signOutAction } from '@/features/profile/actions'
+import { signOutAction } from '@/features/auth/actions'
 import type { ProfilePageData } from '@/features/profile/types'
 import type { AppLocale } from '@/i18n/config'
 

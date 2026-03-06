@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/toast'
 import { assignWorkoutToDayAction, clearScheduleDayAction } from '@/features/schedule/actions'
@@ -13,6 +13,14 @@ interface SchedulePageClientProps {
     initialSchedule: ScheduleEntry[]
 }
 
+function createClientMutationId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID()
+    }
+
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
 export function SchedulePageClient({ initialWorkouts, initialSchedule }: SchedulePageClientProps) {
     const t = useTranslations()
     const locale = useLocale()
@@ -21,6 +29,8 @@ export function SchedulePageClient({ initialWorkouts, initialSchedule }: Schedul
 
     const [editingDay, setEditingDay] = useState<number | null>(null)
     const [schedule, setSchedule] = useState<ScheduleEntry[]>(initialSchedule)
+    const [pendingDays, setPendingDays] = useState<Record<number, boolean>>({})
+    const latestMutationByDayRef = useRef<Record<number, string>>({})
 
     const workouts = useMemo(() => initialWorkouts, [initialWorkouts])
 
@@ -29,18 +39,37 @@ export function SchedulePageClient({ initialWorkouts, initialSchedule }: Schedul
     }
 
     async function handleAssignWorkout(dayOfWeek: number, workoutId: string) {
-        const result = await assignWorkoutToDayAction(dayOfWeek, workoutId)
-        if (!result.ok || !result.data) {
-            showToast(result.message ?? 'Unable to update schedule', 'error')
+        if (pendingDays[dayOfWeek]) {
             return
         }
 
-        showToast(t('Schedule.toastUpdated'))
-        setEditingDay(null)
-        setSchedule((prev) => [
-            ...prev.filter((item) => item.day_of_week !== dayOfWeek),
-            result.data!,
-        ].sort((a, b) => a.day_of_week - b.day_of_week))
+        const clientMutationId = createClientMutationId()
+        latestMutationByDayRef.current[dayOfWeek] = clientMutationId
+        setPendingDays((prev) => ({ ...prev, [dayOfWeek]: true }))
+
+        try {
+            const result = await assignWorkoutToDayAction(dayOfWeek, workoutId)
+
+            if (latestMutationByDayRef.current[dayOfWeek] !== clientMutationId) {
+                return
+            }
+
+            if (!result.ok || !result.data) {
+                showToast(result.message ?? 'Unable to update schedule', 'error')
+                return
+            }
+
+            showToast(t('Schedule.toastUpdated'))
+            setEditingDay(null)
+            setSchedule((prev) => [
+                ...prev.filter((item) => item.day_of_week !== dayOfWeek),
+                result.data!,
+            ].sort((a, b) => a.day_of_week - b.day_of_week))
+        } finally {
+            if (latestMutationByDayRef.current[dayOfWeek] === clientMutationId) {
+                setPendingDays((prev) => ({ ...prev, [dayOfWeek]: false }))
+            }
+        }
     }
 
     async function handleUnlink(dayOfWeek: number) {
@@ -49,15 +78,34 @@ export function SchedulePageClient({ initialWorkouts, initialSchedule }: Schedul
             return
         }
 
-        const result = await clearScheduleDayAction(dayOfWeek)
-        if (!result.ok) {
-            showToast(result.message ?? 'Unable to clear schedule', 'error')
+        if (pendingDays[dayOfWeek]) {
             return
         }
 
-        showToast(t('Schedule.toastCleared'))
-        setEditingDay(null)
-        setSchedule((prev) => prev.filter((item) => item.day_of_week !== dayOfWeek))
+        const clientMutationId = createClientMutationId()
+        latestMutationByDayRef.current[dayOfWeek] = clientMutationId
+        setPendingDays((prev) => ({ ...prev, [dayOfWeek]: true }))
+
+        try {
+            const result = await clearScheduleDayAction(dayOfWeek)
+
+            if (latestMutationByDayRef.current[dayOfWeek] !== clientMutationId) {
+                return
+            }
+
+            if (!result.ok) {
+                showToast(result.message ?? 'Unable to clear schedule', 'error')
+                return
+            }
+
+            showToast(t('Schedule.toastCleared'))
+            setEditingDay(null)
+            setSchedule((prev) => prev.filter((item) => item.day_of_week !== dayOfWeek))
+        } finally {
+            if (latestMutationByDayRef.current[dayOfWeek] === clientMutationId) {
+                setPendingDays((prev) => ({ ...prev, [dayOfWeek]: false }))
+            }
+        }
     }
 
     const today = new Date().getDay()
@@ -78,15 +126,17 @@ export function SchedulePageClient({ initialWorkouts, initialSchedule }: Schedul
                         const slot = getScheduleForDay(dayIndex)
                         const isToday = dayIndex === today
                         const isEditing = editingDay === dayIndex
+                        const isPending = !!pendingDays[dayIndex]
 
                         return (
                             <div key={dayIndex}>
                                 <button
+                                    disabled={isPending}
                                     onClick={() => setEditingDay(isEditing ? null : dayIndex)}
                                     className={`w-full text-left rounded-2xl p-4 transition-all ${isToday
                                         ? 'bg-violet-600/10 border-2 border-violet-600/30'
                                         : 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/50 hover:border-zinc-700'
-                                        }`}
+                                        } disabled:opacity-60 disabled:cursor-not-allowed`}
                                 >
                                     <div className="flex items-center justify-between">
                                         <div>
@@ -119,11 +169,12 @@ export function SchedulePageClient({ initialWorkouts, initialSchedule }: Schedul
                                             {workouts.map((workout) => (
                                                 <button
                                                     key={workout.id}
+                                                    disabled={isPending}
                                                     onClick={() => handleAssignWorkout(dayIndex, workout.id)}
                                                     className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors ${slot?.workout_id === workout.id
                                                         ? 'bg-violet-600/20 text-violet-300 border border-violet-600/30'
                                                         : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-800'
-                                                        }`}
+                                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                                                 >
                                                     {workout.name}
                                                     {slot?.workout_id === workout.id && (
@@ -134,8 +185,9 @@ export function SchedulePageClient({ initialWorkouts, initialSchedule }: Schedul
                                         </div>
                                         {slot && (
                                             <button
+                                                disabled={isPending}
                                                 onClick={() => handleUnlink(dayIndex)}
-                                                className="w-full mt-2 py-2.5 text-sm text-red-400 hover:bg-red-500/10 rounded-xl transition-colors font-medium"
+                                                className="w-full mt-2 py-2.5 text-sm text-red-400 hover:bg-red-500/10 rounded-xl transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                                 {t('Schedule.clearDay')}
                                             </button>

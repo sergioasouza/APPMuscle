@@ -12,21 +12,19 @@ import {
     updateWorkoutExerciseTargetSets,
     updateWorkoutName,
 } from '@/features/workouts/service'
-import type { ActionResult, WorkoutEditorExercise, WorkoutListItem } from '@/features/workouts/types'
+import type { WorkoutEditorExercise, WorkoutListItem } from '@/features/workouts/types'
+import { errorResult, okResult } from '@/lib/action-result'
+import type { ActionResult } from '@/lib/action-result'
 import type { Exercise } from '@/lib/types'
-
-function getErrorMessage(error: unknown) {
-    return error instanceof Error ? error.message : 'Unexpected error'
-}
 
 export async function createWorkoutAction(name: string): Promise<ActionResult<WorkoutListItem>> {
     try {
         const workout = await createWorkout(name)
         revalidatePath('/workouts')
 
-        return { ok: true, data: workout }
+        return okResult(workout)
     } catch (error) {
-        return { ok: false, message: getErrorMessage(error) }
+        return errorResult(error)
     }
 }
 
@@ -35,9 +33,9 @@ export async function deleteWorkoutAction(workoutId: string): Promise<ActionResu
         await deleteWorkout(workoutId)
         revalidatePath('/workouts')
 
-        return { ok: true, data: null }
+        return okResult(null)
     } catch (error) {
-        return { ok: false, message: getErrorMessage(error) }
+        return errorResult(error)
     }
 }
 
@@ -47,18 +45,18 @@ export async function updateWorkoutNameAction(workoutId: string, name: string): 
         revalidatePath('/workouts')
         revalidatePath(`/workouts/${workoutId}`)
 
-        return { ok: true, data: workout }
+        return okResult(workout)
     } catch (error) {
-        return { ok: false, message: getErrorMessage(error) }
+        return errorResult(error)
     }
 }
 
 export async function listAvailableExercisesAction(workoutId: string): Promise<ActionResult<Exercise[]>> {
     try {
         const exercises = await listAvailableExercises(workoutId)
-        return { ok: true, data: exercises }
+        return okResult(exercises)
     } catch (error) {
-        return { ok: false, message: getErrorMessage(error) }
+        return errorResult(error)
     }
 }
 
@@ -70,9 +68,9 @@ export async function addExistingExerciseToWorkoutAction(
         const workoutExercise = await addExistingExerciseToWorkout(workoutId, exerciseId)
         revalidatePath(`/workouts/${workoutId}`)
 
-        return { ok: true, data: workoutExercise }
+        return okResult(workoutExercise)
     } catch (error) {
-        return { ok: false, message: getErrorMessage(error) }
+        return errorResult(error)
     }
 }
 
@@ -84,9 +82,9 @@ export async function createExerciseAndAddToWorkoutAction(
         const { workoutExercise } = await createExerciseAndAddToWorkout(workoutId, exerciseName)
         revalidatePath(`/workouts/${workoutId}`)
 
-        return { ok: true, data: workoutExercise }
+        return okResult(workoutExercise)
     } catch (error) {
-        return { ok: false, message: getErrorMessage(error) }
+        return errorResult(error)
     }
 }
 
@@ -99,9 +97,9 @@ export async function updateWorkoutExerciseTargetSetsAction(
         await updateWorkoutExerciseTargetSets(workoutExerciseId, targetSets)
         revalidatePath(`/workouts/${workoutId}`)
 
-        return { ok: true, data: null }
+        return okResult(null)
     } catch (error) {
-        return { ok: false, message: getErrorMessage(error) }
+        return errorResult(error)
     }
 }
 
@@ -113,9 +111,9 @@ export async function deleteWorkoutExerciseAction(
         await deleteWorkoutExercise(workoutExerciseId)
         revalidatePath(`/workouts/${workoutId}`)
 
-        return { ok: true, data: null }
+        return okResult(null)
     } catch (error) {
-        return { ok: false, message: getErrorMessage(error) }
+        return errorResult(error)
     }
 }
 
@@ -127,8 +125,8 @@ export async function reorderWorkoutExercisesAction(
         await reorderWorkoutExercises(workoutId, orderedWorkoutExerciseIds)
         revalidatePath(`/workouts/${workoutId}`)
 
-        return { ok: true, data: null }
+        return okResult(null)
     } catch (error) {
-        return { ok: false, message: getErrorMessage(error) }
+        return errorResult(error)
     }
 }
