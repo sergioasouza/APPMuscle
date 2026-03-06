@@ -1,32 +1,14 @@
 import 'server-only'
 
-import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedServerContext } from '@/lib/supabase/auth'
 import type { Exercise, SetLog, Workout, WorkoutExercise, WorkoutSession } from '@/lib/types'
 
 type WorkoutExerciseWithExercise = WorkoutExercise & { exercises: Exercise }
 type ScheduleWithWorkout = { workouts: Workout }
 type SessionWithWorkout = WorkoutSession & { workouts: Workout }
 
-async function getAuthenticatedContext() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-        error,
-    } = await supabase.auth.getUser()
-
-    if (error) {
-        throw new Error(error.message)
-    }
-
-    if (!user) {
-        throw new Error('Unauthorized')
-    }
-
-    return { supabase, user }
-}
-
 export async function getTodayViewRepository(dateISO: string, dayOfWeek: number) {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const { data: scheduleData, error: scheduleError } = await supabase
         .from('schedule')
@@ -121,7 +103,7 @@ export async function getTodayViewRepository(dateISO: string, dayOfWeek: number)
 }
 
 export async function listUserWorkoutsRepository() {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const { data, error } = await supabase
         .from('workouts')
@@ -137,7 +119,7 @@ export async function listUserWorkoutsRepository() {
 }
 
 export async function switchWorkoutForDayRepository(dateISO: string, workoutId: string) {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const { data: existingSession, error: existingSessionError } = await supabase
         .from('workout_sessions')
@@ -184,7 +166,7 @@ export async function switchWorkoutForDayRepository(dateISO: string, workoutId: 
 }
 
 export async function skipWorkoutRepository(sessionId: string, notes: string | null) {
-    const { supabase } = await getAuthenticatedContext()
+    const { supabase } = await getAuthenticatedServerContext()
 
     const { error: deleteError } = await supabase
         .from('set_logs')
@@ -206,7 +188,7 @@ export async function skipWorkoutRepository(sessionId: string, notes: string | n
 }
 
 export async function undoSkipWorkoutRepository(sessionId: string, notes: string | null) {
-    const { supabase } = await getAuthenticatedContext()
+    const { supabase } = await getAuthenticatedServerContext()
 
     const { error } = await supabase
         .from('workout_sessions')
@@ -226,7 +208,7 @@ export async function rescheduleWorkoutRepository(
     sessionId: string | null,
     dayNames: string[]
 ) {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const today = new Date(`${dateISO}T00:00:00`)
     const targetDate = new Date(today)
@@ -292,7 +274,7 @@ export async function saveSetRepository(input: {
     reps: number
     setLogId?: string
 }) {
-    const { supabase } = await getAuthenticatedContext()
+    const { supabase } = await getAuthenticatedServerContext()
 
     if (input.setLogId) {
         const { data, error } = await supabase
@@ -329,7 +311,7 @@ export async function saveSetRepository(input: {
 }
 
 export async function saveSessionNotesRepository(sessionId: string, notes: string) {
-    const { supabase } = await getAuthenticatedContext()
+    const { supabase } = await getAuthenticatedServerContext()
 
     const { error } = await supabase
         .from('workout_sessions')

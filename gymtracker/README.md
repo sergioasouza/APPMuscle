@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GymTracker
 
-## Getting Started
+GymTracker is a mobile-first workout tracker built with Next.js App Router, Supabase, Tailwind CSS, and `next-intl`.
 
-First, run the development server:
+## Product highlights
+
+- workout creation and exercise library
+- weekly workout scheduling
+- daily training flow with session notes
+- analytics by workout
+- calendar history view
+- locale switching (`en` / `pt`)
+- offline queue for pending set sync on the `today` screen
+
+## Tech stack
+
+- Next.js 16
+- React 19
+- Supabase SSR
+- Tailwind CSS 4
+- `next-intl`
+- `next-themes`
+
+## Local setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Copy the environment template:
+
+```bash
+cp .env.local.example .env.local
+```
+
+3. Fill in:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SITE_URL`
+
+4. Run the app:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Quality checks
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run lint
+npm run build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Database
 
-## Learn More
+The current safe migration for production data is in:
 
-To learn more about Next.js, take a look at the following resources:
+- [supabase/migrations/20260306_phase1_preserve_existing_data.sql](supabase/migrations/20260306_phase1_preserve_existing_data.sql)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Reference docs:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [docs/database/phase-1-safe-migration.md](docs/database/phase-1-safe-migration.md)
 
-## Deploy on Vercel
+## Deploy today
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Recommended path: Vercel + Supabase.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Vercel
+
+1. Import the repository.
+2. Add the environment variables from `.env.local.example`.
+3. Set `NEXT_PUBLIC_SITE_URL` to the final production domain.
+4. Deploy.
+
+### Supabase
+
+Before going live, confirm production has the expected schema and run the safe migration if needed.
+
+### Go-live checklist
+
+Use:
+
+- [docs/deployment/go-live-checklist.md](docs/deployment/go-live-checklist.md)
+
+## Main routes
+
+- `/login`
+- `/today`
+- `/workouts`
+- `/schedule`
+- `/calendar`
+- `/analytics`
+- `/profile`

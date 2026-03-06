@@ -1,28 +1,10 @@
 import 'server-only'
 
-import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedServerContext } from '@/lib/supabase/auth'
 import type { SetLog, WorkoutExerciseWithExercise, WorkoutSession } from '@/lib/types'
 
-async function getAuthenticatedContext() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-        error,
-    } = await supabase.auth.getUser()
-
-    if (error) {
-        throw new Error(error.message)
-    }
-
-    if (!user) {
-        throw new Error('Unauthorized')
-    }
-
-    return { supabase, user }
-}
-
 export async function getWorkoutAnalyticsRepository(workoutId: string) {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const [workoutExercisesResult, sessionsResult] = await Promise.all([
         supabase

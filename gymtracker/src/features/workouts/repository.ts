@@ -1,29 +1,11 @@
 import 'server-only'
 
-import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedServerContext } from '@/lib/supabase/auth'
 import type { Exercise } from '@/lib/types'
 import type { WorkoutEditorData, WorkoutEditorExercise, WorkoutListItem } from '@/features/workouts/types'
 
-async function getAuthenticatedContext() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-        error,
-    } = await supabase.auth.getUser()
-
-    if (error) {
-        throw new Error(error.message)
-    }
-
-    if (!user) {
-        throw new Error('Unauthorized')
-    }
-
-    return { supabase, user }
-}
-
 export async function listWorkoutsRepository(): Promise<WorkoutListItem[]> {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const { data, error } = await supabase
         .from('workouts')
@@ -39,7 +21,7 @@ export async function listWorkoutsRepository(): Promise<WorkoutListItem[]> {
 }
 
 export async function getWorkoutEditorDataRepository(workoutId: string): Promise<WorkoutEditorData | null> {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const [workoutResult, workoutExercisesResult] = await Promise.all([
         supabase
@@ -74,7 +56,7 @@ export async function getWorkoutEditorDataRepository(workoutId: string): Promise
 }
 
 export async function listAvailableExercisesRepository(workoutId: string): Promise<Exercise[]> {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const [exerciseResult, workoutExerciseResult] = await Promise.all([
         supabase
@@ -102,7 +84,7 @@ export async function listAvailableExercisesRepository(workoutId: string): Promi
 }
 
 export async function createWorkoutRepository(name: string): Promise<WorkoutListItem> {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const { data, error } = await supabase
         .from('workouts')
@@ -118,7 +100,7 @@ export async function createWorkoutRepository(name: string): Promise<WorkoutList
 }
 
 export async function deleteWorkoutRepository(workoutId: string): Promise<void> {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const { error } = await supabase
         .from('workouts')
@@ -132,7 +114,7 @@ export async function deleteWorkoutRepository(workoutId: string): Promise<void> 
 }
 
 export async function updateWorkoutNameRepository(workoutId: string, name: string): Promise<WorkoutListItem> {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const { data, error } = await supabase
         .from('workouts')
@@ -150,7 +132,7 @@ export async function updateWorkoutNameRepository(workoutId: string, name: strin
 }
 
 export async function addExerciseToWorkoutRepository(workoutId: string, exerciseId: string, targetSets: number): Promise<WorkoutEditorExercise> {
-    const { supabase } = await getAuthenticatedContext()
+    const { supabase } = await getAuthenticatedServerContext()
 
     const { count, error: countError } = await supabase
         .from('workout_exercises')
@@ -180,7 +162,7 @@ export async function addExerciseToWorkoutRepository(workoutId: string, exercise
 }
 
 export async function createExerciseRepository(name: string): Promise<Exercise> {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const { data, error } = await supabase
         .from('exercises')
@@ -199,7 +181,7 @@ export async function createExerciseRepository(name: string): Promise<Exercise> 
 }
 
 export async function updateWorkoutExerciseTargetSetsRepository(workoutExerciseId: string, targetSets: number): Promise<void> {
-    const { supabase } = await getAuthenticatedContext()
+    const { supabase } = await getAuthenticatedServerContext()
 
     const { error } = await supabase
         .from('workout_exercises')
@@ -212,7 +194,7 @@ export async function updateWorkoutExerciseTargetSetsRepository(workoutExerciseI
 }
 
 export async function deleteWorkoutExerciseRepository(workoutExerciseId: string): Promise<void> {
-    const { supabase } = await getAuthenticatedContext()
+    const { supabase } = await getAuthenticatedServerContext()
 
     const { error } = await supabase
         .from('workout_exercises')
@@ -228,7 +210,7 @@ export async function reorderWorkoutExercisesRepository(
     workoutId: string,
     orderedWorkoutExerciseIds: string[]
 ): Promise<void> {
-    const { supabase } = await getAuthenticatedContext()
+    const { supabase } = await getAuthenticatedServerContext()
 
     for (const [index, workoutExerciseId] of orderedWorkoutExerciseIds.entries()) {
         const { error } = await supabase

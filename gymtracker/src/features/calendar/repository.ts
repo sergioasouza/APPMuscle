@@ -1,28 +1,10 @@
 import 'server-only'
 
 import { formatDateISO } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/server'
-
-async function getAuthenticatedContext() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-        error,
-    } = await supabase.auth.getUser()
-
-    if (error) {
-        throw new Error(error.message)
-    }
-
-    if (!user) {
-        throw new Error('Unauthorized')
-    }
-
-    return { supabase, user }
-}
+import { getAuthenticatedServerContext } from '@/lib/supabase/auth'
 
 export async function getCalendarMonthRepository(year: number, month: number) {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const startOfMonth = new Date(year, month, 1)
     const endOfMonth = new Date(year, month + 1, 0)
@@ -43,7 +25,7 @@ export async function getCalendarMonthRepository(year: number, month: number) {
 }
 
 export async function getSessionSetsRepository(sessionId: string) {
-    const { supabase } = await getAuthenticatedContext()
+    const { supabase } = await getAuthenticatedServerContext()
 
     const { data, error } = await supabase
         .from('set_logs')

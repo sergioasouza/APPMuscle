@@ -10,6 +10,7 @@ export const localeCookieOptions = {
     maxAge: 60 * 60 * 24 * 365,
     path: '/',
     sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
 }
 
 export function isLocale(value: string | null | undefined): value is AppLocale {

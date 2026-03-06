@@ -148,7 +148,7 @@ export function ProfilePageClient({ initialData }: ProfilePageClientProps) {
                         </div>
                         <div className="flex-1">
                             <p className="text-sm font-medium text-zinc-900 dark:text-white">{t('Profile.version')}</p>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400">GymTracker v1.0.0 (Beta)</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">GymTracker v1.0.0</p>
                         </div>
                     </div>
                 </div>

@@ -1,17 +1,10 @@
 import 'server-only'
 
+import { getOptionalUserServerContext } from '@/lib/supabase/auth'
 import { createClient } from '@/lib/supabase/server'
 
 export async function getProfilePageDataRepository() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-        error,
-    } = await supabase.auth.getUser()
-
-    if (error) {
-        throw new Error(error.message)
-    }
+    const { supabase, user } = await getOptionalUserServerContext()
 
     if (!user) {
         return {

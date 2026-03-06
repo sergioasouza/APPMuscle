@@ -1,27 +1,9 @@
 import 'server-only'
 
-import { createClient } from '@/lib/supabase/server'
-
-async function getAuthenticatedContext() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-        error,
-    } = await supabase.auth.getUser()
-
-    if (error) {
-        throw new Error(error.message)
-    }
-
-    if (!user) {
-        throw new Error('Unauthorized')
-    }
-
-    return { supabase, user }
-}
+import { getAuthenticatedServerContext } from '@/lib/supabase/auth'
 
 export async function getSchedulePageDataRepository() {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const [workoutsRes, scheduleRes] = await Promise.all([
         supabase.from('workouts').select('*').eq('user_id', user.id).order('name'),
@@ -47,7 +29,7 @@ export async function getSchedulePageDataRepository() {
 }
 
 export async function assignWorkoutToDayRepository(dayOfWeek: number, workoutId: string) {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const { data: existing, error: existingError } = await supabase
         .from('schedule')
@@ -85,7 +67,7 @@ export async function assignWorkoutToDayRepository(dayOfWeek: number, workoutId:
 }
 
 export async function clearScheduleDayRepository(dayOfWeek: number) {
-    const { supabase, user } = await getAuthenticatedContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
 
     const { error } = await supabase
         .from('schedule')
