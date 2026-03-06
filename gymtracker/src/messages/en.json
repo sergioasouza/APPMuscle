@@ -40,6 +40,7 @@
         "email": "Email",
         "emailPlaceholder": "you@email.com",
         "password": "Password",
+        "loginError": "Unable to sign in right now.",
         "signingIn": "Signing in…",
         "signIn": "Sign In",
         "footer": "GymTracker • Built for the grind 💪"
@@ -54,6 +55,7 @@
         "tapToEdit": "Tap to edit exercises",
         "workoutNamePlaceholder": "e.g., Upper Body",
         "newExercisePlaceholder": "e.g., Incline Bench Smith",
+        "noAvailableExercises": "No available exercises yet. Create a new one below.",
         "deleteConfirmTitle": "Delete Workout?",
         "deleteConfirmDesc": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
         "toastCreated": "\"{name}\" created!",
@@ -137,7 +139,11 @@
         "toastWorkoutMovedToDay": "Workout moved to {day}",
         "toastEnterValidWeightAndReps": "Enter valid weight and reps",
         "toastSetSaved": "Set {setNumber} saved ✓",
-        "toastNotesSaved": "Notes saved"
+        "toastNotesSaved": "Notes saved",
+        "toastSetQueuedOffline": "Set queued and will sync when you are back online",
+        "toastQueuedSetsSynced": "Queued sets synced",
+        "toastQueuedSetsSyncFailed": "Some queued sets are still waiting to sync",
+        "pendingSync": "Pending sync"
     },
     "Analytics": {
         "title": "Analytics",

@@ -1,0 +1,39 @@
+import type { Workout, WorkoutSession } from '@/lib/types'
+
+export interface ExerciseLogSetState {
+    weight: string
+    reps: string
+    saved: boolean
+    id?: string
+    saving?: boolean
+    pendingSync?: boolean
+}
+
+export interface ExerciseLogState {
+    exerciseId: string
+    exerciseName: string
+    targetSets: number
+    sets: ExerciseLogSetState[]
+}
+
+export interface TodayViewData {
+    workout: Workout | null
+    session: WorkoutSession | null
+    exerciseLogs: ExerciseLogState[]
+    notes: string
+}
+
+export interface ActionResult<T> {
+    ok: boolean
+    data?: T
+    message?: string
+}
+
+export interface SaveSetInput {
+    sessionId: string
+    exerciseId: string
+    setNumber: number
+    weight: number
+    reps: number
+    setLogId?: string
+}

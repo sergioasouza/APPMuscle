@@ -42,15 +42,15 @@ CREATE TRIGGER on_auth_user_created
 CREATE TABLE public.exercises (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  name TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 ALTER TABLE public.exercises ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "All authenticated users can view exercises"
+CREATE POLICY "Users can view own exercises"
   ON public.exercises FOR SELECT
-  USING (auth.uid() IS NOT NULL);
+  USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can insert own exercises"
   ON public.exercises FOR INSERT
@@ -63,6 +63,9 @@ CREATE POLICY "Users can update own exercises"
 CREATE POLICY "Users can delete own exercises"
   ON public.exercises FOR DELETE
   USING (auth.uid() = user_id);
+
+CREATE UNIQUE INDEX idx_exercises_user_name_unique
+  ON public.exercises (user_id, lower(btrim(name)));
 
 
 -- 3. Workouts
@@ -97,9 +100,13 @@ CREATE TABLE public.workout_exercises (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workout_id UUID NOT NULL REFERENCES public.workouts(id) ON DELETE CASCADE,
   exercise_id UUID NOT NULL REFERENCES public.exercises(id) ON DELETE RESTRICT,
-  target_sets INT NOT NULL DEFAULT 3,
+  target_sets INT NOT NULL DEFAULT 3 CHECK (target_sets BETWEEN 1 AND 20),
   display_order INT NOT NULL DEFAULT 0
 );
+
+ALTER TABLE public.workout_exercises
+  ADD CONSTRAINT workout_exercises_workout_id_exercise_id_key
+  UNIQUE (workout_id, exercise_id);
 
 ALTER TABLE public.workout_exercises ENABLE ROW LEVEL SECURITY;
 
@@ -190,11 +197,15 @@ CREATE TABLE public.set_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES public.workout_sessions(id) ON DELETE CASCADE,
   exercise_id UUID NOT NULL REFERENCES public.exercises(id) ON DELETE RESTRICT,
-  set_number INT NOT NULL,
-  weight_kg DECIMAL(5,1) NOT NULL,
-  reps INT NOT NULL,
+  set_number INT NOT NULL CHECK (set_number > 0),
+  weight_kg DECIMAL(5,1) NOT NULL CHECK (weight_kg >= 0),
+  reps INT NOT NULL CHECK (reps > 0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE public.set_logs
+  ADD CONSTRAINT set_logs_session_id_exercise_id_set_number_key
+  UNIQUE (session_id, exercise_id, set_number);
 
 ALTER TABLE public.set_logs ENABLE ROW LEVEL SECURITY;
 
@@ -231,5 +242,8 @@ CREATE INDEX idx_workouts_user ON public.workouts(user_id);
 CREATE INDEX idx_schedule_user ON public.schedule(user_id);
 CREATE INDEX idx_workout_sessions_user ON public.workout_sessions(user_id);
 CREATE INDEX idx_workout_sessions_date ON public.workout_sessions(performed_at);
+CREATE INDEX idx_workout_sessions_user_date ON public.workout_sessions(user_id, performed_at DESC);
+CREATE INDEX idx_workout_exercises_workout_order ON public.workout_exercises(workout_id, display_order);
 CREATE INDEX idx_set_logs_session ON public.set_logs(session_id);
 CREATE INDEX idx_set_logs_exercise ON public.set_logs(exercise_id);
+CREATE INDEX idx_set_logs_session_exercise ON public.set_logs(session_id, exercise_id, set_number);
