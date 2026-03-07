@@ -1,5 +1,6 @@
 import { TodayPageClient } from '@/features/today/components/today-page-client'
 import { getTodayView } from '@/features/today/service'
+import type { TodayViewData } from '@/features/today/types'
 import { formatDateISO } from '@/lib/utils'
 
 interface TodayPageProps {
@@ -12,7 +13,19 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     const date = dateParam ? new Date(`${dateParam}T00:00:00`) : new Date()
     const dateISO = formatDateISO(date)
     const dayOfWeek = date.getDay()
-    const initialData = await getTodayView(dateISO, dayOfWeek)
+    let initialData: TodayViewData
+
+    try {
+        initialData = await getTodayView(dateISO, dayOfWeek)
+    } catch (error) {
+        console.error('TodayPage/getTodayView failed', { dateISO, dayOfWeek, error })
+        initialData = {
+            workout: null,
+            session: null,
+            exerciseLogs: [],
+            notes: '',
+        }
+    }
 
     return (
         <TodayPageClient
