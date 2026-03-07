@@ -38,6 +38,7 @@ export async function getWorkoutAnalyticsRepository(workoutId: string) {
             .from('set_logs')
             .select('*')
             .in('session_id', sessionIds)
+            .order('set_number')
 
         if (error) {
             throw new Error(error.message)
@@ -46,8 +47,13 @@ export async function getWorkoutAnalyticsRepository(workoutId: string) {
         setLogs = data ?? []
     }
 
+    // Filter out workout_exercises whose exercise was deleted (exercises is null)
+    const safeWorkoutExercises = (
+        (workoutExercisesResult.data as WorkoutExerciseWithExercise[] | null) ?? []
+    ).filter((we) => we.exercises != null)
+
     return {
-        workoutExercises: (workoutExercisesResult.data as WorkoutExerciseWithExercise[] | null) ?? [],
+        workoutExercises: safeWorkoutExercises,
         sessions,
         setLogs,
     }

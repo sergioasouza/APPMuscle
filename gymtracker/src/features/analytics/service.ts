@@ -10,15 +10,17 @@ export async function getWorkoutAnalytics(workoutId: string): Promise<WorkoutAna
 
     const { workoutExercises, sessions, setLogs } = await getWorkoutAnalyticsRepository(workoutId)
 
-    const enrichedSessions = sessions.map((session) => {
-        const sessionSets = setLogs.filter((setLog) => setLog.session_id === session.id)
+    const enrichedSessions = sessions
+        .filter((session) => !(session.notes ?? '').startsWith('[SKIPPED]') && !(session.notes ?? '').startsWith('[RESCHEDULED'))
+        .map((session) => {
+            const sessionSets = setLogs.filter((setLog) => setLog.session_id === session.id)
 
-        return {
-            ...session,
-            totalVolume: sessionSets.reduce((sum, setLog) => sum + setLog.weight_kg * setLog.reps, 0),
-            totalSets: sessionSets.length,
-        }
-    })
+            return {
+                ...session,
+                totalVolume: sessionSets.reduce((sum, setLog) => sum + setLog.weight_kg * setLog.reps, 0),
+                totalSets: sessionSets.length,
+            }
+        })
 
     return {
         workoutExercises,

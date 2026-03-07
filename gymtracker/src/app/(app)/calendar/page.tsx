@@ -7,5 +7,11 @@ export default async function CalendarPage() {
     const initialDate = formatDateISO(today)
     const initialData = await getCalendarMonth(today.getFullYear(), today.getMonth())
 
-    return <CalendarPageClient initialDate={initialDate} initialSessions={initialData.sessions} />
+    return (
+        <CalendarPageClient
+            initialDate={initialDate}
+            initialSessions={initialData.sessions}
+            initialSchedule={initialData.schedule}
+        />
+    )
 }

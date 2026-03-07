@@ -243,10 +243,10 @@ export function AnalyticsPageClient({ initialWorkouts }: AnalyticsPageClientProp
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {workoutExercises.map((workoutExercise) => (
+                                    {workoutExercises.filter((we) => we.exercises != null).map((workoutExercise) => (
                                         <div key={workoutExercise.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/50 rounded-2xl overflow-hidden">
                                             <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800/50 bg-white dark:bg-zinc-900/50">
-                                                <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">{workoutExercise.exercises.name}</h3>
+                                                <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">{workoutExercise.exercises?.name ?? '(deleted)'}</h3>
                                             </div>
 
                                             <div className="divide-y divide-zinc-800/30">

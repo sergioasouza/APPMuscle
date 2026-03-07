@@ -7,9 +7,7 @@ export async function getCalendarMonth(year: number, month: number) {
         throw new Error('Invalid month')
     }
 
-    return {
-        sessions: await getCalendarMonthRepository(year, month),
-    }
+    return getCalendarMonthRepository(year, month)
 }
 
 export async function getSessionSets(sessionId: string) {
