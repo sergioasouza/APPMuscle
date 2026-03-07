@@ -75,10 +75,16 @@ export async function getTodayViewRepository(dateISO: string, dayOfWeek: number)
             .single()
 
         if (error) {
-            throw new Error(error.message)
-        }
+            const shouldFallbackWithoutSession = error.code === '23503' || error.code === '42501'
 
-        session = newSession
+            if (!shouldFallbackWithoutSession) {
+                throw new Error(error.message)
+            }
+
+            session = null
+        } else {
+            session = newSession
+        }
     }
 
     let workoutExercises: WorkoutExerciseWithExercise[] = []
