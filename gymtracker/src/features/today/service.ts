@@ -20,7 +20,7 @@ export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<
 
         return {
             exerciseId: workoutExercise.exercise_id,
-            exerciseName: workoutExercise.exercises.name,
+            exerciseName: workoutExercise.exercises?.name ?? '(deleted)',
             targetSets: workoutExercise.target_sets,
             sets: Array.from({ length: workoutExercise.target_sets }, (_, index) => {
                 const existingSet = existingSets.find((setLog) => setLog.set_number === index + 1)

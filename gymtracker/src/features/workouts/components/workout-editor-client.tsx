@@ -169,7 +169,7 @@ export function WorkoutEditorClient({
         setShowAddExercise(false)
         setExerciseSearch('')
         setSelectedExerciseId(null)
-        showToast(t('Workouts.toastExerciseCreatedAndAdded', { name: result.data.exercises.name }))
+        showToast(t('Workouts.toastExerciseCreatedAndAdded', { name: result.data.exercises?.name ?? '' }))
     }
 
     async function handleUpdateSets(workoutExerciseId: string, newSets: number) {
@@ -229,11 +229,11 @@ export function WorkoutEditorClient({
             return
         }
 
-        if (exerciseLibraryLoaded) {
+        if (exerciseLibraryLoaded && target.exercises) {
             setAvailableExercises((prev) => [...prev, target.exercises].sort((a, b) => a.name.localeCompare(b.name)))
         }
 
-        showToast(t('Workouts.toastExerciseRemoved', { name: target.exercises.name }))
+        showToast(t('Workouts.toastExerciseRemoved', { name: target.exercises?.name ?? '' }))
     }
 
     async function handleReorder(index: number, direction: 'up' | 'down') {
@@ -333,7 +333,7 @@ export function WorkoutEditorClient({
                                         <span className="text-xs font-mono text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 bg-zinc-100 dark:bg-zinc-800 w-6 h-6 rounded-lg flex items-center justify-center">
                                             {index + 1}
                                         </span>
-                                        <h3 className="text-base font-semibold text-zinc-900 dark:text-white">{workoutExercise.exercises.name}</h3>
+                                        <h3 className="text-base font-semibold text-zinc-900 dark:text-white">{workoutExercise.exercises?.name ?? '(deleted)'}</h3>
                                     </div>
 
                                     <div className="flex items-center gap-3 mt-3">
@@ -500,7 +500,7 @@ export function WorkoutEditorClient({
             <ConfirmDialog
                 open={!!deleteTarget}
                 title={t('Workouts.removeConfirmTitle')}
-                description={t('Workouts.removeConfirmDesc').replace('{name}', deleteTarget?.exercises.name || '')}
+                description={t('Workouts.removeConfirmDesc').replace('{name}', deleteTarget?.exercises?.name || '')}
                 confirmLabel={t('Workouts.remove')}
                 variant="danger"
                 onConfirm={handleRemoveExercise}

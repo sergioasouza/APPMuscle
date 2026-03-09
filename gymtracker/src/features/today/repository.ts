@@ -100,7 +100,7 @@ export async function getTodayViewRepository(dateISO: string, dayOfWeek: number)
             throw new Error(error.message)
         }
 
-        workoutExercises = (data as WorkoutExerciseWithExercise[] | null) ?? []
+        workoutExercises = ((data as WorkoutExerciseWithExercise[] | null) ?? []).filter((we) => we.exercises != null)
     }
 
     let setLogs: SetLog[] = []
