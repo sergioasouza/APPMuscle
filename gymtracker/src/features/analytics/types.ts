@@ -5,10 +5,44 @@ export type SessionWithTotals = WorkoutSession & {
     totalSets: number
 }
 
+/** A single data-point on the per-exercise evolution chart. */
+export interface EvolutionPoint {
+    /** ISO date (YYYY-MM-DD) of the session */
+    date: string
+    /** Best weight in the session for this exercise */
+    weight: number
+    /** Reps of the best set */
+    reps: number
+    /** Estimated 1RM via Epley formula: weight × (1 + reps/30) */
+    estimated1RM: number
+}
+
+/** Summary stats for the currently selected exercise. */
+export interface ExerciseSummary {
+    /** All-time best estimated 1RM */
+    prEstimated1RM: number
+    /** Weight × reps of the PR set */
+    prWeight: number
+    prReps: number
+    /** Date of the PR */
+    prDate: string
+    /** Best set of the most recent session */
+    lastWeight: number
+    lastReps: number
+    lastDate: string
+    /** Trend comparing avg 1RM of last 3 sessions vs previous 3 */
+    trend: 'up' | 'down' | 'stable'
+}
+
+/** Full analytics payload returned by the service. */
 export interface WorkoutAnalyticsData {
     workoutExercises: WorkoutExerciseWithExercise[]
     sessions: SessionWithTotals[]
     setLogs: SetLog[]
+    /** Pre-computed evolution data keyed by exercise_id */
+    evolution: Record<string, EvolutionPoint[]>
+    /** Pre-computed summaries keyed by exercise_id */
+    summaries: Record<string, ExerciseSummary>
 }
 
 export interface ActionResult<T> {
