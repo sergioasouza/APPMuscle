@@ -160,7 +160,8 @@
         "toastSetQueuedOffline": "Série enfileirada e será sincronizada quando você voltar online",
         "toastQueuedSetsSynced": "Séries pendentes sincronizadas",
         "toastQueuedSetsSyncFailed": "Algumas séries ainda aguardam sincronização",
-        "pendingSync": "Sincronização pendente"
+        "pendingSync": "Sincronização pendente",
+        "previousMark": "Anterior"
     },
     "Analytics": {
         "title": "Análise",

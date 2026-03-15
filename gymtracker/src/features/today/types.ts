@@ -9,11 +9,17 @@ export interface ExerciseLogSetState {
     pendingSync?: boolean
 }
 
+export interface PreviousSetMark {
+    weight: number
+    reps: number
+}
+
 export interface ExerciseLogState {
     exerciseId: string
     exerciseName: string
     targetSets: number
     sets: ExerciseLogSetState[]
+    previousSets: PreviousSetMark[]
 }
 
 export interface TodayViewData {

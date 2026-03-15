@@ -160,7 +160,8 @@
         "toastSetQueuedOffline": "Set queued and will sync when you are back online",
         "toastQueuedSetsSynced": "Queued sets synced",
         "toastQueuedSetsSyncFailed": "Some queued sets are still waiting to sync",
-        "pendingSync": "Pending sync"
+        "pendingSync": "Pending sync",
+        "previousMark": "Previous"
     },
     "Analytics": {
         "title": "Analytics",

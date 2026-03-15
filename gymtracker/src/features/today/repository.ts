@@ -119,11 +119,39 @@ export async function getTodayViewRepository(dateISO: string, dayOfWeek: number)
         setLogs = data ?? []
     }
 
+    // Fetch previous session set_logs for the same workout (for "previous marks")
+    let previousSetLogs: SetLog[] = []
+
+    if (activeWorkout) {
+        const { data: prevSessions, error: prevSessionError } = await supabase
+            .from('workout_sessions')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('workout_id', activeWorkout.id)
+            .neq('performed_at', dateISO)
+            .not('notes', 'like', '[SKIPPED]%')
+            .order('performed_at', { ascending: false })
+            .limit(1)
+
+        if (!prevSessionError && prevSessions && prevSessions.length > 0) {
+            const { data: prevLogs, error: prevLogsError } = await supabase
+                .from('set_logs')
+                .select('*')
+                .eq('session_id', prevSessions[0].id)
+                .order('set_number')
+
+            if (!prevLogsError && prevLogs) {
+                previousSetLogs = prevLogs
+            }
+        }
+    }
+
     return {
         workout: activeWorkout,
         session,
         workoutExercises,
         setLogs,
+        previousSetLogs,
         notes: session?.notes ?? '',
     }
 }

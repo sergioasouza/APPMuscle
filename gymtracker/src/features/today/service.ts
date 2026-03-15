@@ -17,6 +17,7 @@ export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<
 
     const exerciseLogs = data.workoutExercises.map((workoutExercise) => {
         const existingSets = data.setLogs.filter((setLog) => setLog.exercise_id === workoutExercise.exercise_id)
+        const prevSetsForExercise = data.previousSetLogs.filter((setLog) => setLog.exercise_id === workoutExercise.exercise_id)
 
         return {
             exerciseId: workoutExercise.exercise_id,
@@ -32,6 +33,10 @@ export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<
                     id: existingSet?.id,
                 }
             }),
+            previousSets: prevSetsForExercise.map((setLog) => ({
+                weight: Number(setLog.weight_kg),
+                reps: setLog.reps,
+            })),
         }
     })
 

@@ -725,8 +725,11 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                             </div>
 
                             <div className="divide-y divide-zinc-800/30">
-                                {exerciseLog.sets.map((set, setIndex) => (
-                                    <div key={setIndex} className={`px-4 py-3 flex items-center gap-3 ${set.saved ? 'bg-zinc-100 dark:bg-zinc-800/20' : ''}`}>
+                                {exerciseLog.sets.map((set, setIndex) => {
+                                    const prevMark = exerciseLog.previousSets?.[setIndex]
+                                    return (
+                                    <div key={setIndex} className={`px-4 py-3 ${set.saved ? 'bg-zinc-100 dark:bg-zinc-800/20' : ''}`}>
+                                        <div className="flex items-center gap-3">
                                         <span className={`text-xs font-bold w-6 text-center ${set.saved ? 'text-emerald-400' : 'text-zinc-600 dark:text-zinc-400 dark:text-zinc-600'}`}>
                                             {set.saved ? '✓' : setIndex + 1}
                                         </span>
@@ -738,7 +741,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                                                 step="0.5"
                                                 value={set.weight}
                                                 onChange={(event) => handleSetChange(exerciseIndex, setIndex, 'weight', event.target.value)}
-                                                placeholder="0"
+                                                placeholder={prevMark ? String(prevMark.weight) : '0'}
                                                 className="w-full px-3 py-2.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-white text-center text-base font-semibold placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-transparent"
                                             />
                                             <span className="text-[10px] text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 text-center block mt-0.5">{t('Today.kg')}</span>
@@ -752,7 +755,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                                                 inputMode="numeric"
                                                 value={set.reps}
                                                 onChange={(event) => handleSetChange(exerciseIndex, setIndex, 'reps', event.target.value)}
-                                                placeholder="0"
+                                                placeholder={prevMark ? String(prevMark.reps) : '0'}
                                                 className="w-full px-3 py-2.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-white text-center text-base font-semibold placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-transparent"
                                             />
                                             <span className="text-[10px] text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 text-center block mt-0.5">{t('Today.reps')}</span>
@@ -769,8 +772,17 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                                         >
                                             {set.saving ? '...' : (set.pendingSync ? t('Today.pendingSync') : (set.saved ? t('Common.edit') : t('Common.save')))}
                                         </button>
+                                        </div>
+
+                                        {prevMark && (
+                                            <div className="ml-6 mt-1.5 flex items-center gap-1 text-[10px] text-violet-400/70">
+                                                <span>▲</span>
+                                                <span>{t('Today.previousMark')}: {prevMark.weight}{t('Today.kg')} × {prevMark.reps}</span>
+                                            </div>
+                                        )}
                                     </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         </div>
                     )
