@@ -68,7 +68,12 @@ export async function listAvailableExercisesRepository(
   const { supabase, user } = await getAuthenticatedServerContext();
 
   const [exerciseResult, workoutExerciseResult] = await Promise.all([
-    supabase.from("exercises").select("*").eq("user_id", user.id).order("name"),
+    supabase
+      .from("exercises")
+      .select("*")
+      .eq("user_id", user.id)
+      .is("archived_at", null)
+      .order("name"),
     supabase
       .from("workout_exercises")
       .select("exercise_id")
@@ -87,8 +92,14 @@ export async function listAvailableExercisesRepository(
     (workoutExerciseResult.data ?? []).map((item) => item.exercise_id),
   );
 
+  // Filter out both already-added exercises and archived ones.
+  // archived_at IS NULL means active; archived exercises are hidden from
+  // the picker but their history is preserved in set_logs.
   return (exerciseResult.data ?? []).filter(
-    (exercise) => !usedExerciseIds.has(exercise.id),
+    (exercise) =>
+      !usedExerciseIds.has(exercise.id) &&
+      (exercise as Exercise & { archived_at: string | null }).archived_at ===
+        null,
   );
 }
 
@@ -238,6 +249,48 @@ export async function deleteWorkoutExerciseRepository(
     .from("workout_exercises")
     .delete()
     .eq("id", workoutExerciseId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Checks whether an exercise has any set_logs recorded across all sessions.
+ * Used before removing an exercise to decide whether to offer archive instead.
+ */
+export async function checkExerciseHasLogsRepository(
+  exerciseId: string,
+): Promise<boolean> {
+  const { supabase } = await getAuthenticatedServerContext();
+
+  const { count, error } = await supabase
+    .from("set_logs")
+    .select("id", { head: true, count: "exact" })
+    .eq("exercise_id", exerciseId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (count ?? 0) > 0;
+}
+
+/**
+ * Archives an exercise by setting archived_at = NOW().
+ * Archived exercises are hidden from the picker but their set_log history
+ * is preserved and still visible in analytics.
+ */
+export async function archiveExerciseRepository(
+  exerciseId: string,
+): Promise<void> {
+  const { supabase, user } = await getAuthenticatedServerContext();
+
+  const { error } = await supabase
+    .from("exercises")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", exerciseId)
+    .eq("user_id", user.id); // ownership guard (belt-and-suspenders on top of RLS)
 
   if (error) {
     throw new Error(error.message);

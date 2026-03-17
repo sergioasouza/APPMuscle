@@ -1,146 +1,220 @@
-import 'server-only'
+import "server-only";
 
-import { getWorkoutAnalyticsRepository } from '@/features/analytics/repository'
-import type { EvolutionPoint, ExerciseSummary, WorkoutAnalyticsData } from '@/features/analytics/types'
-import type { SetLog, WorkoutSession } from '@/lib/types'
+import {
+  getExerciseAnalyticsRepository,
+  getWorkoutAnalyticsRepository,
+} from "@/features/analytics/repository";
+import type {
+  EvolutionPoint,
+  ExerciseGlobalAnalyticsData,
+  ExerciseSummary,
+  WorkoutAnalyticsData,
+} from "@/features/analytics/types";
+import type { SetLog, WorkoutSession } from "@/lib/types";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pure functions — exported so they can be unit-tested without Supabase.
+// ─────────────────────────────────────────────────────────────────────────────
 
 /** Epley formula: estimated 1RM = weight × (1 + reps / 30) */
-function estimated1RM(weight: number, reps: number): number {
-    if (reps <= 0 || weight <= 0) return 0
-    if (reps === 1) return weight
-    return Math.round(weight * (1 + reps / 30) * 10) / 10
+export function estimated1RM(weight: number, reps: number): number {
+  if (reps <= 0 || weight <= 0) return 0;
+  if (reps === 1) return weight;
+  return Math.round(weight * (1 + reps / 30) * 10) / 10;
 }
 
 /**
  * For a given exercise in a given session, find the "best" set.
  * Best = highest estimated 1RM (heaviest effective effort).
  */
-function findBestSet(setLogs: SetLog[], sessionId: string, exerciseId: string): SetLog | null {
-    const sets = setLogs.filter(
-        (s) => s.session_id === sessionId && s.exercise_id === exerciseId && s.weight_kg > 0 && s.reps > 0,
-    )
-    if (sets.length === 0) return null
+export function findBestSet(
+  setLogs: SetLog[],
+  sessionId: string,
+  exerciseId: string,
+): SetLog | null {
+  const sets = setLogs.filter(
+    (s) =>
+      s.session_id === sessionId &&
+      s.exercise_id === exerciseId &&
+      s.weight_kg > 0 &&
+      s.reps > 0,
+  );
+  if (sets.length === 0) return null;
 
-    return sets.reduce((best, current) => {
-        const bestE1RM = estimated1RM(best.weight_kg, best.reps)
-        const currentE1RM = estimated1RM(current.weight_kg, current.reps)
-        return currentE1RM > bestE1RM ? current : best
-    })
+  return sets.reduce((best, current) => {
+    const bestE1RM = estimated1RM(best.weight_kg, best.reps);
+    const currentE1RM = estimated1RM(current.weight_kg, current.reps);
+    return currentE1RM > bestE1RM ? current : best;
+  });
 }
 
-function buildEvolution(
-    sessions: WorkoutSession[],
-    setLogs: SetLog[],
-    exerciseId: string,
+/** Build a chronological evolution curve (one point per session) for an exercise. */
+export function buildEvolution(
+  sessions: WorkoutSession[],
+  setLogs: SetLog[],
+  exerciseId: string,
 ): EvolutionPoint[] {
-    // Sessions ordered oldest → newest
-    const sorted = [...sessions].sort((a, b) => a.performed_at.localeCompare(b.performed_at))
+  // Sessions ordered oldest → newest
+  const sorted = [...sessions].sort((a, b) =>
+    a.performed_at.localeCompare(b.performed_at),
+  );
 
-    const points: EvolutionPoint[] = []
+  const points: EvolutionPoint[] = [];
 
-    for (const session of sorted) {
-        const best = findBestSet(setLogs, session.id, exerciseId)
-        if (!best) continue
+  for (const session of sorted) {
+    const best = findBestSet(setLogs, session.id, exerciseId);
+    if (!best) continue;
 
-        points.push({
-            date: session.performed_at,
-            weight: best.weight_kg,
-            reps: best.reps,
-            estimated1RM: estimated1RM(best.weight_kg, best.reps),
-        })
-    }
+    points.push({
+      date: session.performed_at,
+      weight: best.weight_kg,
+      reps: best.reps,
+      estimated1RM: estimated1RM(best.weight_kg, best.reps),
+    });
+  }
 
-    return points
+  return points;
 }
 
-function buildSummary(points: EvolutionPoint[]): ExerciseSummary | null {
-    if (points.length === 0) return null
+/** Compute PR, last session stats and trend from an evolution curve. */
+export function buildSummary(points: EvolutionPoint[]): ExerciseSummary | null {
+  if (points.length === 0) return null;
 
-    // PR = highest estimated 1RM across all sessions
-    const prPoint = points.reduce((best, current) =>
-        current.estimated1RM > best.estimated1RM ? current : best,
-    )
+  // PR = highest estimated 1RM across all sessions
+  const prPoint = points.reduce((best, current) =>
+    current.estimated1RM > best.estimated1RM ? current : best,
+  );
 
-    // Last = most recent session
-    const lastPoint = points[points.length - 1]
+  // Last = most recent session
+  const lastPoint = points[points.length - 1];
 
-    // Trend: compare avg 1RM of last 3 vs previous 3
-    let trend: 'up' | 'down' | 'stable' = 'stable'
-    if (points.length >= 2) {
-        const recent = points.slice(-3)
-        const previous = points.slice(-6, -3)
+  // Trend: compare avg 1RM of last 3 sessions vs previous 3
+  let trend: "up" | "down" | "stable" = "stable";
 
-        const avgRecent = recent.reduce((sum, p) => sum + p.estimated1RM, 0) / recent.length
+  if (points.length >= 2) {
+    const recent = points.slice(-3);
+    const previous = points.slice(-6, -3);
 
-        if (previous.length > 0) {
-            const avgPrevious = previous.reduce((sum, p) => sum + p.estimated1RM, 0) / previous.length
-            const diff = ((avgRecent - avgPrevious) / avgPrevious) * 100
+    const avgRecent =
+      recent.reduce((sum, p) => sum + p.estimated1RM, 0) / recent.length;
 
-            if (diff > 2) trend = 'up'
-            else if (diff < -2) trend = 'down'
-        } else {
-            // Only have ≤3 sessions, compare first vs last
-            const first = points[0]
-            if (lastPoint.estimated1RM > first.estimated1RM * 1.02) trend = 'up'
-            else if (lastPoint.estimated1RM < first.estimated1RM * 0.98) trend = 'down'
-        }
+    if (previous.length > 0) {
+      const avgPrevious =
+        previous.reduce((sum, p) => sum + p.estimated1RM, 0) / previous.length;
+      const diff = ((avgRecent - avgPrevious) / avgPrevious) * 100;
+
+      if (diff > 2) trend = "up";
+      else if (diff < -2) trend = "down";
+    } else {
+      // ≤ 3 sessions total: compare first vs last
+      const first = points[0];
+      if (lastPoint.estimated1RM > first.estimated1RM * 1.02) trend = "up";
+      else if (lastPoint.estimated1RM < first.estimated1RM * 0.98)
+        trend = "down";
     }
+  }
 
-    return {
-        prEstimated1RM: prPoint.estimated1RM,
-        prWeight: prPoint.weight,
-        prReps: prPoint.reps,
-        prDate: prPoint.date,
-        lastWeight: lastPoint.weight,
-        lastReps: lastPoint.reps,
-        lastDate: lastPoint.date,
-        trend,
-    }
+  return {
+    prEstimated1RM: prPoint.estimated1RM,
+    prWeight: prPoint.weight,
+    prReps: prPoint.reps,
+    prDate: prPoint.date,
+    lastWeight: lastPoint.weight,
+    lastReps: lastPoint.reps,
+    lastDate: lastPoint.date,
+    trend,
+  };
 }
 
-export async function getWorkoutAnalytics(workoutId: string): Promise<WorkoutAnalyticsData> {
-    if (!workoutId) {
-        throw new Error('Workout id is required')
-    }
+// ─────────────────────────────────────────────────────────────────────────────
+// Server functions
+// ─────────────────────────────────────────────────────────────────────────────
 
-    const { workoutExercises, sessions, setLogs } = await getWorkoutAnalyticsRepository(workoutId)
+/** Analytics scoped to a single workout (existing behaviour). */
+export async function getWorkoutAnalytics(
+  workoutId: string,
+): Promise<WorkoutAnalyticsData> {
+  if (!workoutId) {
+    throw new Error("Workout id is required");
+  }
 
-    // Filter out skipped / rescheduled sessions
-    const validSessions = sessions.filter(
-        (session) =>
-            !(session.notes ?? '').startsWith('[SKIPPED]') &&
-            !(session.notes ?? '').startsWith('[RESCHEDULED'),
-    )
+  const { workoutExercises, sessions, setLogs } =
+    await getWorkoutAnalyticsRepository(workoutId);
 
-    const enrichedSessions = validSessions.map((session) => {
-        const sessionSets = setLogs.filter((setLog) => setLog.session_id === session.id)
-        return {
-            ...session,
-            totalVolume: sessionSets.reduce((sum, setLog) => sum + setLog.weight_kg * setLog.reps, 0),
-            totalSets: sessionSets.length,
-        }
-    })
+  // Filter out skipped / rescheduled sessions
+  const validSessions = sessions.filter(
+    (session) =>
+      !(session.notes ?? "").startsWith("[SKIPPED]") &&
+      !(session.notes ?? "").startsWith("[RESCHEDULED"),
+  );
 
-    // Pre-compute evolution & summaries per exercise
-    const evolution: Record<string, EvolutionPoint[]> = {}
-    const summaries: Record<string, ExerciseSummary> = {}
-
-    for (const we of workoutExercises) {
-        const exId = we.exercise_id
-        const points = buildEvolution(validSessions, setLogs, exId)
-        evolution[exId] = points
-
-        const summary = buildSummary(points)
-        if (summary) {
-            summaries[exId] = summary
-        }
-    }
-
+  const enrichedSessions = validSessions.map((session) => {
+    const sessionSets = setLogs.filter(
+      (setLog) => setLog.session_id === session.id,
+    );
     return {
-        workoutExercises,
-        sessions: enrichedSessions,
-        setLogs,
-        evolution,
-        summaries,
+      ...session,
+      totalVolume: sessionSets.reduce(
+        (sum, setLog) => sum + setLog.weight_kg * setLog.reps,
+        0,
+      ),
+      totalSets: sessionSets.length,
+    };
+  });
+
+  // Pre-compute evolution & summaries per exercise
+  const evolution: Record<string, EvolutionPoint[]> = {};
+  const summaries: Record<string, ExerciseSummary> = {};
+
+  for (const we of workoutExercises) {
+    const exId = we.exercise_id;
+    const points = buildEvolution(validSessions, setLogs, exId);
+    evolution[exId] = points;
+
+    const summary = buildSummary(points);
+    if (summary) {
+      summaries[exId] = summary;
     }
+  }
+
+  return {
+    workoutExercises,
+    sessions: enrichedSessions,
+    setLogs,
+    evolution,
+    summaries,
+  };
+}
+
+/**
+ * Cross-workout analytics for a single exercise.
+ * Aggregates data across ALL workouts the user has performed this exercise in,
+ * giving a true global progress view (e.g. Bench Press done in Workout A and B).
+ */
+export async function getExerciseGlobalAnalytics(
+  exerciseId: string,
+): Promise<ExerciseGlobalAnalyticsData> {
+  if (!exerciseId) {
+    throw new Error("Exercise id is required");
+  }
+
+  const { exercise, sessions, setLogs } =
+    await getExerciseAnalyticsRepository(exerciseId);
+
+  // Filter out skipped / rescheduled sessions — same rule as per-workout view
+  const validSessions = sessions.filter(
+    (s) =>
+      !(s.notes ?? "").startsWith("[SKIPPED]") &&
+      !(s.notes ?? "").startsWith("[RESCHEDULED"),
+  );
+
+  const evolution = buildEvolution(validSessions, setLogs, exerciseId);
+  const summary = buildSummary(evolution);
+
+  return {
+    exerciseId,
+    exerciseName: exercise.name,
+    evolution,
+    summary,
+  };
 }

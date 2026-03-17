@@ -1,97 +1,155 @@
-# Upgrade da Página de Análise (Analytics)
+# Plano de Implementação — Correções de Produção GymTracker
 
-## Situação Atual
+## Contexto
 
-A análise atual tem duas views: (1) **gráfico de barras** com volume total por sessão (máx 3 selecionadas), e (2) **tabela comparativa** de séries por exercício. O gráfico é superficial — mostra apenas um número agregado e requer seleção manual de sessões.
-
-## Mudanças Propostas
-
-### 1. Gráfico de Evolução por Exercício (PRINCIPAL)
-
-Substituir o gráfico de barras por um **LineChart** que mostra a evolução **treino a treino** para cada exercício:
-
-- **Eixo X**: sessões em ordem cronológica (todas, sem limite de 3)
-- **Eixo Y**: peso (kg) ou 1RM estimado
-- **Seletor de exercício**: dropdown ou lista horizontal para alternar entre exercícios do treino
-- **Métrica por ponto**: melhor série válida da sessão (maior peso × reps → fórmula Epley: `1RM = peso × (1 + reps/30)`)
-- **Duas linhas opcionais**: "Peso máximo" e "1RM estimado" no mesmo chart
-- **Tooltip**: mostra data, peso, reps e 1RM estimado
-
-```
-📈 Evolução: Supino Reto
-│
-│          ●──●
-│     ●──●
-│  ●
-│
-└──────────────────────
-  01/02  08/02  15/02  22/02  01/03
-```
-
-### 2. Cards de Resumo
-
-Acima do gráfico, 3 cards com métricas rápidas:
-- **PR Atual**: melhor 1RM estimado do exercício selecionado
-- **Último Treino**: peso × reps da melhor série da sessão mais recente
-- **Tendência**: ↑/↓/→ comparando as últimas 3 sessões
-
-### 3. Manter a Tabela Comparativa (melhorada)
-
-A tabela atual de comparação set-by-set continua como uma segunda aba, mas:
-- Remover limite de 3 sessões → permitir selecionar **todas** (scroll horizontal)
-- Destacar visualmente **PR** em cada célula (cor diferente quando é recorde)
-- Mostrar variação (Δ) entre sessões adjacentes
-
-### 4. Melhorias de UX
-
-- O seletor de treino fica no topo (mantém)
-- Após selecionar o treino, mostra **diretamente o gráfico de evolução** do primeiro exercício (sem precisar selecionar sessões manualmente)
-- Tabs: `📈 Evolução` | `📋 Comparação`
+Auditoria identificou 10 issues. Este plano implementa as **5 correções prioritárias** (P0–P1) com etapas concretas.
 
 ---
 
-## Arquivos Modificados
+## Proposed Changes
 
-### Analytics Feature
+### P1 — Testes para analytics service
 
-#### [MODIFY] [analytics-page-client.tsx](file:///c:/Users/Sergio/Documents/GitHub/musculação/gymtracker/src/features/analytics/components/analytics-page-client.tsx)
+> [!IMPORTANT]
+> Implementar **antes** dos demais, para que as funções puras existentes tenham cobertura antes de refatorá-las.
 
-Refatoração completa:
-- Novo layout com tabs `Evolução` / `Comparação`
-- Componente do gráfico de evolução (LineChart do Recharts)
-- Seletor de exercício
-- Cards de resumo
-- Lógica de cálculo de 1RM estimado (Epley)
-- Melhoria da tabela comparativa (highlight de PRs, scroll horizontal)
+#### [NEW] vitest.config.ts
 
-#### [MODIFY] [types.ts](file:///c:/Users/Sergio/Documents/GitHub/musculação/gymtracker/src/features/analytics/types.ts)
+Configuração do Vitest com suporte a `@/` path alias.
 
-Novos tipos:
-- `ExerciseEvolutionPoint` (sessionDate, weight, reps, estimated1RM)
-- `ExerciseSummary` (currentPR, lastWorkout, trend)
+#### [MODIFY] [package.json](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/package.json)
 
-#### [MODIFY] [service.ts](file:///c:/Users/Sergio/Documents/GitHub/musculação/gymtracker/src/features/analytics/service.ts)
+- Adicionar `vitest` e `@vitest/coverage-v8` como devDependencies
+- Adicionar script `"test": "vitest run"`, `"test:watch": "vitest"`
 
-Pré-computar dados de evolução no servidor:
-- Para cada exercício, extrair a melhor série de cada sessão
-- Calcular 1RM estimado por sessão
-- Retornar dados prontos para o gráfico
+#### [NEW] src/features/analytics/\_\_tests\_\_/analytics-service.test.ts
 
-### i18n
+Testes unitários (sem Supabase) para as funções puras do service:
 
-#### [MODIFY] [pt.json](file:///c:/Users/Sergio/Documents/GitHub/musculação/gymtracker/src/messages/pt.json)
-#### [MODIFY] [en.json](file:///c:/Users/Sergio/Documents/GitHub/musculação/gymtracker/src/messages/en.json)
+1. [estimated1RM](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#7-13) — peso=0, reps=0, reps=1, caso normal
+2. [findBestSet](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#14-30) — lista vazia, sessão sem sets válidos, melhor set por 1RM
+3. [buildEvolution](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#31-55) — sessões sem sets, sessões com progressão, ordem cronológica
+4. [buildSummary](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#56-100) — trend [up](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/today/components/today-page-client.tsx#95-105), `down`, `stable`, limiar de ±2%
 
-Novas chaves: `Analytics.evolution`, `Analytics.comparison`, `Analytics.currentPR`, `Analytics.lastWorkout`, `Analytics.trend`, `Analytics.estimated1RM`, `Analytics.bestSet`, `Analytics.up`, `Analytics.down`, `Analytics.stable`, etc.
+> As funções [estimated1RM](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#7-13), [findBestSet](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#14-30), [buildEvolution](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#31-55), e [buildSummary](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#56-100) são atualmente privadas no módulo. Será necessário exportá-las para teste (ou usar `export { ... } for testing`).
+
+#### [MODIFY] [service.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts)
+
+Exportar funções puras para permitir teste:
+```diff
+-function estimated1RM(...)
++export function estimated1RM(...)
+```
+(Idem para [findBestSet](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#14-30), [buildEvolution](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#31-55), [buildSummary](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#56-100))
 
 ---
 
-## Verificação
+### P0a — Analytics cross-workout (por exercício)
 
-1. `npx next build` — confirmar que compila sem erros
-2. `npm run dev` → navegar para `/analytics`:
-   - Selecionar treino → ver gráfico de evolução imediatamente
-   - Alternar entre exercícios → gráfico atualiza
-   - Cards de resumo mostram dados corretos
-   - Tab "Comparação" mostra a tabela com PRs destacados
-3. Testar com poucos dados (1 sessão) e muitos dados (10+ sessões)
+#### [MODIFY] [repository.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/repository.ts)
+
+Nova função `getExerciseAnalyticsRepository(exerciseId)`:
+- Busca `workout_sessions` por `user_id` (sem filtro de `workout_id`)
+- Busca `set_logs` por `exercise_id` + session_ids
+- Retorna sessions + setLogs
+
+#### [MODIFY] [service.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts)
+
+Nova função `getExerciseGlobalAnalytics(exerciseId)`:
+- Chama `getExerciseAnalyticsRepository`
+- Reutiliza [buildEvolution](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#31-55) e [buildSummary](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#56-100)
+- Retorna `{ evolution, summary }`
+
+#### [MODIFY] [actions.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/actions.ts)
+
+Nova action `getExerciseGlobalAnalyticsAction(exerciseId)`
+
+#### [MODIFY] [types.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/types.ts)
+
+Novo tipo `ExerciseGlobalAnalyticsData { evolution, summary }`
+
+#### UI — toggle "Por Treino" / "Global"
+
+> [!WARNING]
+> A UI de analytics é client-side com estado local. Mudanças na UI dependem de revisão visual do usuário. As mudanças abaixo são mínimas.
+
+Adicionar um botão toggle no componente de analytics que, ao clicar "Global", chama a nova action e exibe dados cross-workout para o exercício selecionado.
+
+---
+
+### P0b — Archive de exercícios
+
+#### [NEW] supabase/migrations/20260315\_add\_archived\_at\_to\_exercises.sql
+
+```sql
+ALTER TABLE public.exercises ADD COLUMN archived_at TIMESTAMPTZ;
+CREATE INDEX idx_exercises_archived ON public.exercises(user_id) WHERE archived_at IS NULL;
+```
+
+#### [MODIFY] [workouts/repository.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/workouts/repository.ts)
+
+- [listAvailableExercisesRepository](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/workouts/repository.ts#65-94): adicionar `.is('archived_at', null)` ao filtro
+- Nova função `archiveExerciseRepository(exerciseId)` — faz `UPDATE exercises SET archived_at = NOW() WHERE id = ?`
+- Nova função `checkExerciseHasLogsRepository(exerciseId)` — conta `set_logs` por `exercise_id`
+
+#### [MODIFY] [workouts/service.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/workouts/service.ts)
+
+Nova função `archiveExercise(exerciseId)` + `checkExerciseHasLogs(exerciseId)`
+
+#### [MODIFY] [workouts/actions.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/workouts/actions.ts)
+
+Novas actions: `archiveExerciseAction`, `checkExerciseHasLogsAction`
+
+#### UI — Dialog de confirmação no editor de workout
+
+No [workout-editor-client.tsx](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/workouts/components/workout-editor-client.tsx), quando o usuário clica delete em um exercício:
+1. Chama `checkExerciseHasLogsAction`
+2. Se tem logs → abre dialog "Este exercício tem X sessões registradas. Deseja arquivá-lo?"
+3. Se não tem logs → permite delete direto (comportamento atual)
+
+---
+
+### P1b — Unique constraint em sessions
+
+#### [NEW] supabase/migrations/20260315\_unique\_session\_per\_day.sql
+
+```sql
+ALTER TABLE public.workout_sessions
+  ADD CONSTRAINT workout_sessions_user_workout_date_key
+  UNIQUE (user_id, workout_id, performed_at);
+```
+
+#### [MODIFY] [today/repository.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/today/repository.ts)
+
+Ajustar inserts em sessions para usar `ON CONFLICT … DO NOTHING` ou `DO UPDATE`.
+
+---
+
+## Verification Plan
+
+### Testes Automatizados
+
+```bash
+# Rodar após instalar Vitest (item P1)
+npm test
+```
+
+Espera-se ~15 testes passando cobrindo as funções puras do analytics service.
+
+### Build Check
+
+```bash
+npm run build
+```
+
+Garante que typescript compila sem erros e o Next.js build completa.
+
+### Teste Manual pelo Usuário
+
+> [!IMPORTANT]
+> Após aplicar as migrations no Supabase, o usuário deve testar:
+> 1. Abrir analytics de um treino → verificar que toggle "Global" funciona
+> 2. Tentar deletar exercício com histórico → verificar que dialog de archive aparece
+> 3. Verificar que exercícios arquivados não aparecem na lista de "adicionar exercício"
+
+Estes testes manuais dependem do ambiente Supabase do usuário.
