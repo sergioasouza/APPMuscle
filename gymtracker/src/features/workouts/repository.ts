@@ -8,6 +8,25 @@ import type {
   WorkoutListItem,
 } from "@/features/workouts/types";
 
+function getSharedExercisePeerUserIds(currentUserId: string): string[] {
+  const raw = process.env.SHARED_EXERCISE_USER_IDS;
+
+  if (!raw) {
+    return [];
+  }
+
+  const configuredIds = raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (configuredIds.length !== 2 || !configuredIds.includes(currentUserId)) {
+    return [];
+  }
+
+  return configuredIds.filter((id) => id !== currentUserId);
+}
+
 export async function listWorkoutsRepository(): Promise<WorkoutListItem[]> {
   const { supabase, user } = await getAuthenticatedServerContext();
 
@@ -201,6 +220,8 @@ export async function createExerciseRepository(
 ): Promise<Exercise> {
   const { supabase, user } = await getAuthenticatedServerContext();
 
+  const peerUserIds = getSharedExercisePeerUserIds(user.id);
+
   const { data, error } = await supabase
     .from("exercises")
     .insert({
@@ -219,6 +240,20 @@ export async function createExerciseRepository(
       );
     }
     throw new Error(error.message);
+  }
+
+  if (peerUserIds.length > 0) {
+    for (const peerUserId of peerUserIds) {
+      const { error: peerInsertError } = await supabase.from("exercises").insert({
+        user_id: peerUserId,
+        name,
+      });
+
+      // Ignore duplicate-name conflicts on peer account to keep idempotent behavior.
+      if (peerInsertError && peerInsertError.code !== "23505") {
+        throw new Error(peerInsertError.message);
+      }
+    }
   }
 
   return data;
@@ -286,6 +321,19 @@ export async function archiveExerciseRepository(
 ): Promise<void> {
   const { supabase, user } = await getAuthenticatedServerContext();
 
+  const peerUserIds = getSharedExercisePeerUserIds(user.id);
+
+  const { data: sourceExercise, error: sourceExerciseError } = await supabase
+    .from("exercises")
+    .select("id, name")
+    .eq("id", exerciseId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (sourceExerciseError) {
+    throw new Error(sourceExerciseError.message);
+  }
+
   const { error } = await supabase
     .from("exercises")
     .update({ archived_at: new Date().toISOString() })
@@ -294,6 +342,21 @@ export async function archiveExerciseRepository(
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  if (peerUserIds.length > 0) {
+    for (const peerUserId of peerUserIds) {
+      const { error: peerArchiveError } = await supabase
+        .from("exercises")
+        .update({ archived_at: new Date().toISOString() })
+        .eq("user_id", peerUserId)
+        .eq("name", sourceExercise.name)
+        .is("archived_at", null);
+
+      if (peerArchiveError) {
+        throw new Error(peerArchiveError.message);
+      }
+    }
   }
 }
 
