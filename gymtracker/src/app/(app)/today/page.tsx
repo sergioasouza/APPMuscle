@@ -65,6 +65,10 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       session: null,
       exerciseLogs: [],
       notes: "",
+      rotation: {
+        activeRotationIndex: null,
+        totalVariants: 0,
+      },
     };
   }
 

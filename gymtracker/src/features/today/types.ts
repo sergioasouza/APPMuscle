@@ -27,6 +27,10 @@ export interface TodayViewData {
     session: WorkoutSession | null
     exerciseLogs: ExerciseLogState[]
     notes: string
+    rotation: {
+        activeRotationIndex: number | null
+        totalVariants: number
+    }
 }
 
 export interface ActionResult<T> {

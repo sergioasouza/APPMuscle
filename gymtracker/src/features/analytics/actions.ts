@@ -10,11 +10,13 @@ import type {
 } from "@/features/analytics/types";
 import { errorResult, okResult } from "@/lib/action-result";
 import type { ActionResult } from "@/lib/action-result";
+import { assertUuid } from "@/lib/validation";
 
 export async function getWorkoutAnalyticsAction(
   workoutId: string,
 ): Promise<ActionResult<WorkoutAnalyticsData>> {
   try {
+    assertUuid(workoutId, "Workout id");
     const data = await getWorkoutAnalytics(workoutId);
     return okResult(data);
   } catch (error) {
@@ -26,6 +28,7 @@ export async function getExerciseGlobalAnalyticsAction(
   exerciseId: string,
 ): Promise<ActionResult<ExerciseGlobalAnalyticsData>> {
   try {
+    assertUuid(exerciseId, "Exercise id");
     const data = await getExerciseGlobalAnalytics(exerciseId);
     return okResult(data);
   } catch (error) {

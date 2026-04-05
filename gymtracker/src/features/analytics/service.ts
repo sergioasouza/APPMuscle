@@ -11,6 +11,7 @@ import type {
   WorkoutAnalyticsData,
 } from "@/features/analytics/types";
 import type { SetLog, WorkoutSession } from "@/lib/types";
+import { isAnalyticsExcludedWorkoutSession } from "@/lib/workout-session-status";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure functions — exported so they can be unit-tested without Supabase.
@@ -141,11 +142,8 @@ export async function getWorkoutAnalytics(
   const { workoutExercises, sessions, setLogs } =
     await getWorkoutAnalyticsRepository(workoutId);
 
-  // Filter out skipped / rescheduled sessions
   const validSessions = sessions.filter(
-    (session) =>
-      !(session.notes ?? "").startsWith("[SKIPPED]") &&
-      !(session.notes ?? "").startsWith("[RESCHEDULED"),
+    (session) => !isAnalyticsExcludedWorkoutSession(session.notes),
   );
 
   const enrichedSessions = validSessions.map((session) => {
@@ -201,11 +199,8 @@ export async function getExerciseGlobalAnalytics(
   const { exercise, sessions, setLogs } =
     await getExerciseAnalyticsRepository(exerciseId);
 
-  // Filter out skipped / rescheduled sessions — same rule as per-workout view
   const validSessions = sessions.filter(
-    (s) =>
-      !(s.notes ?? "").startsWith("[SKIPPED]") &&
-      !(s.notes ?? "").startsWith("[RESCHEDULED"),
+    (session) => !isAnalyticsExcludedWorkoutSession(session.notes),
   );
 
   const evolution = buildEvolution(validSessions, setLogs, exerciseId);

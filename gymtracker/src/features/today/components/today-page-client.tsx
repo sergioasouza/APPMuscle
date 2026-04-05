@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useOptimistic, useRef, useState } from
 import { useLocale, useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/toast'
 import { getLocalizedWeekdayNames } from '@/lib/utils'
+import { buildWorkoutSessionNotesWithStatus, parseWorkoutSessionStatus } from '@/lib/workout-session-status'
 import {
     getTodayViewAction,
     listUserWorkoutsAction,
@@ -200,6 +201,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
     const [loading, setLoading] = useState(false)
     const [workout, setWorkout] = useState<Workout | null>(initialData.workout)
     const [session, setSession] = useState<WorkoutSession | null>(initialData.session)
+    const [rotation, setRotation] = useState(initialData.rotation)
     const [pendingQueue, setPendingQueue] = useState<PendingSetQueueItem[]>(() => readPendingQueue())
     const [exerciseLogs, setExerciseLogs] = useState<ExerciseLogState[]>(() => applyPendingStateToLogsForSession(
         initialData.exerciseLogs,
@@ -351,6 +353,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
 
         setWorkout(result.data.workout)
         setSession(result.data.session)
+        setRotation(result.data.rotation)
         setExerciseLogs(applyPendingStateToLogs(result.data.exerciseLogs, pendingQueue))
         setNotes(result.data.notes)
     }
@@ -550,7 +553,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             return
         }
 
-        setSession((prev) => (prev ? { ...prev, notes: notes.trim() || null } : prev))
+        setSession((prev) => (prev ? { ...prev, notes: buildWorkoutSessionNotesWithStatus(prev.notes, notes) } : prev))
         showToast(t('Today.toastNotesSaved'))
     }
 
@@ -560,7 +563,10 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         [optimisticExerciseLogs]
     )
     const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0
-    const isSkipped = session?.notes?.startsWith('[SKIPPED]')
+    const sessionStatus = useMemo(() => parseWorkoutSessionStatus(session?.notes), [session?.notes])
+    const isSkipped = sessionStatus.kind === 'skipped'
+    const isRescheduledSource = sessionStatus.kind === 'rescheduled_to'
+    const isRescheduledTarget = sessionStatus.kind === 'rescheduled_from'
     const pendingSyncCount = useMemo(
         () => optimisticExerciseLogs.reduce((acc, exerciseLog) => acc + exerciseLog.sets.filter((set) => set.pendingSync).length, 0),
         [optimisticExerciseLogs]
@@ -671,6 +677,48 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         )
     }
 
+    if (isRescheduledSource) {
+        const destinationLabel = sessionStatus.label ?? dayNames[dayOfWeek]
+        const destinationDate = sessionStatus.dateISO
+
+        return (
+            <div className="px-4 pt-6">
+                {isHistorical && (
+                    <div className="mb-4 text-xs font-semibold text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
+                        {t('Today.historicalView')}
+                    </div>
+                )}
+                <div className="flex items-center justify-between mb-1">
+                    <h1 className="text-2xl font-bold text-zinc-600 dark:text-zinc-300">{workout.name}</h1>
+                </div>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">{isHistorical ? t('Today.historical') : t('Today.today')} • {dateISO}</p>
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div className="w-20 h-20 rounded-full bg-white dark:bg-zinc-900 flex items-center justify-center mb-4 border border-zinc-200 dark:border-zinc-800">
+                        <span className="text-3xl opacity-60">📅</span>
+                    </div>
+                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">{t('Today.workoutRescheduled')}</h2>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm max-w-[260px] mb-2">
+                        {t('Today.rescheduledToDay', { day: destinationLabel })}
+                    </p>
+                    {destinationDate && (
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-6">
+                            {t('Today.rescheduledTargetDate', { date: destinationDate })}
+                        </p>
+                    )}
+                    <button
+                        onClick={async () => {
+                            await loadAllWorkouts()
+                            setShowOverrideModal(true)
+                        }}
+                        className="px-6 py-3 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white font-semibold rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-800 transition-colors"
+                    >
+                        {t('Today.startAnyway')}
+                    </button>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="px-4 pt-6 pb-8">
             {isHistorical && (
@@ -679,7 +727,21 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                 </div>
             )}
             <div className="flex items-start justify-between mb-0.5">
-                <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">{workout.name}</h1>
+                <div>
+                    <div className="flex items-center gap-2">
+                        <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">{workout.name}</h1>
+                        {rotation.totalVariants > 1 && rotation.activeRotationIndex && (
+                            <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] font-semibold uppercase text-emerald-600 dark:text-emerald-300">
+                                {t('Today.rotationBadge', { rotation: rotation.activeRotationIndex, total: rotation.totalVariants })}
+                            </span>
+                        )}
+                        {isRescheduledTarget && (
+                            <span className="rounded-md bg-violet-600/10 px-2 py-1 text-[11px] font-semibold text-violet-600 dark:text-violet-300">
+                                {t('Today.rescheduledFromLabel', { day: sessionStatus.label ?? dayNames[dayOfWeek] })}
+                            </span>
+                        )}
+                    </div>
+                </div>
                 <button
                     onClick={async () => {
                         await loadAllWorkouts()

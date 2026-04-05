@@ -15,16 +15,19 @@ export type Database = {
                 Row: {
                     id: string
                     display_name: string
+                    rotation_anchor_date: string | null
                     created_at: string
                 }
                 Insert: {
                     id: string
                     display_name: string
+                    rotation_anchor_date?: string | null
                     created_at?: string
                 }
                 Update: {
                     id?: string
                     display_name?: string
+                    rotation_anchor_date?: string | null
                     created_at?: string
                 }
                 Relationships: []
@@ -165,6 +168,48 @@ export type Database = {
                     }
                 ]
             }
+            schedule_rotations: {
+                Row: {
+                    id: string
+                    user_id: string
+                    workout_id: string
+                    day_of_week: number
+                    rotation_index: number
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_id: string
+                    workout_id: string
+                    day_of_week: number
+                    rotation_index: number
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    workout_id?: string
+                    day_of_week?: number
+                    rotation_index?: number
+                    created_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "schedule_rotations_user_id_fkey"
+                        columns: ["user_id"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "schedule_rotations_workout_id_fkey"
+                        columns: ["workout_id"]
+                        isOneToOne: false
+                        referencedRelation: "workouts"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
             workout_sessions: {
                 Row: {
                     id: string
@@ -252,6 +297,74 @@ export type Database = {
                     }
                 ]
             }
+            body_measurements: {
+                Row: {
+                    id: string
+                    user_id: string
+                    measured_at: string
+                    height_cm: number | null
+                    weight_kg: number | null
+                    body_fat_pct: number | null
+                    chest_cm: number | null
+                    waist_cm: number | null
+                    hips_cm: number | null
+                    left_arm_cm: number | null
+                    right_arm_cm: number | null
+                    left_thigh_cm: number | null
+                    right_thigh_cm: number | null
+                    left_calf_cm: number | null
+                    right_calf_cm: number | null
+                    notes: string | null
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_id: string
+                    measured_at: string
+                    height_cm?: number | null
+                    weight_kg?: number | null
+                    body_fat_pct?: number | null
+                    chest_cm?: number | null
+                    waist_cm?: number | null
+                    hips_cm?: number | null
+                    left_arm_cm?: number | null
+                    right_arm_cm?: number | null
+                    left_thigh_cm?: number | null
+                    right_thigh_cm?: number | null
+                    left_calf_cm?: number | null
+                    right_calf_cm?: number | null
+                    notes?: string | null
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    measured_at?: string
+                    height_cm?: number | null
+                    weight_kg?: number | null
+                    body_fat_pct?: number | null
+                    chest_cm?: number | null
+                    waist_cm?: number | null
+                    hips_cm?: number | null
+                    left_arm_cm?: number | null
+                    right_arm_cm?: number | null
+                    left_thigh_cm?: number | null
+                    right_thigh_cm?: number | null
+                    left_calf_cm?: number | null
+                    right_calf_cm?: number | null
+                    notes?: string | null
+                    created_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "body_measurements_user_id_fkey"
+                        columns: ["user_id"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
         }
         Views: {}
         Functions: {}
@@ -266,8 +379,10 @@ export type Exercise = Database['public']['Tables']['exercises']['Row']
 export type Workout = Database['public']['Tables']['workouts']['Row']
 export type WorkoutExercise = Database['public']['Tables']['workout_exercises']['Row']
 export type Schedule = Database['public']['Tables']['schedule']['Row']
+export type ScheduleRotation = Database['public']['Tables']['schedule_rotations']['Row']
 export type WorkoutSession = Database['public']['Tables']['workout_sessions']['Row']
 export type SetLog = Database['public']['Tables']['set_logs']['Row']
+export type BodyMeasurement = Database['public']['Tables']['body_measurements']['Row']
 
 // Extended types for joins
 export type WorkoutExerciseWithExercise = WorkoutExercise & {

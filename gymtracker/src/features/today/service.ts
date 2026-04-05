@@ -45,6 +45,7 @@ export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<
         session: data.session,
         exerciseLogs,
         notes: data.notes,
+        rotation: data.rotation,
     }
 }
 

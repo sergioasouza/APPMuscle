@@ -3,21 +3,39 @@ import "server-only";
 import {
   addExerciseToWorkoutRepository,
   archiveExerciseRepository,
+  deleteExerciseRepository,
   checkExerciseHasLogsRepository,
   createExerciseRepository,
   createWorkoutRepository,
   deleteWorkoutExerciseRepository,
   deleteWorkoutRepository,
+  getExerciseDetailRepository,
   getWorkoutEditorDataRepository,
   listAvailableExercisesRepository,
+  listExerciseLibraryRepository,
   listWorkoutsRepository,
   reorderWorkoutExercisesRepository,
+  unarchiveExerciseRepository,
+  updateExerciseNameRepository,
   updateWorkoutExerciseTargetSetsRepository,
   updateWorkoutNameRepository,
 } from "@/features/workouts/repository";
+import {
+  buildExerciseDetailData,
+  buildExerciseLibraryItems,
+} from "@/features/workouts/library";
+import { getExerciseGlobalAnalytics } from "@/features/analytics/service";
 
 export async function listWorkouts() {
   return listWorkoutsRepository();
+}
+
+export async function listExerciseLibrary() {
+  const data = await listExerciseLibraryRepository();
+
+  return {
+    items: buildExerciseLibraryItems(data),
+  };
 }
 
 export async function getWorkoutEditorData(workoutId: string) {
@@ -36,6 +54,27 @@ export async function listAvailableExercises(workoutId: string) {
   return listAvailableExercisesRepository(workoutId);
 }
 
+export async function getExerciseDetail(exerciseId: string) {
+  if (!exerciseId) {
+    throw new Error("Exercise id is required");
+  }
+
+  const detail = await getExerciseDetailRepository(exerciseId);
+
+  if (!detail) {
+    return null;
+  }
+
+  const globalAnalytics = await getExerciseGlobalAnalytics(exerciseId);
+
+  return buildExerciseDetailData({
+    exercise: detail.exercise,
+    linkedWorkouts: detail.linkedWorkouts,
+    logRows: detail.logRows,
+    globalAnalytics,
+  });
+}
+
 export async function createWorkout(name: string) {
   const normalizedName = name.trim();
 
@@ -44,6 +83,16 @@ export async function createWorkout(name: string) {
   }
 
   return createWorkoutRepository(normalizedName);
+}
+
+export async function createExercise(name: string) {
+  const normalizedName = name.trim();
+
+  if (!normalizedName) {
+    throw new Error("Exercise name is required");
+  }
+
+  return createExerciseRepository(normalizedName);
 }
 
 export async function deleteWorkout(workoutId: string) {
@@ -66,6 +115,20 @@ export async function updateWorkoutName(workoutId: string, name: string) {
   }
 
   return updateWorkoutNameRepository(workoutId, normalizedName);
+}
+
+export async function updateExerciseName(exerciseId: string, name: string) {
+  const normalizedName = name.trim();
+
+  if (!exerciseId) {
+    throw new Error("Exercise id is required");
+  }
+
+  if (!normalizedName) {
+    throw new Error("Exercise name is required");
+  }
+
+  return updateExerciseNameRepository(exerciseId, normalizedName);
 }
 
 export async function addExistingExerciseToWorkout(
@@ -171,4 +234,20 @@ export async function archiveExercise(exerciseId: string): Promise<void> {
   }
 
   await archiveExerciseRepository(exerciseId);
+}
+
+export async function unarchiveExercise(exerciseId: string): Promise<void> {
+  if (!exerciseId) {
+    throw new Error("Exercise id is required");
+  }
+
+  await unarchiveExerciseRepository(exerciseId);
+}
+
+export async function deleteExercise(exerciseId: string): Promise<void> {
+  if (!exerciseId) {
+    throw new Error("Exercise id is required");
+  }
+
+  await deleteExerciseRepository(exerciseId);
 }

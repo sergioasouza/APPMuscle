@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -16,6 +17,7 @@ import {
   updateWorkoutExerciseTargetSetsAction,
   updateWorkoutNameAction,
 } from "@/features/workouts/actions";
+import { WorkoutsSectionNav } from "@/features/workouts/components/workouts-section-nav";
 import type { Workout } from "@/lib/types";
 import type { WorkoutEditorExercise } from "@/features/workouts/types";
 
@@ -453,6 +455,8 @@ export function WorkoutEditorClient({
         />
       </div>
 
+      <WorkoutsSectionNav />
+
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
           {t("Workouts.exercises")}
@@ -487,9 +491,18 @@ export function WorkoutEditorClient({
                         <span className="text-xs font-mono text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 bg-zinc-100 dark:bg-zinc-800 w-6 h-6 rounded-lg flex items-center justify-center">
                           {index + 1}
                         </span>
-                        <h3 className="text-base font-semibold text-zinc-900 dark:text-white">
-                          {workoutExercise.exercises?.name ?? "(deleted)"}
-                        </h3>
+                        {workoutExercise.exercises ? (
+                          <Link
+                            href={`/workouts/exercises/${workoutExercise.exercises.id}`}
+                            className="text-base font-semibold text-zinc-900 transition-colors hover:text-violet-600 dark:text-white dark:hover:text-violet-300"
+                          >
+                            {workoutExercise.exercises.name}
+                          </Link>
+                        ) : (
+                          <h3 className="text-base font-semibold text-zinc-900 dark:text-white">
+                            (deleted)
+                          </h3>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-3 mt-3">

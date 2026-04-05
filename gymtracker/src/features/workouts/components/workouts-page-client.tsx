@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useToast } from '@/components/ui/toast'
 import { createWorkoutAction, deleteWorkoutAction } from '@/features/workouts/actions'
+import { WorkoutsSectionNav } from '@/features/workouts/components/workouts-section-nav'
 import type { WorkoutListItem } from '@/features/workouts/types'
 
 interface WorkoutsPageClientProps {
@@ -112,6 +113,8 @@ export function WorkoutsPageClient({ initialWorkouts }: WorkoutsPageClientProps)
                     + {t('Workouts.newButton')}
                 </button>
             </div>
+
+            <WorkoutsSectionNav />
 
             {showNewForm && (
                 <form

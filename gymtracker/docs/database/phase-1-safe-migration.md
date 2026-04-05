@@ -41,8 +41,19 @@ Isso foi deixado para uma fase seguinte para não quebrar dados históricos sem 
 
 1. abrir o Supabase SQL Editor
 2. executar [supabase/migrations/20260306_phase1_preserve_existing_data.sql](../../supabase/migrations/20260306_phase1_preserve_existing_data.sql)
-3. validar se os backups foram criados
-4. regenerar os tipos do Supabase para manter [src/lib/types.ts](../../src/lib/types.ts) sincronizado
+3. executar [supabase/migrations/20260307_fix_missing_profiles_and_auth_trigger.sql](../../supabase/migrations/20260307_fix_missing_profiles_and_auth_trigger.sql)
+4. executar [supabase/migrations/20260315_add_archived_at_to_exercises.sql](../../supabase/migrations/20260315_add_archived_at_to_exercises.sql)
+5. executar [supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql](../../supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql)
+6. validar se os backups foram criados
+7. regenerar os tipos do Supabase para manter [src/lib/types.ts](../../src/lib/types.ts) sincronizado
+
+## Baseline atual esperado pela aplicação
+
+- `profiles.rotation_anchor_date`
+- `exercises.archived_at`
+- `schedule_rotations`
+- `body_measurements`
+- trigger `on_auth_user_created` saudável para bootstrap de `profiles`
 
 ## Verificações pós-migração
 

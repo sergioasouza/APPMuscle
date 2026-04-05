@@ -1,0 +1,591 @@
+
+> gymtracker@0.1.0 dev:stable
+> next dev --webpack
+
+Ôû▓ Next.js 16.1.6 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://172.28.112.1:3000
+- Environments: .env.local
+
+Ô£ô Starting...
+Ô£ô Ready in 5.9s
+Ôùï Compiling /login ...
+ GET /login 200 in 9.3s (compile: 8.8s, proxy.ts: 15ms, render: 510ms)
+ GET /login 200 in 106ms (compile: 12ms, proxy.ts: 15ms, render: 79ms)
+Error [AuthApiError]: Invalid Refresh Token: Refresh Token Not Found
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 400,
+  code: 'refresh_token_not_found'
+}
+Error [AuthApiError]: Invalid Refresh Token: Refresh Token Not Found
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 400,
+  code: 'refresh_token_not_found'
+}
+Error [AuthApiError]: Invalid Refresh Token: Refresh Token Not Found
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 400,
+  code: 'refresh_token_not_found'
+}
+Error [AuthApiError]: Invalid Refresh Token: Refresh Token Not Found
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 400,
+  code: 'refresh_token_not_found'
+}
+ GET /login 200 in 347ms (compile: 8ms, proxy.ts: 278ms, render: 61ms)
+ GET /apple-icon.svg 404 in 885ms (compile: 734ms, render: 151ms)
+ GET /login 200 in 99ms (compile: 11ms, proxy.ts: 53ms, render: 36ms)
+ GET /apple-icon.svg 404 in 38ms (compile: 4ms, render: 33ms)
+ POST /login 200 in 670ms (compile: 3ms, proxy.ts: 9ms, render: 659ms)
+ GET /today 200 in 1772ms (compile: 6ms, proxy.ts: 855ms, render: 911ms)
+ GET /today 200 in 3.6s (compile: 1294ms, proxy.ts: 371ms, render: 1983ms)
+ GET /apple-icon.svg 404 in 104ms (compile: 7ms, render: 97ms)
+ GET /workouts 200 in 1380ms (compile: 520ms, proxy.ts: 293ms, render: 567ms)
+ GET /apple-icon.svg 404 in 141ms (compile: 7ms, render: 133ms)
+ GET /schedule 200 in 1778ms (compile: 473ms, proxy.ts: 288ms, render: 1016ms)
+ GET /apple-icon.svg 404 in 76ms (compile: 11ms, render: 65ms)
+ GET /calendar 200 in 1379ms (compile: 470ms, proxy.ts: 249ms, render: 660ms)
+ GET /apple-icon.svg 404 in 66ms (compile: 6ms, render: 60ms)
+ GET /analytics 200 in 3.9s (compile: 3.0s, proxy.ts: 243ms, render: 617ms)
+ GET /analytics 200 in 853ms (compile: 5ms, proxy.ts: 299ms, render: 550ms)
+ GET /apple-icon.svg 404 in 77ms (compile: 7ms, render: 70ms)
+ GET /today 200 in 1663ms (compile: 10ms, proxy.ts: 322ms, render: 1332ms)
+ GET /apple-icon.svg 404 in 71ms (compile: 7ms, render: 65ms)
+ GET /today 200 in 835ms (compile: 11ms, proxy.ts: 726ms, render: 97ms)
+ GET /apple-icon.svg 404 in 1549ms (compile: 1355ms, render: 194ms)
+ GET /today 200 in 479ms (compile: 18ms, proxy.ts: 317ms, render: 144ms)
+ GET /apple-icon.svg 404 in 68ms (compile: 4ms, render: 64ms)
+ GET /today 200 in 381ms (compile: 10ms, proxy.ts: 306ms, render: 65ms)
+ GET /apple-icon.svg 404 in 70ms (compile: 4ms, render: 66ms)
+ GET /today 200 in 1109ms (compile: 8ms, proxy.ts: 1004ms, render: 97ms)
+ GET /today 200 in 371ms (compile: 8ms, proxy.ts: 280ms, render: 82ms)
+ GET /apple-icon.svg 404 in 84ms (compile: 5ms, render: 79ms)
+ GET /today 200 in 782ms (compile: 51ms, proxy.ts: 601ms, render: 130ms)
+ GET /apple-icon.svg 404 in 894ms (compile: 792ms, render: 102ms)
+ GET /today 200 in 1081ms (compile: 110ms, proxy.ts: 767ms, render: 204ms)
+ GET /apple-icon.svg 404 in 938ms (compile: 790ms, render: 148ms)
+ GET /today 200 in 490ms (compile: 62ms, proxy.ts: 310ms, render: 118ms)
+ GET /apple-icon.svg 404 in 106ms (compile: 12ms, render: 93ms)
+TodayPage/getTodayView failed {
+  dateISO: '2026-04-02',
+  dayOfWeek: 4,
+  error: Error: Could not find the table 'public.schedule_rotations' in the schema cache
+      at getTodayViewRepository (src\features\today\repository.ts:49:11)
+      at async getTodayView (src\features\today\service.ts:16:18)
+      at async TodayPage (src\app\(app)\today\page.tsx:56:19)
+    47 |
+    48 |   if (rotationsRes.error) {
+  > 49 |     throw new Error(rotationsRes.error.message);
+       |           ^
+    50 |   }
+    51 |
+    52 |   if (profileRes.error) {
+}
+ GET /today 200 in 1106ms (compile: 55ms, proxy.ts: 302ms, render: 748ms)
+ GET /apple-icon.svg 404 in 113ms (compile: 14ms, render: 99ms)
+TodayPage/getTodayView failed {
+  dateISO: '2026-04-02',
+  dayOfWeek: 4,
+  error: Error: Could not find the table 'public.schedule_rotations' in the schema cache
+      at getTodayViewRepository (src\features\today\repository.ts:55:11)
+      at async getTodayView (src\features\today\service.ts:16:18)
+      at async TodayPage (src\app\(app)\today\page.tsx:56:19)
+    53 |
+    54 |   if (rotationsRes.error) {
+  > 55 |     throw new Error(rotationsRes.error.message);
+       |           ^
+    56 |   }
+    57 |
+    58 |   if (profileRes.error) {
+}
+ GET /today 200 in 772ms (compile: 55ms, proxy.ts: 316ms, render: 401ms)
+ GET /apple-icon.svg 404 in 126ms (compile: 11ms, render: 115ms)
+TodayPage/getTodayView failed {
+  dateISO: '2026-04-02',
+  dayOfWeek: 4,
+  error: Error: Could not find the table 'public.schedule_rotations' in the schema cache
+      at getTodayViewRepository (src\features\today\repository.ts:55:11)
+      at async getTodayView (src\features\today\service.ts:16:18)
+      at async TodayPage (src\app\(app)\today\page.tsx:56:19)
+    53 |
+    54 |   if (rotationsRes.error) {
+  > 55 |     throw new Error(rotationsRes.error.message);
+       |           ^
+    56 |   }
+    57 |
+    58 |   if (profileRes.error) {
+}
+ GET /today 200 in 764ms (compile: 55ms, proxy.ts: 308ms, render: 402ms)
+ GET /apple-icon.svg 404 in 105ms (compile: 12ms, render: 93ms)
+TodayPage/getTodayView failed {
+  dateISO: '2026-04-02',
+  dayOfWeek: 4,
+  error: Error: Could not find the table 'public.schedule_rotations' in the schema cache
+      at getTodayViewRepository (src\features\today\repository.ts:55:11)
+      at async getTodayView (src\features\today\service.ts:16:18)
+      at async TodayPage (src\app\(app)\today\page.tsx:56:19)
+    53 |
+    54 |   if (rotationsRes.error) {
+  > 55 |     throw new Error(rotationsRes.error.message);
+       |           ^
+    56 |   }
+    57 |
+    58 |   if (profileRes.error) {
+}
+ GET /today 200 in 817ms (compile: 58ms, proxy.ts: 322ms, render: 437ms)
+ GET /apple-icon.svg 404 in 97ms (compile: 12ms, render: 85ms)
+TodayPage/getTodayView failed {
+  dateISO: '2026-04-02',
+  dayOfWeek: 4,
+  error: Error: Could not find the table 'public.schedule_rotations' in the schema cache
+      at getTodayViewRepository (src\features\today\repository.ts:55:11)
+      at async getTodayView (src\features\today\service.ts:16:18)
+      at async TodayPage (src\app\(app)\today\page.tsx:56:19)
+    53 |
+    54 |   if (rotationsRes.error) {
+  > 55 |     throw new Error(rotationsRes.error.message);
+       |           ^
+    56 |   }
+    57 |
+    58 |   if (profileRes.error) {
+}
+ GET /today 200 in 1470ms (compile: 10ms, proxy.ts: 625ms, render: 835ms)
+ GET /apple-icon.svg 404 in 1329ms (compile: 1147ms, render: 182ms)
+TodayPage/getTodayView failed {
+  dateISO: '2026-04-02',
+  dayOfWeek: 4,
+  error: Error: Could not find the table 'public.schedule_rotations' in the schema cache
+      at getTodayViewRepository (src\features\today\repository.ts:55:11)
+      at async getTodayView (src\features\today\service.ts:16:18)
+      at async TodayPage (src\app\(app)\today\page.tsx:56:19)
+    53 |
+    54 |   if (rotationsRes.error) {
+  > 55 |     throw new Error(rotationsRes.error.message);
+       |           ^
+    56 |   }
+    57 |
+    58 |   if (profileRes.error) {
+}
+ GET /today 200 in 806ms (compile: 22ms, proxy.ts: 313ms, render: 472ms)
+ GET /apple-icon.svg 404 in 71ms (compile: 5ms, render: 66ms)
+TodayPage/getTodayView failed {
+  dateISO: '2026-04-02',
+  dayOfWeek: 4,
+  error: Error: Could not find the table 'public.schedule_rotations' in the schema cache
+      at getTodayViewRepository (src\features\today\repository.ts:55:11)
+      at async getTodayView (src\features\today\service.ts:16:18)
+      at async TodayPage (src\app\(app)\today\page.tsx:56:19)
+    53 |
+    54 |   if (rotationsRes.error) {
+  > 55 |     throw new Error(rotationsRes.error.message);
+       |           ^
+    56 |   }
+    57 |
+    58 |   if (profileRes.error) {
+}
+ GET /today 200 in 1125ms (compile: 105ms, proxy.ts: 442ms, render: 578ms)
+ GET /apple-icon.svg 404 in 141ms (compile: 12ms, render: 130ms)
+TodayPage/getTodayView failed {
+  dateISO: '2026-04-02',
+  dayOfWeek: 4,
+  error: Error: Could not find the table 'public.schedule_rotations' in the schema cache
+      at getTodayViewRepository (src\features\today\repository.ts:55:11)
+      at async getTodayView (src\features\today\service.ts:16:18)
+      at async TodayPage (src\app\(app)\today\page.tsx:56:19)
+    53 |
+    54 |   if (rotationsRes.error) {
+  > 55 |     throw new Error(rotationsRes.error.message);
+       |           ^
+    56 |   }
+    57 |
+    58 |   if (profileRes.error) {
+}
+ GET /today 200 in 716ms (compile: 8ms, proxy.ts: 319ms, render: 390ms)
+ GET /apple-icon.svg 404 in 76ms (compile: 5ms, render: 71ms)
+TodayPage/getTodayView failed {
+  dateISO: '2026-04-02',
+  dayOfWeek: 4,
+  error: Error: Could not find the table 'public.schedule_rotations' in the schema cache
+      at getTodayViewRepository (src\features\today\repository.ts:55:11)
+      at async getTodayView (src\features\today\service.ts:16:18)
+      at async TodayPage (src\app\(app)\today\page.tsx:56:19)
+    53 |
+    54 |   if (rotationsRes.error) {
+  > 55 |     throw new Error(rotationsRes.error.message);
+       |           ^
+    56 |   }
+    57 |
+    58 |   if (profileRes.error) {
+}
+ GET /today 200 in 764ms (compile: 58ms, proxy.ts: 293ms, render: 412ms)
+ GET /apple-icon.svg 404 in 103ms (compile: 12ms, render: 91ms)
+TodayPage/getTodayView failed {
+  dateISO: '2026-04-02',
+  dayOfWeek: 4,
+  error: Error: Could not find the table 'public.schedule_rotations' in the schema cache
+      at getTodayViewRepository (src\features\today\repository.ts:55:11)
+      at async getTodayView (src\features\today\service.ts:16:18)
+      at async TodayPage (src\app\(app)\today\page.tsx:56:19)
+    53 |
+    54 |   if (rotationsRes.error) {
+  > 55 |     throw new Error(rotationsRes.error.message);
+       |           ^
+    56 |   }
+    57 |
+    58 |   if (profileRes.error) {
+}
+ GET /today 200 in 1060ms (compile: 74ms, proxy.ts: 547ms, render: 439ms)
+ GET /apple-icon.svg 404 in 110ms (compile: 14ms, render: 96ms)
+TodayPage/getTodayView failed {
+  dateISO: '2026-04-02',
+  dayOfWeek: 4,
+  error: Error: Could not find the table 'public.schedule_rotations' in the schema cache
+      at getTodayViewRepository (src\features\today\repository.ts:55:11)
+      at async getTodayView (src\features\today\service.ts:16:18)
+      at async TodayPage (src\app\(app)\today\page.tsx:56:19)
+    53 |
+    54 |   if (rotationsRes.error) {
+  > 55 |     throw new Error(rotationsRes.error.message);
+       |           ^
+    56 |   }
+    57 |
+    58 |   if (profileRes.error) {
+}
+ GET /today 200 in 1370ms (compile: 55ms, proxy.ts: 473ms, render: 841ms)
+ GET /apple-icon.svg 404 in 115ms (compile: 22ms, render: 93ms)
+TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: Error: read ECONNRESET
+      at ignore-listed frames {
+    errno: -4077,
+    code: 'ECONNRESET',
+    syscall: 'read'
+  }
+}
+Error [AuthRetryableFetchError]: fetch failed
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 0,
+  code: undefined
+}
+Error [AuthRetryableFetchError]: fetch failed
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 0,
+  code: undefined
+}
+ GET /login 200 in 188ms (compile: 33ms, proxy.ts: 12ms, render: 144ms)
+ GET / 307 in 5.5s (compile: 2.9s, proxy.ts: 2.0s, render: 557ms)
+TodayPage/getTodayView failed {
+  dateISO: '2026-04-02',
+  dayOfWeek: 4,
+  error: Error: Could not find the table 'public.schedule_rotations' in the schema cache
+      at getTodayViewRepository (src\features\today\repository.ts:55:11)
+      at async getTodayView (src\features\today\service.ts:16:18)
+      at async TodayPage (src\app\(app)\today\page.tsx:56:19)
+    53 |
+    54 |   if (rotationsRes.error) {
+  > 55 |     throw new Error(rotationsRes.error.message);
+       |           ^
+    56 |   }
+    57 |
+    58 |   if (profileRes.error) {
+}
+ GET /today 200 in 1835ms (compile: 22ms, proxy.ts: 292ms, render: 1521ms)
+ GET /apple-icon.svg 404 in 1248ms (compile: 1048ms, render: 201ms)
+TodayPage/getTodayView failed {
+  dateISO: '2026-04-02',
+  dayOfWeek: 4,
+  error: Error: Could not find the table 'public.schedule_rotations' in the schema cache
+      at getTodayViewRepository (src\features\today\repository.ts:55:11)
+      at async getTodayView (src\features\today\service.ts:16:18)
+      at async TodayPage (src\app\(app)\today\page.tsx:56:19)
+    53 |
+    54 |   if (rotationsRes.error) {
+  > 55 |     throw new Error(rotationsRes.error.message);
+       |           ^
+    56 |   }
+    57 |
+    58 |   if (profileRes.error) {
+}
+ GET /today 200 in 1090ms (compile: 19ms, proxy.ts: 308ms, render: 764ms)
+ GET /apple-icon.svg 404 in 82ms (compile: 5ms, render: 77ms)
+ GET /workouts 200 in 1314ms (compile: 23ms, proxy.ts: 731ms, render: 560ms)
+ GET /apple-icon.svg 404 in 86ms (compile: 9ms, render: 78ms)
+Ô¿» Error: Could not find the table 'public.schedule_rotations' in the schema cache
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:39:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  37 |
+  38 |     if (rotationsRes.error) {
+> 39 |         throw new Error(rotationsRes.error.message)
+     |               ^
+  40 |     }
+  41 |
+  42 |     if (profileRes.error) { {
+  digest: '3810635331'
+}
+ GET /schedule 200 in 1341ms (compile: 17ms, proxy.ts: 252ms, render: 1072ms)
+Ô¿» Error: Could not find the table 'public.schedule_rotations' in the schema cache
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:39:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  37 |
+  38 |     if (rotationsRes.error) {
+> 39 |         throw new Error(rotationsRes.error.message)
+     |               ^
+  40 |     }
+  41 |
+  42 |     if (profileRes.error) { {
+  digest: '3810635331'
+}
+ GET /schedule 500 in 2.1s (compile: 11ms, proxy.ts: 307ms, render: 1802ms)
+ GET /apple-icon.svg 404 in 97ms (compile: 9ms, render: 88ms)
+ GET /login 200 in 423ms (compile: 36ms, proxy.ts: 30ms, render: 357ms)
+ GET /login 200 in 441ms (compile: 52ms, proxy.ts: 27ms, render: 362ms)
+ GET /login 200 in 218ms (compile: 18ms, proxy.ts: 31ms, render: 169ms)
+ÔÜá Fast Refresh had to perform a full reload due to a runtime error.
+Ô¿» Error: Could not find the table 'public.schedule_rotations' in the schema cache
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:39:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  37 |
+  38 |     if (rotationsRes.error) {
+> 39 |         throw new Error(rotationsRes.error.message)
+     |               ^
+  40 |     }
+  41 |
+  42 |     if (profileRes.error) { {
+  digest: '3810635331'
+}
+ GET /schedule 500 in 1863ms (compile: 10ms, proxy.ts: 963ms, render: 890ms)
+ÔÜá Fast Refresh had to perform a full reload due to a runtime error.
+ÔÜá Fast Refresh had to perform a full reload due to a runtime error.
+ GET /apple-icon.svg 404 in 3.0s (compile: 2.7s, render: 250ms)
+Ô¿» Error: Could not find the table 'public.schedule_rotations' in the schema cache
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:39:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  37 |
+  38 |     if (rotationsRes.error) {
+> 39 |         throw new Error(rotationsRes.error.message)
+     |               ^
+  40 |     }
+  41 |
+  42 |     if (profileRes.error) { {
+  digest: '3810635331'
+}
+ GET /schedule 500 in 2.0s (compile: 24ms, proxy.ts: 681ms, render: 1311ms)
+ÔÜá Fast Refresh had to perform a full reload due to a runtime error.
+Ô¿» Error: column profiles.rotation_anchor_date does not exist
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:52:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  50 |
+  51 |     if (profileRes.error && rotationAnchorColumnAvailable) {
+> 52 |         throw new Error(profileRes.error.message)
+     |               ^
+  53 |     }
+  54 |
+  55 |     const schedule = scheduleRes.data ?? [] {
+  digest: '1931232449'
+}
+ GET /schedule 500 in 1665ms (compile: 88ms, proxy.ts: 336ms, render: 1241ms)
+ GET /apple-icon.svg 404 in 184ms (compile: 43ms, render: 140ms)
+ÔÜá Fast Refresh had to perform a full reload due to a runtime error.
+Ô¿» Error: column profiles.rotation_anchor_date does not exist
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:52:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  50 |
+  51 |     if (profileRes.error && rotationAnchorColumnAvailable) {
+> 52 |         throw new Error(profileRes.error.message)
+     |               ^
+  53 |     }
+  54 |
+  55 |     const schedule = scheduleRes.data ?? [] {
+  digest: '1931232449'
+}
+ GET /schedule 500 in 1781ms (compile: 61ms, proxy.ts: 415ms, render: 1304ms)
+ GET /apple-icon.svg 404 in 185ms (compile: 67ms, render: 119ms)
+ÔÜá Fast Refresh had to perform a full reload due to a runtime error.
+Ô¿» Error: column profiles.rotation_anchor_date does not exist
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:52:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  50 |
+  51 |     if (profileRes.error && rotationAnchorColumnAvailable) {
+> 52 |         throw new Error(profileRes.error.message)
+     |               ^
+  53 |     }
+  54 |
+  55 |     const schedule = scheduleRes.data ?? [] {
+  digest: '1931232449'
+}
+ GET /schedule 500 in 1319ms (compile: 31ms, proxy.ts: 387ms, render: 902ms)
+ GET /apple-icon.svg 404 in 94ms (compile: 8ms, render: 86ms)
+ÔÜá Fast Refresh had to perform a full reload due to a runtime error.
+Ô¿» Error: column profiles.rotation_anchor_date does not exist
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:52:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  50 |
+  51 |     if (profileRes.error && rotationAnchorColumnAvailable) {
+> 52 |         throw new Error(profileRes.error.message)
+     |               ^
+  53 |     }
+  54 |
+  55 |     const schedule = scheduleRes.data ?? [] {
+  digest: '1931232449'
+}
+ GET /schedule 500 in 1245ms (compile: 15ms, proxy.ts: 339ms, render: 891ms)
+ GET /apple-icon.svg 404 in 107ms (compile: 21ms, render: 87ms)
+ÔÜá Fast Refresh had to perform a full reload due to a runtime error.
+Ô¿» Error: column profiles.rotation_anchor_date does not exist
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:52:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  50 |
+  51 |     if (profileRes.error && rotationAnchorColumnAvailable) {
+> 52 |         throw new Error(profileRes.error.message)
+     |               ^
+  53 |     }
+  54 |
+  55 |     const schedule = scheduleRes.data ?? [] {
+  digest: '1931232449'
+}
+ GET /schedule 500 in 1534ms (compile: 16ms, proxy.ts: 281ms, render: 1237ms)
+ÔÜá Fast Refresh had to perform a full reload due to a runtime error.
+Ô¿» Error: column profiles.rotation_anchor_date does not exist
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:52:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  50 |
+  51 |     if (profileRes.error && rotationAnchorColumnAvailable) {
+> 52 |         throw new Error(profileRes.error.message)
+     |               ^
+  53 |     }
+  54 |
+  55 |     const schedule = scheduleRes.data ?? [] {
+  digest: '1931232449'
+}
+ GET /schedule 500 in 1680ms (compile: 13ms, proxy.ts: 312ms, render: 1355ms)
+ GET /apple-icon.svg 404 in 120ms (compile: 9ms, render: 111ms)
+ÔÜá Fast Refresh had to perform a full reload due to a runtime error.
+Ô¿» Error: column profiles.rotation_anchor_date does not exist
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:52:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  50 |
+  51 |     if (profileRes.error && rotationAnchorColumnAvailable) {
+> 52 |         throw new Error(profileRes.error.message)
+     |               ^
+  53 |     }
+  54 |
+  55 |     const schedule = scheduleRes.data ?? [] {
+  digest: '1931232449'
+}
+ GET /schedule 500 in 1335ms (compile: 13ms, proxy.ts: 418ms, render: 904ms)
+ GET /apple-icon.svg 404 in 114ms (compile: 18ms, render: 96ms)
+ÔÜá Fast Refresh had to perform a full reload due to a runtime error.
+Ô¿» Error: column profiles.rotation_anchor_date does not exist
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:52:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  50 |
+  51 |     if (profileRes.error && rotationAnchorColumnAvailable) {
+> 52 |         throw new Error(profileRes.error.message)
+     |               ^
+  53 |     }
+  54 |
+  55 |     const schedule = scheduleRes.data ?? [] {
+  digest: '1931232449'
+}
+ GET /schedule 500 in 2.1s (compile: 80ms, proxy.ts: 714ms, render: 1272ms)
+ GET /apple-icon.svg 404 in 120ms (compile: 32ms, render: 88ms)
+ÔÜá Fast Refresh had to perform a full reload due to a runtime error.
+Ô¿» Error: column profiles.rotation_anchor_date does not exist
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:52:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  50 |
+  51 |     if (profileRes.error && rotationAnchorColumnAvailable) {
+> 52 |         throw new Error(profileRes.error.message)
+     |               ^
+  53 |     }
+  54 |
+  55 |     const schedule = scheduleRes.data ?? [] {
+  digest: '1931232449'
+}
+ GET /schedule 500 in 1634ms (compile: 65ms, proxy.ts: 361ms, render: 1207ms)
+ GET /apple-icon.svg 404 in 117ms (compile: 31ms, render: 86ms)
+ GET /login 200 in 299ms (compile: 45ms, proxy.ts: 45ms, render: 209ms)
+ GET /login 200 in 188ms (compile: 13ms, proxy.ts: 22ms, render: 153ms)
+ÔÜá Fast Refresh had to perform a full reload due to a runtime error.
+Ô¿» Error: column profiles.rotation_anchor_date does not exist
+    at getSchedulePageDataRepository (src\features\schedule\repository.ts:52:15)
+    at async SchedulePage (src\app\(app)\schedule\page.tsx:5:18)
+  50 |
+  51 |     if (profileRes.error && rotationAnchorColumnAvailable) {
+> 52 |         throw new Error(profileRes.error.message)
+     |               ^
+  53 |     }
+  54 |
+  55 |     const schedule = scheduleRes.data ?? [] {
+  digest: '1931232449'
+}
+ GET /schedule 500 in 1706ms (compile: 9ms, proxy.ts: 694ms, render: 1003ms)
+ GET /apple-icon.svg 404 in 105ms (compile: 22ms, render: 83ms)
+ GET /login 200 in 253ms (compile: 34ms, proxy.ts: 20ms, render: 198ms)
+ GET /login 200 in 340ms (compile: 21ms, proxy.ts: 31ms, render: 288ms)
+ GET /login 200 in 306ms (compile: 12ms, proxy.ts: 151ms, render: 143ms)
+ GET /schedule 200 in 1906ms (compile: 16ms, proxy.ts: 521ms, render: 1370ms)
+ GET /apple-icon.svg 404 in 163ms (compile: 17ms, render: 146ms)
+Ôùï Compiling /profile ...
+ GET /profile 200 in 7.7s (compile: 6.3s, proxy.ts: 366ms, render: 1004ms)
+ GET /apple-icon.svg 404 in 226ms (compile: 25ms, render: 200ms)
+ GET /analytics 200 in 1376ms (compile: 58ms, proxy.ts: 597ms, render: 722ms)
+ GET /apple-icon.svg 404 in 157ms (compile: 11ms, render: 147ms)
+Ôùï Compiling /calendar ...
+ GET /calendar 200 in 5.4s (compile: 3.8s, proxy.ts: 326ms, render: 1258ms)
+ GET /calendar 200 in 1569ms (compile: 14ms, proxy.ts: 413ms, render: 1141ms)
+ GET /calendar 200 in 1072ms (compile: 10ms, proxy.ts: 325ms, render: 738ms)
+ GET /calendar 200 in 987ms (compile: 12ms, proxy.ts: 374ms, render: 601ms)
+ GET /calendar 200 in 1129ms (compile: 9ms, proxy.ts: 308ms, render: 811ms)
+ GET /apple-icon.svg 404 in 455ms (compile: 34ms, render: 421ms)
+ GET /analytics 200 in 1895ms (compile: 165ms, proxy.ts: 416ms, render: 1314ms)
+ GET /apple-icon.svg 404 in 139ms (compile: 10ms, render: 130ms)
+ GET /calendar 200 in 1064ms (compile: 14ms, proxy.ts: 304ms, render: 746ms)
+ GET /apple-icon.svg 404 in 129ms (compile: 10ms, render: 119ms)
+ POST /calendar 200 in 1827ms (compile: 23ms, proxy.ts: 483ms, render: 1321ms)
+ POST /calendar 200 in 939ms (compile: 20ms, proxy.ts: 361ms, render: 558ms)
+ POST /calendar 200 in 781ms (compile: 11ms, proxy.ts: 255ms, render: 515ms)
+ POST /calendar 200 in 784ms (compile: 11ms, proxy.ts: 283ms, render: 490ms)
+ POST /calendar 200 in 846ms (compile: 14ms, proxy.ts: 318ms, render: 513ms)
+ POST /calendar 200 in 806ms (compile: 15ms, proxy.ts: 262ms, render: 528ms)
+ POST /calendar 200 in 831ms (compile: 22ms, proxy.ts: 308ms, render: 502ms)
+ GET /workouts 200 in 989ms (compile: 65ms, proxy.ts: 326ms, render: 599ms)
+ GET /apple-icon.svg 404 in 123ms (compile: 11ms, render: 111ms)
+Error: FORMATTING_ERROR: The intl string context variable "name" was not provided to the string "Are you sure you want to delete "{name}"? This action cannot be undone."
+    at WorkoutsPageClient (src\features\workouts\components\workouts-page-client.tsx:208:30)
+  206 |                 open={!!deleteTarget}
+  207 |                 title={t('Workouts.deleteConfirmTitle')}
+> 208 |                 description={t('Workouts.deleteConfirmDesc').replace('{name}', deleteTarget?.name || '')}
+      |                              ^
+  209 |                 confirmLabel={t('Common.delete')}
+  210 |                 variant="danger"
+  211 |                 onConfirm={handleDelete} {
+  code: 'FORMATTING_ERROR',
+  originalMessage: 'The intl string context variable "name" was not provided to the string "Are you sure you want to delete "{name}"? This action cannot be undone."'
+}
+ GET /workouts 200 in 1213ms (compile: 10ms, proxy.ts: 340ms, render: 863ms)
+ GET /apple-icon.svg 404 in 223ms (compile: 14ms, render: 209ms)
+ GET /workouts 200 in 1200ms (compile: 13ms, proxy.ts: 603ms, render: 584ms)
+ GET /schedule 200 in 1457ms (compile: 52ms, proxy.ts: 349ms, render: 1055ms)
+ GET /apple-icon.svg 404 in 167ms (compile: 11ms, render: 156ms)
+ GET /today 200 in 1963ms (compile: 44ms, proxy.ts: 530ms, render: 1389ms)
+ GET /apple-icon.svg 404 in 167ms (compile: 11ms, render: 156ms)
+ GET /workouts 200 in 998ms (compile: 11ms, proxy.ts: 371ms, render: 616ms)
+ GET /schedule 200 in 1106ms (compile: 16ms, proxy.ts: 260ms, render: 829ms)
+ GET /schedule 200 in 1082ms (compile: 15ms, proxy.ts: 318ms, render: 750ms)
+ GET /schedule 200 in 1707ms (compile: 30ms, proxy.ts: 752ms, render: 925ms)
+ GET /schedule 200 in 1286ms (compile: 13ms, proxy.ts: 248ms, render: 1025ms)
+ GET /schedule 200 in 1216ms (compile: 52ms, proxy.ts: 356ms, render: 807ms)
+ GET /schedule 200 in 1142ms (compile: 49ms, proxy.ts: 281ms, render: 812ms)
+ GET /schedule 200 in 1009ms (compile: 125ms, proxy.ts: 268ms, render: 617ms)
+ GET /schedule 200 in 1282ms (compile: 13ms, proxy.ts: 283ms, render: 986ms)
+ GET /apple-icon.svg 404 in 111ms (compile: 6ms, render: 105ms)
+ GET /health 404 in 4.2s (compile: 59ms, proxy.ts: 2.6s, render: 1527ms)
+ GET /apple-icon.svg 404 in 401ms (compile: 19ms, render: 381ms)
+ GET /api/clima 404 in 531ms (compile: 17ms, proxy.ts: 363ms, render: 151ms)

@@ -1,0 +1,12 @@
+Error: FORMATTING_ERROR: The intl string context variable "name" was not provided to the string "Are you sure you want to delete "{name}"? This action cannot be undone."
+    at WorkoutsPageClient (src\features\workouts\components\workouts-page-client.tsx:208:30)
+  206 |                 open={!!deleteTarget}
+  207 |                 title={t('Workouts.deleteConfirmTitle')}
+> 208 |                 description={t('Workouts.deleteConfirmDesc').replace('{name}', deleteTarget?.name || '')}
+      |                              ^
+  209 |                 confirmLabel={t('Common.delete')}
+  210 |                 variant="danger"
+  211 |                 onConfirm={handleDelete} {
+  code: 'FORMATTING_ERROR',
+  originalMessage: 'The intl string context variable "name" was not provided to the string "Are you sure you want to delete "{name}"? This action cannot be undone."'
+}

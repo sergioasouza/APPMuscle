@@ -37,6 +37,12 @@ export default async function CalendarPage() {
       initialDate={initialDate}
       initialSessions={initialData.sessions}
       initialSchedule={initialData.schedule}
+      initialRotations={initialData.rotations}
+      initialRotationAnchorDate={initialData.rotationAnchorDate}
+      initialRotationCycleLength={initialData.rotationCycleLength}
+      rotationSupportEnabled={initialData.rotationSupportEnabled}
+      initialSessionMetricsById={initialData.sessionMetricsById}
+      initialTodayISO={initialData.todayISO}
     />
   );
 }

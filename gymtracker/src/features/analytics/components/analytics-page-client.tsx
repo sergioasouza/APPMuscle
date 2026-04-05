@@ -123,18 +123,30 @@ export function AnalyticsPageClient({
 
   /* ── derived ── */
   const selectedWorkout = workouts.find((w) => w.id === selectedWorkoutId);
-  const currentEvolution =
-    analyticsScope === "global"
-      ? globalEvolution
-      : selectedExerciseId
-        ? (evolution[selectedExerciseId] ?? [])
-        : [];
-  const currentSummary =
-    analyticsScope === "global"
-      ? (globalSummary ?? undefined)
-      : selectedExerciseId
-        ? summaries[selectedExerciseId]
-        : undefined;
+  const currentEvolution = useMemo(() => {
+    if (analyticsScope === "global") {
+      return globalEvolution;
+    }
+
+    if (!selectedExerciseId) {
+      return [];
+    }
+
+    return evolution[selectedExerciseId] ?? [];
+  }, [analyticsScope, evolution, globalEvolution, selectedExerciseId]);
+
+  const currentSummary = useMemo(() => {
+    if (analyticsScope === "global") {
+      return globalSummary ?? undefined;
+    }
+
+    if (!selectedExerciseId) {
+      return undefined;
+    }
+
+    return summaries[selectedExerciseId];
+  }, [analyticsScope, globalSummary, selectedExerciseId, summaries]);
+
   const selectedExercise = workoutExercises.find(
     (we) => we.exercise_id === selectedExerciseId,
   );

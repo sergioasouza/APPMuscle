@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { getBodyMetricsSectionData } from '@/features/body-metrics/service'
 import { getOptionalUserServerContext } from '@/lib/supabase/auth'
 
 export async function getProfilePageDataRepository() {
@@ -9,14 +10,22 @@ export async function getProfilePageDataRepository() {
         return {
             email: null,
             displayName: null,
+            bodyMetrics: {
+                entries: [],
+                enabled: false,
+                performanceSnapshots: [],
+            },
         }
     }
 
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('display_name')
-        .eq('id', user.id)
-        .maybeSingle()
+    const [{ data: profile, error: profileError }, bodyMeasurements] = await Promise.all([
+        supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('id', user.id)
+            .maybeSingle(),
+        getBodyMetricsSectionData(),
+    ])
 
     if (profileError) {
         throw new Error(profileError.message)
@@ -25,5 +34,10 @@ export async function getProfilePageDataRepository() {
     return {
         email: user.email ?? null,
         displayName: profile?.display_name ?? null,
+        bodyMetrics: {
+            entries: bodyMeasurements.entries,
+            enabled: bodyMeasurements.enabled,
+            performanceSnapshots: bodyMeasurements.performanceSnapshots,
+        },
     }
 }

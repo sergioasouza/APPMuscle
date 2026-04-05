@@ -2,9 +2,15 @@
 
 ## 1. Supabase
 
-- Confirm `profiles`, `workouts`, `schedule`, `workout_sessions`, `workout_exercises`, `set_logs`, and `exercises` exist in production.
-- Run the safe migration already created in [supabase/migrations/20260306_phase1_preserve_existing_data.sql](../../supabase/migrations/20260306_phase1_preserve_existing_data.sql).
+- Confirm `profiles`, `workouts`, `schedule`, `schedule_rotations`, `workout_sessions`, `workout_exercises`, `set_logs`, `exercises`, and `body_measurements` exist in production.
+- Confirm `profiles.rotation_anchor_date` and `exercises.archived_at` exist in production.
+- Run the migration baseline in this order:
+  - [supabase/migrations/20260306_phase1_preserve_existing_data.sql](../../supabase/migrations/20260306_phase1_preserve_existing_data.sql)
+  - [supabase/migrations/20260307_fix_missing_profiles_and_auth_trigger.sql](../../supabase/migrations/20260307_fix_missing_profiles_and_auth_trigger.sql)
+  - [supabase/migrations/20260315_add_archived_at_to_exercises.sql](../../supabase/migrations/20260315_add_archived_at_to_exercises.sql)
+  - [supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql](../../supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql)
 - Verify RLS policies are enabled in production.
+- Verify the `on_auth_user_created` trigger is active and new signups create a `profiles` row automatically.
 - Create at least one real test user in production.
 
 ## 2. Environment variables
@@ -22,9 +28,12 @@ Configure these variables in the hosting provider:
 - Create a workout.
 - Assign it in schedule.
 - Log a workout in `today`.
+- Reschedule a planned workout and confirm both origin and destination render correctly.
 - Turn the device offline and save one set.
 - Reconnect and confirm the pending set syncs.
 - Open analytics and confirm the session appears.
+- Open calendar and confirm weekly adherence/volume summaries load.
+- Open profile and confirm body metrics charts load without schema errors.
 
 ## 4. PWA checks
 
@@ -37,6 +46,8 @@ Configure these variables in the hosting provider:
 
 Launch only after:
 
+- `npm exec tsc --noEmit` passes
+- `npm test` passes
 - `npm run lint` passes
 - `npm run build` passes
 - production login works

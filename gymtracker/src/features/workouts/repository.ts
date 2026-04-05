@@ -1,12 +1,37 @@
 import "server-only";
 
 import { getAuthenticatedServerContext } from "@/lib/supabase/auth";
-import type { Exercise } from "@/lib/types";
+import {
+  requireOwnedExercise,
+  requireOwnedWorkout,
+  requireOwnedWorkoutExercise,
+} from "@/lib/supabase/ownership";
+import type { Exercise, Workout } from "@/lib/types";
+import type {
+  ExerciseLinkedWorkout,
+} from "@/features/workouts/types";
 import type {
   WorkoutEditorData,
   WorkoutEditorExercise,
   WorkoutListItem,
 } from "@/features/workouts/types";
+import type {
+  ExerciseLogSummaryRow,
+  ExerciseWorkoutLinkRow,
+} from "@/features/workouts/library";
+
+type WorkoutLinkQueryRow = {
+  exercise_id: string;
+  workouts: Pick<Workout, "id" | "name"> | null;
+};
+
+type ExerciseLogQueryRow = {
+  exercise_id: string;
+  session_id: string;
+  weight_kg: number;
+  reps: number;
+  workout_sessions: { performed_at: string } | null;
+};
 
 function getSharedExercisePeerUserIds(currentUserId: string): string[] {
   const raw = process.env.SHARED_EXERCISE_USER_IDS;
@@ -41,6 +66,68 @@ export async function listWorkoutsRepository(): Promise<WorkoutListItem[]> {
   }
 
   return data ?? [];
+}
+
+export async function listExerciseLibraryRepository(): Promise<{
+  exercises: Exercise[];
+  workoutLinks: ExerciseWorkoutLinkRow[];
+  logRows: ExerciseLogSummaryRow[];
+}> {
+  const { supabase, user } = await getAuthenticatedServerContext();
+
+  const [exerciseResult, workoutLinksResult, logsResult] = await Promise.all([
+    supabase
+      .from("exercises")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("name"),
+    supabase
+      .from("workout_exercises")
+      .select("exercise_id, workouts!inner(id, name, user_id)")
+      .eq("workouts.user_id", user.id),
+    supabase
+      .from("set_logs")
+      .select("exercise_id, session_id, weight_kg, reps, workout_sessions!inner(performed_at, user_id)")
+      .eq("workout_sessions.user_id", user.id),
+  ]);
+
+  if (exerciseResult.error) {
+    throw new Error(exerciseResult.error.message);
+  }
+
+  if (workoutLinksResult.error) {
+    throw new Error(workoutLinksResult.error.message);
+  }
+
+  if (logsResult.error) {
+    throw new Error(logsResult.error.message);
+  }
+
+  const workoutLinks = ((workoutLinksResult.data as WorkoutLinkQueryRow[] | null) ?? [])
+    .flatMap((row) => row.workouts == null
+      ? []
+      : [{
+        exerciseId: row.exercise_id,
+        workoutId: row.workouts.id,
+        workoutName: row.workouts.name,
+      }]);
+
+  const logRows = ((logsResult.data as ExerciseLogQueryRow[] | null) ?? [])
+    .flatMap((row) => row.workout_sessions == null
+      ? []
+      : [{
+        exerciseId: row.exercise_id,
+        sessionId: row.session_id,
+        performedAt: row.workout_sessions.performed_at,
+        weightKg: Number(row.weight_kg),
+        reps: row.reps,
+      }]);
+
+  return {
+    exercises: exerciseResult.data ?? [],
+    workoutLinks,
+    logRows,
+  };
 }
 
 export async function getWorkoutEditorDataRepository(
@@ -85,6 +172,7 @@ export async function listAvailableExercisesRepository(
   workoutId: string,
 ): Promise<Exercise[]> {
   const { supabase, user } = await getAuthenticatedServerContext();
+  await requireOwnedWorkout(supabase, user.id, workoutId);
 
   const [exerciseResult, workoutExerciseResult] = await Promise.all([
     supabase
@@ -182,7 +270,11 @@ export async function addExerciseToWorkoutRepository(
   exerciseId: string,
   targetSets: number,
 ): Promise<WorkoutEditorExercise> {
-  const { supabase } = await getAuthenticatedServerContext();
+  const { supabase, user } = await getAuthenticatedServerContext();
+  await Promise.all([
+    requireOwnedWorkout(supabase, user.id, workoutId),
+    requireOwnedExercise(supabase, user.id, exerciseId),
+  ]);
 
   const { count, error: countError } = await supabase
     .from("workout_exercises")
@@ -259,11 +351,111 @@ export async function createExerciseRepository(
   return data;
 }
 
+export async function getExerciseDetailRepository(
+  exerciseId: string,
+): Promise<{
+  exercise: Exercise;
+  linkedWorkouts: ExerciseLinkedWorkout[];
+  logRows: ExerciseLogSummaryRow[];
+} | null> {
+  const { supabase, user } = await getAuthenticatedServerContext();
+
+  const [exerciseResult, linkedWorkoutsResult, logsResult] = await Promise.all([
+    supabase
+      .from("exercises")
+      .select("*")
+      .eq("id", exerciseId)
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("workout_exercises")
+      .select("exercise_id, workouts!inner(id, name, user_id)")
+      .eq("exercise_id", exerciseId)
+      .eq("workouts.user_id", user.id),
+    supabase
+      .from("set_logs")
+      .select("exercise_id, session_id, weight_kg, reps, workout_sessions!inner(performed_at, user_id)")
+      .eq("exercise_id", exerciseId)
+      .eq("workout_sessions.user_id", user.id),
+  ]);
+
+  if (exerciseResult.error) {
+    throw new Error(exerciseResult.error.message);
+  }
+
+  if (!exerciseResult.data) {
+    return null;
+  }
+
+  if (linkedWorkoutsResult.error) {
+    throw new Error(linkedWorkoutsResult.error.message);
+  }
+
+  if (logsResult.error) {
+    throw new Error(logsResult.error.message);
+  }
+
+  const linkedWorkouts = ((linkedWorkoutsResult.data as WorkoutLinkQueryRow[] | null) ?? [])
+    .flatMap((row) => row.workouts == null
+      ? []
+      : [{
+        id: row.workouts.id,
+        name: row.workouts.name,
+      }])
+    .filter((workout, index, items) => items.findIndex((candidate) => candidate.id === workout.id) === index);
+
+  const logRows = ((logsResult.data as ExerciseLogQueryRow[] | null) ?? [])
+    .flatMap((row) => row.workout_sessions == null
+      ? []
+      : [{
+        exerciseId: row.exercise_id,
+        sessionId: row.session_id,
+        performedAt: row.workout_sessions.performed_at,
+        weightKg: Number(row.weight_kg),
+        reps: row.reps,
+      }]);
+
+  return {
+    exercise: exerciseResult.data,
+    linkedWorkouts,
+    logRows,
+  };
+}
+
+export async function updateExerciseNameRepository(
+  exerciseId: string,
+  name: string,
+): Promise<Exercise> {
+  const { supabase, user } = await getAuthenticatedServerContext();
+  await requireOwnedExercise(supabase, user.id, exerciseId);
+
+  const { data, error } = await supabase
+    .from("exercises")
+    .update({ name })
+    .eq("id", exerciseId)
+    .eq("user_id", user.id)
+    .select("*")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error(
+        `An exercise named "${name}" already exists in your library`,
+      );
+    }
+
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
 export async function updateWorkoutExerciseTargetSetsRepository(
   workoutExerciseId: string,
   targetSets: number,
 ): Promise<void> {
-  const { supabase } = await getAuthenticatedServerContext();
+  const { supabase, user } = await getAuthenticatedServerContext();
+  await requireOwnedWorkoutExercise(supabase, user.id, workoutExerciseId);
 
   const { error } = await supabase
     .from("workout_exercises")
@@ -278,7 +470,8 @@ export async function updateWorkoutExerciseTargetSetsRepository(
 export async function deleteWorkoutExerciseRepository(
   workoutExerciseId: string,
 ): Promise<void> {
-  const { supabase } = await getAuthenticatedServerContext();
+  const { supabase, user } = await getAuthenticatedServerContext();
+  await requireOwnedWorkoutExercise(supabase, user.id, workoutExerciseId);
 
   const { error } = await supabase
     .from("workout_exercises")
@@ -297,7 +490,8 @@ export async function deleteWorkoutExerciseRepository(
 export async function checkExerciseHasLogsRepository(
   exerciseId: string,
 ): Promise<boolean> {
-  const { supabase } = await getAuthenticatedServerContext();
+  const { supabase, user } = await getAuthenticatedServerContext();
+  await requireOwnedExercise(supabase, user.id, exerciseId);
 
   const { count, error } = await supabase
     .from("set_logs")
@@ -360,11 +554,69 @@ export async function archiveExerciseRepository(
   }
 }
 
+export async function unarchiveExerciseRepository(
+  exerciseId: string,
+): Promise<void> {
+  const { supabase, user } = await getAuthenticatedServerContext();
+  await requireOwnedExercise(supabase, user.id, exerciseId);
+
+  const { error } = await supabase
+    .from("exercises")
+    .update({ archived_at: null })
+    .eq("id", exerciseId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function deleteExerciseRepository(
+  exerciseId: string,
+): Promise<void> {
+  const { supabase, user } = await getAuthenticatedServerContext();
+  await requireOwnedExercise(supabase, user.id, exerciseId);
+
+  const [linkedWorkoutCountResult, logCountResult] = await Promise.all([
+    supabase
+      .from("workout_exercises")
+      .select("id", { head: true, count: "exact" })
+      .eq("exercise_id", exerciseId),
+    supabase
+      .from("set_logs")
+      .select("id", { head: true, count: "exact" })
+      .eq("exercise_id", exerciseId),
+  ]);
+
+  if (linkedWorkoutCountResult.error) {
+    throw new Error(linkedWorkoutCountResult.error.message);
+  }
+
+  if (logCountResult.error) {
+    throw new Error(logCountResult.error.message);
+  }
+
+  if ((linkedWorkoutCountResult.count ?? 0) > 0 || (logCountResult.count ?? 0) > 0) {
+    throw new Error("Exercise cannot be deleted because it still has history or linked workouts");
+  }
+
+  const { error } = await supabase
+    .from("exercises")
+    .delete()
+    .eq("id", exerciseId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export async function reorderWorkoutExercisesRepository(
   workoutId: string,
   orderedWorkoutExerciseIds: string[],
 ): Promise<void> {
-  const { supabase } = await getAuthenticatedServerContext();
+  const { supabase, user } = await getAuthenticatedServerContext();
+  await requireOwnedWorkout(supabase, user.id, workoutId);
 
   for (const [
     index,

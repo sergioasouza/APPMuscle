@@ -1,0 +1,60 @@
+
+> gymtracker@0.1.0 dev:stable
+> next dev --webpack --hostname 127.0.0.1 --port 3000
+
+▲ Next.js 16.1.6 (webpack)
+- Local:         http://127.0.0.1:3000
+- Network:       http://127.0.0.1:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 64.3s
+○ Compiling proxy ...
+○ Compiling /login ...
+ GET /login 200 in 19.4s (compile: 17.9s, proxy.ts: 488ms, render: 1081ms)
+○ Compiling /today ...
+ GET /today 200 in 27.0s (compile: 18.0s, proxy.ts: 583ms, render: 8.4s)
+○ Compiling / ...
+ GET / 307 in 13.0s (compile: 10.0s, proxy.ts: 706ms, render: 2.4s)
+ GET /today 200 in 11.3s (compile: 5.2s, proxy.ts: 455ms, render: 5.6s)
+ GET /today 200 in 7.5s (compile: 26ms, proxy.ts: 307ms, render: 7.2s)
+○ Compiling /workouts ...
+ GET /workouts 200 in 19.0s (compile: 15.1s, proxy.ts: 1124ms, render: 2.8s)
+○ Compiling /schedule ...
+ GET /schedule 200 in 35.7s (compile: 20.7s, proxy.ts: 430ms, render: 14.5s)
+○ Compiling /calendar ...
+ GET /calendar 200 in 22.1s (compile: 18.5s, proxy.ts: 406ms, render: 3.2s)
+○ Compiling /analytics ...
+ GET /analytics 200 in 20.5s (compile: 12.7s, proxy.ts: 289ms, render: 7.5s)
+○ Compiling /profile ...
+ GET /profile 200 in 18.8s (compile: 15.5s, proxy.ts: 748ms, render: 2.6s)
+ GET /login 200 in 1933ms (compile: 1658ms, proxy.ts: 16ms, render: 259ms)
+ GET /apple-icon.svg 404 in 1790ms (compile: 1626ms, render: 164ms)
+ POST /login 200 in 1136ms (compile: 17ms, proxy.ts: 21ms, render: 1098ms)
+ GET /today 200 in 5.0s (compile: 1351ms, proxy.ts: 360ms, render: 3.3s)
+ GET /today 200 in 3.1s (compile: 9ms, proxy.ts: 332ms, render: 2.8s)
+ GET /apple-icon.svg 404 in 187ms (compile: 15ms, render: 172ms)
+ GET /workouts 200 in 1734ms (compile: 759ms, proxy.ts: 352ms, render: 623ms)
+ GET /apple-icon.svg 404 in 138ms (compile: 14ms, render: 124ms)
+ GET /schedule 200 in 2.2s (compile: 869ms, proxy.ts: 248ms, render: 1129ms)
+ GET /apple-icon.svg 404 in 121ms (compile: 12ms, render: 109ms)
+ GET /calendar 200 in 3.1s (compile: 1334ms, proxy.ts: 316ms, render: 1442ms)
+ GET /apple-icon.svg 404 in 229ms (compile: 15ms, render: 215ms)
+ POST /calendar 200 in 1377ms (compile: 8ms, proxy.ts: 304ms, render: 1064ms)
+ POST /calendar 200 in 1174ms (compile: 9ms, proxy.ts: 347ms, render: 818ms)
+ GET /analytics 200 in 2.9s (compile: 1921ms, proxy.ts: 292ms, render: 722ms)
+ GET /apple-icon.svg 404 in 132ms (compile: 12ms, render: 119ms)
+ GET /profile 200 in 2.3s (compile: 1278ms, proxy.ts: 265ms, render: 715ms)
+ GET /apple-icon.svg 404 in 117ms (compile: 10ms, render: 107ms)
+ GET /analytics 200 in 877ms (compile: 23ms, proxy.ts: 305ms, render: 549ms)
+ GET /apple-icon.svg 404 in 87ms (compile: 5ms, render: 82ms)
+ GET /calendar 200 in 1109ms (compile: 13ms, proxy.ts: 243ms, render: 853ms)
+ GET /apple-icon.svg 404 in 75ms (compile: 6ms, render: 69ms)
+ GET /workouts 200 in 1010ms (compile: 18ms, proxy.ts: 384ms, render: 609ms)
+ GET /apple-icon.svg 404 in 81ms (compile: 7ms, render: 73ms)
+ GET /schedule 200 in 930ms (compile: 24ms, proxy.ts: 286ms, render: 620ms)
+ GET /apple-icon.svg 404 in 85ms (compile: 6ms, render: 79ms)
+ GET /workouts 200 in 853ms (compile: 9ms, proxy.ts: 269ms, render: 574ms)
+ GET /apple-icon.svg 404 in 88ms (compile: 6ms, render: 82ms)
+ GET /schedule 200 in 894ms (compile: 10ms, proxy.ts: 287ms, render: 598ms)
+ GET /apple-icon.svg 404 in 96ms (compile: 7ms, render: 89ms)

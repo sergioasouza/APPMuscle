@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from 'next-themes'
 import { useToast } from '@/components/ui/toast'
 import { signOutAction } from '@/features/auth/actions'
+import { BodyMetricsSection } from '@/features/body-metrics/components/body-metrics-section'
 import type { ProfilePageData } from '@/features/profile/types'
 import type { AppLocale } from '@/i18n/config'
 
@@ -153,6 +154,8 @@ export function ProfilePageClient({ initialData }: ProfilePageClientProps) {
                     </div>
                 </div>
             </div>
+
+            <BodyMetricsSection initialData={initialData.bodyMetrics} />
 
             <div>
                 <h3 className="text-xs font-semibold text-red-500/80 uppercase tracking-wider mb-3 px-1">{t('Profile.account')}</h3>

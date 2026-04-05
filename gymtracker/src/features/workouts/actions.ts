@@ -5,12 +5,16 @@ import {
   addExistingExerciseToWorkout,
   archiveExercise,
   checkExerciseHasLogs,
+  createExercise,
   createExerciseAndAddToWorkout,
   createWorkout,
+  deleteExercise,
   deleteWorkout,
   deleteWorkoutExercise,
   listAvailableExercises,
   reorderWorkoutExercises,
+  unarchiveExercise,
+  updateExerciseName,
   updateWorkoutExerciseTargetSets,
   updateWorkoutName,
 } from "@/features/workouts/service";
@@ -177,8 +181,72 @@ export async function archiveExerciseAction(
 ): Promise<ActionResult<null>> {
   try {
     await archiveExercise(exerciseId);
-    // Revalidate workouts so the exercise no longer appears in pickers
     revalidatePath("/workouts");
+    revalidatePath("/workouts/exercises");
+    revalidatePath(`/workouts/exercises/${exerciseId}`);
+    revalidatePath("/analytics");
+
+    return okResult(null);
+  } catch (error) {
+    return errorResult(error);
+  }
+}
+
+export async function createExerciseAction(
+  name: string,
+): Promise<ActionResult<Exercise>> {
+  try {
+    const exercise = await createExercise(name);
+    revalidatePath("/workouts");
+    revalidatePath("/workouts/exercises");
+
+    return okResult(exercise);
+  } catch (error) {
+    return errorResult(error);
+  }
+}
+
+export async function updateExerciseNameAction(
+  exerciseId: string,
+  name: string,
+): Promise<ActionResult<Exercise>> {
+  try {
+    const exercise = await updateExerciseName(exerciseId, name);
+    revalidatePath("/workouts");
+    revalidatePath("/workouts/exercises");
+    revalidatePath(`/workouts/exercises/${exerciseId}`);
+    revalidatePath("/analytics");
+
+    return okResult(exercise);
+  } catch (error) {
+    return errorResult(error);
+  }
+}
+
+export async function unarchiveExerciseAction(
+  exerciseId: string,
+): Promise<ActionResult<null>> {
+  try {
+    await unarchiveExercise(exerciseId);
+    revalidatePath("/workouts");
+    revalidatePath("/workouts/exercises");
+    revalidatePath(`/workouts/exercises/${exerciseId}`);
+
+    return okResult(null);
+  } catch (error) {
+    return errorResult(error);
+  }
+}
+
+export async function deleteExerciseAction(
+  exerciseId: string,
+): Promise<ActionResult<null>> {
+  try {
+    await deleteExercise(exerciseId);
+    revalidatePath("/workouts");
+    revalidatePath("/workouts/exercises");
+    revalidatePath("/analytics");
+
     return okResult(null);
   } catch (error) {
     return errorResult(error);

@@ -1,8 +1,12 @@
 import 'server-only'
 
+import { getRotationCycleLength } from '@/features/schedule/rotation'
 import { formatDateISO } from '@/lib/utils'
 import { getAuthenticatedServerContext } from '@/lib/supabase/auth'
-import type { ScheduleEntry } from '@/features/calendar/types'
+import { requireOwnedWorkoutSession } from '@/lib/supabase/ownership'
+import { isMissingColumnError, isMissingTableError } from '@/lib/supabase/schema-compat'
+import type { ScheduleEntry, ScheduleRotationEntry } from '@/features/calendar/types'
+import type { SetLog } from '@/lib/types'
 
 export async function getCalendarMonthRepository(year: number, month: number) {
     const { supabase, user } = await getAuthenticatedServerContext()
@@ -10,7 +14,7 @@ export async function getCalendarMonthRepository(year: number, month: number) {
     const startOfMonth = new Date(year, month, 1)
     const endOfMonth = new Date(year, month + 1, 0)
 
-    const [sessionsResult, scheduleResult] = await Promise.all([
+    const [sessionsResult, scheduleResult, rotationsResult, profileResult] = await Promise.all([
         supabase
             .from('workout_sessions')
             .select('*, workouts(*)')
@@ -23,6 +27,17 @@ export async function getCalendarMonthRepository(year: number, month: number) {
             .select('*, workouts(*)')
             .eq('user_id', user.id)
             .order('day_of_week'),
+        supabase
+            .from('schedule_rotations')
+            .select('*, workouts(*)')
+            .eq('user_id', user.id)
+            .order('day_of_week')
+            .order('rotation_index'),
+        supabase
+            .from('profiles')
+            .select('rotation_anchor_date')
+            .eq('id', user.id)
+            .maybeSingle(),
     ])
 
     if (sessionsResult.error) {
@@ -33,14 +48,50 @@ export async function getCalendarMonthRepository(year: number, month: number) {
         throw new Error(scheduleResult.error.message)
     }
 
+    const rotationSupportEnabled = !isMissingTableError(rotationsResult.error, 'schedule_rotations')
+
+    if (rotationsResult.error && rotationSupportEnabled) {
+        throw new Error(rotationsResult.error.message)
+    }
+
+    const rotationAnchorColumnAvailable = !isMissingColumnError(profileResult.error, 'rotation_anchor_date')
+
+    if (profileResult.error && rotationAnchorColumnAvailable) {
+        throw new Error(profileResult.error.message)
+    }
+
+    const rotations = rotationSupportEnabled ? (rotationsResult.data as ScheduleRotationEntry[] | null) ?? [] : []
+    const sessions = sessionsResult.data ?? []
+    const sessionIds = sessions.map((session) => session.id)
+    let sessionSetLogs: Pick<SetLog, 'session_id' | 'exercise_id' | 'weight_kg' | 'reps'>[] = []
+
+    if (sessionIds.length > 0) {
+        const { data, error } = await supabase
+            .from('set_logs')
+            .select('session_id, exercise_id, weight_kg, reps')
+            .in('session_id', sessionIds)
+
+        if (error) {
+            throw new Error(error.message)
+        }
+
+        sessionSetLogs = data ?? []
+    }
+
     return {
-        sessions: sessionsResult.data ?? [],
+        sessions,
         schedule: (scheduleResult.data as ScheduleEntry[] | null) ?? [],
+        rotations,
+        rotationAnchorDate: rotationAnchorColumnAvailable ? profileResult.data?.rotation_anchor_date ?? null : null,
+        rotationCycleLength: getRotationCycleLength(rotations),
+        rotationSupportEnabled: rotationSupportEnabled && rotationAnchorColumnAvailable,
+        sessionSetLogs,
     }
 }
 
 export async function getSessionSetsRepository(sessionId: string) {
-    const { supabase } = await getAuthenticatedServerContext()
+    const { supabase, user } = await getAuthenticatedServerContext()
+    await requireOwnedWorkoutSession(supabase, user.id, sessionId)
 
     const { data, error } = await supabase
         .from('set_logs')
@@ -54,4 +105,19 @@ export async function getSessionSetsRepository(sessionId: string) {
     }
 
     return data ?? []
+}
+
+export async function deleteWorkoutSessionRepository(sessionId: string) {
+    const { supabase, user } = await getAuthenticatedServerContext()
+    await requireOwnedWorkoutSession(supabase, user.id, sessionId)
+
+    const { error } = await supabase
+        .from('workout_sessions')
+        .delete()
+        .eq('id', sessionId)
+        .eq('user_id', user.id)
+
+    if (error) {
+        throw new Error(error.message)
+    }
 }

@@ -1,155 +1,150 @@
-# Plano de Implementação — Correções de Produção GymTracker
+# Plano de Implementacao — Correcões de Producao GymTracker
 
 ## Contexto
 
-Auditoria identificou 10 issues. Este plano implementa as **5 correções prioritárias** (P0–P1) com etapas concretas.
+Este plano consolida o que o projeto queria entregar e o que ja foi implementado no codigo atual.
+
+Status revisado em `2026-03-31`:
+
+- o deploy no Vercel esta compilando e ficando `READY`
+- o app publicado abre e redireciona corretamente para `/login` quando nao autenticado
+- havia um bug real de producao no `proxy` protegendo arquivos publicos como `manifest.json`, `robots.txt` e `sitemap.xml`
+- esse bug ja foi corrigido em `gymtracker/src/proxy.ts`
+
+Tambem havia itens do plano antigo que ficaram desatualizados:
+
+- varias funcoes do analytics ja estao exportadas
+- parte das migrations ja existe no repositorio
+- a UX de archive de exercicios ja foi implementada em `workout-editor-client.tsx`
+- algumas referencias de arquivo estavam apontando para componentes que nao existem mais
 
 ---
 
-## Proposed Changes
+## Estado Atual
 
-### P1 — Testes para analytics service
+### Ja implementado
 
-> [!IMPORTANT]
-> Implementar **antes** dos demais, para que as funções puras existentes tenham cobertura antes de refatorá-las.
+#### Analytics cross-workout por exercicio
 
-#### [NEW] vitest.config.ts
+- `getExerciseAnalyticsRepository(exerciseId)` existe
+- `getExerciseGlobalAnalytics(exerciseId)` existe
+- `getExerciseGlobalAnalyticsAction(exerciseId)` existe
+- tipo `ExerciseGlobalAnalyticsData` existe
+- UI com escopo `This Workout` vs `All Workouts` ja existe
 
-Configuração do Vitest com suporte a `@/` path alias.
+#### Archive de exercicios
 
-#### [MODIFY] [package.json](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/package.json)
+- migration `20260315_add_archived_at_to_exercises.sql` existe
+- filtro de exercicios arquivados ja existe na listagem
+- `archiveExerciseRepository`, `archiveExerciseAction` e `checkExerciseHasLogsAction` existem
+- dialogo de archive/remocao ja existe em `src/features/workouts/components/workout-editor-client.tsx`
 
-- Adicionar `vitest` e `@vitest/coverage-v8` como devDependencies
-- Adicionar script `"test": "vitest run"`, `"test:watch": "vitest"`
+#### Constraint de sessao unica
 
-#### [NEW] src/features/analytics/\_\_tests\_\_/analytics-service.test.ts
+- migration `20260315_unique_session_per_day.sql` existe
+- o fluxo de criacao em `src/features/today/repository.ts` ja trata `23505` e recupera a sessao existente
 
-Testes unitários (sem Supabase) para as funções puras do service:
+#### Testabilidade do analytics service
 
-1. [estimated1RM](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#7-13) — peso=0, reps=0, reps=1, caso normal
-2. [findBestSet](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#14-30) — lista vazia, sessão sem sets válidos, melhor set por 1RM
-3. [buildEvolution](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#31-55) — sessões sem sets, sessões com progressão, ordem cronológica
-4. [buildSummary](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#56-100) — trend [up](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/today/components/today-page-client.tsx#95-105), `down`, `stable`, limiar de ±2%
-
-> As funções [estimated1RM](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#7-13), [findBestSet](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#14-30), [buildEvolution](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#31-55), e [buildSummary](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#56-100) são atualmente privadas no módulo. Será necessário exportá-las para teste (ou usar `export { ... } for testing`).
-
-#### [MODIFY] [service.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts)
-
-Exportar funções puras para permitir teste:
-```diff
--function estimated1RM(...)
-+export function estimated1RM(...)
-```
-(Idem para [findBestSet](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#14-30), [buildEvolution](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#31-55), [buildSummary](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#56-100))
+- `estimated1RM`, `findBestSet`, `buildEvolution` e `buildSummary` ja estao exportadas
+- `vitest.config.ts` ja existe
+- `vitest` e `@vitest/coverage-v8` ja estao em `devDependencies`
 
 ---
 
-### P0a — Analytics cross-workout (por exercício)
+## Ajustes Ainda Necessarios
 
-#### [MODIFY] [repository.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/repository.ts)
+### 1. Fechar a configuracao de testes
 
-Nova função `getExerciseAnalyticsRepository(exerciseId)`:
-- Busca `workout_sessions` por `user_id` (sem filtro de `workout_id`)
-- Busca `set_logs` por `exercise_id` + session_ids
-- Retorna sessions + setLogs
+Arquivo:
+- `gymtracker/package.json`
 
-#### [MODIFY] [service.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts)
+Ainda falta:
+- adicionar script `test`
+- adicionar script `test:watch`
+- criar os testes unitarios do analytics service, se ainda nao tiverem sido escritos
 
-Nova função `getExerciseGlobalAnalytics(exerciseId)`:
-- Chama `getExerciseAnalyticsRepository`
-- Reutiliza [buildEvolution](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#31-55) e [buildSummary](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#56-100)
-- Retorna `{ evolution, summary }`
+Observacao:
+- o plano antigo tratava toda a configuracao de testes como pendente, mas hoje ela esta parcialmente pronta
 
-#### [MODIFY] [actions.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/actions.ts)
+### 2. Revisar validacao das server actions
 
-Nova action `getExerciseGlobalAnalyticsAction(exerciseId)`
+Arquivos:
+- `gymtracker/src/features/analytics/actions.ts`
+- `gymtracker/src/features/today/actions.ts`
+- `gymtracker/src/features/schedule/actions.ts`
 
-#### [MODIFY] [types.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/types.ts)
+Ainda vale implementar:
+- validacao de UUID
+- validacao de payload
+- mensagens de erro mais previsiveis
 
-Novo tipo `ExerciseGlobalAnalyticsData { evolution, summary }`
+### 3. Registrar o bug de producao do proxy como item resolvido
 
-#### UI — toggle "Por Treino" / "Global"
+Arquivo:
+- `gymtracker/src/proxy.ts`
 
-> [!WARNING]
-> A UI de analytics é client-side com estado local. Mudanças na UI dependem de revisão visual do usuário. As mudanças abaixo são mínimas.
+Correcao aplicada:
+- excluir `manifest.json`, `robots.txt`, `sitemap.xml` e outros assets publicos do matcher do proxy
 
-Adicionar um botão toggle no componente de analytics que, ao clicar "Global", chama a nova action e exibe dados cross-workout para o exercício selecionado.
+Impacto:
+- evita que navegador, instalacao PWA e crawlers recebam HTML de login no lugar de arquivos publicos
 
----
+### 4. Revisar configuracao de dominio publico
 
-### P0b — Archive de exercícios
+Arquivos afetados:
+- `gymtracker/src/app/layout.tsx`
+- `gymtracker/src/app/robots.ts`
+- `gymtracker/src/app/sitemap.ts`
+- variavel `NEXT_PUBLIC_SITE_URL` no Vercel
 
-#### [NEW] supabase/migrations/20260315\_add\_archived\_at\_to\_exercises.sql
-
-```sql
-ALTER TABLE public.exercises ADD COLUMN archived_at TIMESTAMPTZ;
-CREATE INDEX idx_exercises_archived ON public.exercises(user_id) WHERE archived_at IS NULL;
-```
-
-#### [MODIFY] [workouts/repository.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/workouts/repository.ts)
-
-- [listAvailableExercisesRepository](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/workouts/repository.ts#65-94): adicionar `.is('archived_at', null)` ao filtro
-- Nova função `archiveExerciseRepository(exerciseId)` — faz `UPDATE exercises SET archived_at = NOW() WHERE id = ?`
-- Nova função `checkExerciseHasLogsRepository(exerciseId)` — conta `set_logs` por `exercise_id`
-
-#### [MODIFY] [workouts/service.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/workouts/service.ts)
-
-Nova função `archiveExercise(exerciseId)` + `checkExerciseHasLogs(exerciseId)`
-
-#### [MODIFY] [workouts/actions.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/workouts/actions.ts)
-
-Novas actions: `archiveExerciseAction`, `checkExerciseHasLogsAction`
-
-#### UI — Dialog de confirmação no editor de workout
-
-No [workout-editor-client.tsx](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/workouts/components/workout-editor-client.tsx), quando o usuário clica delete em um exercício:
-1. Chama `checkExerciseHasLogsAction`
-2. Se tem logs → abre dialog "Este exercício tem X sessões registradas. Deseja arquivá-lo?"
-3. Se não tem logs → permite delete direto (comportamento atual)
-
----
-
-### P1b — Unique constraint em sessions
-
-#### [NEW] supabase/migrations/20260315\_unique\_session\_per\_day.sql
-
-```sql
-ALTER TABLE public.workout_sessions
-  ADD CONSTRAINT workout_sessions_user_workout_date_key
-  UNIQUE (user_id, workout_id, performed_at);
-```
-
-#### [MODIFY] [today/repository.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/today/repository.ts)
-
-Ajustar inserts em sessions para usar `ON CONFLICT … DO NOTHING` ou `DO UPDATE`.
+Risco atual:
+- se `NEXT_PUBLIC_SITE_URL` estiver diferente do dominio real publicado, callbacks e metadados ficam inconsistentes
 
 ---
 
 ## Verification Plan
 
-### Testes Automatizados
+### Testes automatizados
+
+Rodar:
 
 ```bash
-# Rodar após instalar Vitest (item P1)
+npm run lint
 npm test
 ```
 
-Espera-se ~15 testes passando cobrindo as funções puras do analytics service.
+### Build
 
-### Build Check
+Rodar:
 
 ```bash
 npm run build
 ```
 
-Garante que typescript compila sem erros e o Next.js build completa.
+Observacao importante:
+- localmente ou em ambiente sem acesso externo o build pode falhar por causa do `next/font/google`
+- no Vercel o build atual esta passando
 
-### Teste Manual pelo Usuário
+### Smoke test manual
 
-> [!IMPORTANT]
-> Após aplicar as migrations no Supabase, o usuário deve testar:
-> 1. Abrir analytics de um treino → verificar que toggle "Global" funciona
-> 2. Tentar deletar exercício com histórico → verificar que dialog de archive aparece
-> 3. Verificar que exercícios arquivados não aparecem na lista de "adicionar exercício"
+Validar em producao:
 
-Estes testes manuais dependem do ambiente Supabase do usuário.
+1. abrir `/login`
+2. confirmar que `manifest.json` responde JSON valido
+3. confirmar que `robots.txt` e `sitemap.xml` nao redirecionam para login
+4. autenticar com Supabase
+5. abrir `today`, `workouts` e `analytics`
+6. testar archive de exercicio com historico
+7. testar analytics global por exercicio
+
+---
+
+## Resumo
+
+O plano original estava bom na intencao, mas ficou atras do estado real do codigo. Hoje o trabalho mais importante nao e mais "implementar tudo isso do zero", e sim:
+
+- fechar os testes que faltam
+- endurecer validacoes
+- garantir configuracao correta de dominio/env no Vercel e Supabase
+- manter o deploy estavel, agora com o proxy corrigido

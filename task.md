@@ -1,41 +1,81 @@
-# GymTracker — Plano de Correções de Produção
+# GymTracker — Tarefas de Correcao de Producao
 
-## P0 — Crítico
+## Leitura correta do estado atual
 
-### 1. Analytics por exercício (cross-workout)
-- [ ] Criar nova query no repository que busca `set_logs` por `exercise_id` + `user_id` **sem filtro de workout**
-- [ ] Criar service function `getExerciseAnalytics(exerciseId)` reutilizando [buildEvolution](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#31-55) e [buildSummary](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#56-100)
-- [ ] Criar server action `getExerciseAnalyticsAction`
-- [ ] Adicionar aba/toggle na UI de analytics: "Por Treino" vs "Por Exercício (global)"
-- [ ] Adicionar índice [(exercise_id, session_id)](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/components/analytics-page-client.tsx#23-24) ao schema SQL (migration)
+Este arquivo foi atualizado para refletir o codigo atual do projeto, nao o estado antigo do planejamento.
 
-### 2. Exclusão de exercício com UX adequada
-- [ ] Adicionar coluna `archived_at TIMESTAMPTZ` na tabela `exercises` (migration)
-- [ ] Alterar query de listagem para filtrar `WHERE archived_at IS NULL`
-- [ ] Criar função de archive no repository/service
-- [ ] Alterar UI do `exercise-card.tsx`: verificar se há `set_logs` antes de deletar
-- [ ] Se houver histórico: mostrar dialog oferecendo "Arquivar" em vez de "Deletar"
-- [ ] Se não houver histórico: permitir delete direto (já funciona)
+Status em `2026-03-31`:
+
+- analytics global por exercicio: implementado
+- archive de exercicios com dialogo: implementado
+- migrations principais: presentes no repositorio
+- sessao unica por dia: parcialmente protegida via migration + tratamento de `23505`
+- bug do proxy em arquivos publicos: corrigido
+
+---
+
+## P0 — Critico
+
+### 1. Garantir recursos publicos fora da autenticacao
+- [x] Excluir `manifest.json` do `proxy`
+- [x] Excluir `robots.txt` do `proxy`
+- [x] Excluir `sitemap.xml` do `proxy`
+- [x] Excluir assets publicos do matcher do `proxy`
+
+Arquivos:
+- `gymtracker/src/proxy.ts`
+
+### 2. Validar dominio publico configurado
+- [ ] Conferir `NEXT_PUBLIC_SITE_URL` no Vercel
+- [ ] Garantir que o dominio configurado bate com o dominio real publicado
+- [ ] Revisar URLs do Supabase Auth para callback/login/logout
+
+Arquivos relacionados:
+- `gymtracker/src/app/layout.tsx`
+- `gymtracker/src/app/robots.ts`
+- `gymtracker/src/app/sitemap.ts`
 
 ## P1 — Importante
 
-### 3. Testes para o analytics service
-- [ ] Configurar Vitest no projeto
-- [ ] Escrever testes unitários para [estimated1RM()](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#7-13)
-- [ ] Escrever testes unitários para [findBestSet()](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#14-30)
-- [ ] Escrever testes unitários para [buildEvolution()](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#31-55)
-- [ ] Escrever testes unitários para [buildSummary()](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/service.ts#56-100) (trend up/down/stable)
+### 3. Fechar a parte que falta dos testes do analytics
+- [x] Configurar `vitest.config.ts`
+- [x] Exportar funcoes puras do analytics service
+- [ ] Adicionar script `test` em `package.json`
+- [ ] Adicionar script `test:watch` em `package.json`
+- [ ] Escrever testes unitarios para `estimated1RM()`
+- [ ] Escrever testes unitarios para `findBestSet()`
+- [ ] Escrever testes unitarios para `buildEvolution()`
+- [ ] Escrever testes unitarios para `buildSummary()`
 
-### 4. Constraint de sessão única por dia
-- [ ] Adicionar `UNIQUE(user_id, workout_id, performed_at)` na tabela `workout_sessions` (migration)
-- [ ] Usar `ON CONFLICT` no upsert do [saveSession](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/today/repository.ts#367-379) em [today/service.ts](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/today/service.ts)
+Arquivos:
+- `gymtracker/package.json`
+- `gymtracker/vitest.config.ts`
+- `gymtracker/src/features/analytics/service.ts`
 
-## P2 — Moderado
-
-### 5. Validação de input nas server actions
-- [ ] Validar formato UUID em [getWorkoutAnalyticsAction](file:///c:/Users/Sergio/Documents/GitHub/muscula%C3%A7%C3%A3o/gymtracker/src/features/analytics/actions.ts#8-16)
+### 4. Endurecer validacao das server actions
+- [ ] Validar formato UUID em `getWorkoutAnalyticsAction`
 - [ ] Validar formato UUID e payload em `saveSessionAction`
 - [ ] Validar formato UUID em `skipOrRescheduleAction`
 
-### 6. Índice para analytics por exercício
-- [ ] (Coberto no item 1 — migration de índice)
+## P2 — Moderado
+
+### 5. Revisar consistencia do fluxo de sessao unica por dia
+- [x] Adicionar migration de `UNIQUE(user_id, workout_id, performed_at)`
+- [x] Tratar `23505` ao criar sessao concorrente
+- [ ] Revisar se outros inserts/updates do fluxo de `today` tambem precisam de `upsert` ou recuperacao defensiva
+
+Arquivos:
+- `gymtracker/supabase/migrations/20260315_unique_session_per_day.sql`
+- `gymtracker/src/features/today/repository.ts`
+
+### 6. Confirmar UX de archive de exercicios
+- [x] Filtrar `archived_at IS NULL` na biblioteca
+- [x] Verificar historico antes de remover
+- [x] Mostrar dialogo de archive no editor
+- [x] Evitar reexibir exercicio arquivado no picker
+
+Arquivo correto da UI:
+- `gymtracker/src/features/workouts/components/workout-editor-client.tsx`
+
+Observacao:
+- a referencia antiga para `exercise-card.tsx` estava errada; esse componente nao e o ponto atual da UX

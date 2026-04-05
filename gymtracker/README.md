@@ -56,20 +56,31 @@ npm run dev:stable
 ## Quality checks
 
 ```bash
+npm exec tsc --noEmit
+npm test
 npm run lint
 npm run build
 ```
 
 ## Database
 
-The current safe migration for production data is in:
+The current required migration baseline for production is:
 
 - [supabase/migrations/20260306_phase1_preserve_existing_data.sql](supabase/migrations/20260306_phase1_preserve_existing_data.sql)
 - [supabase/migrations/20260307_fix_missing_profiles_and_auth_trigger.sql](supabase/migrations/20260307_fix_missing_profiles_and_auth_trigger.sql)
+- [supabase/migrations/20260315_add_archived_at_to_exercises.sql](supabase/migrations/20260315_add_archived_at_to_exercises.sql)
+- [supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql](supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql)
 
 Reference docs:
 
 - [docs/database/phase-1-safe-migration.md](docs/database/phase-1-safe-migration.md)
+
+Required schema for the current app version includes:
+
+- `profiles.rotation_anchor_date`
+- `exercises.archived_at`
+- `schedule_rotations`
+- `body_measurements`
 
 ## Deploy today
 
@@ -107,7 +118,7 @@ For this project, VPS is viable, but Vercel is lower operational risk for immedi
 
 ### Supabase
 
-Before going live, confirm production has the expected schema and run the safe migration if needed.
+Before going live, confirm production has the expected schema and run the full migration baseline if needed.
 
 ### Go-live checklist
 

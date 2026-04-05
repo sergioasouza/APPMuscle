@@ -1,0 +1,14 @@
+
+> gymtracker@0.1.0 dev:stable
+> next dev --webpack
+
+▲ Next.js 16.1.6 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.100.55:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 5.1s
+○ Compiling proxy ...
+○ Compiling /login ...
+ GET /login 200 in 633ms (compile: 31ms, proxy.ts: 88ms, render: 515ms)
