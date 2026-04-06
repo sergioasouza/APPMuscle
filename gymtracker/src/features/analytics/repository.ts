@@ -1,8 +1,11 @@
 import "server-only";
 
 import { getAuthenticatedServerContext } from "@/lib/supabase/auth";
+import {
+  getAccessibleExerciseRecord,
+  resolveExercisesForUser,
+} from "@/lib/supabase/exercises";
 import type {
-  Exercise,
   SetLog,
   WorkoutExerciseWithExercise,
   WorkoutSession,
@@ -56,9 +59,30 @@ export async function getWorkoutAnalyticsRepository(workoutId: string) {
   const safeWorkoutExercises = (
     (workoutExercisesResult.data as WorkoutExerciseWithExercise[] | null) ?? []
   ).filter((we) => we.exercises != null);
+  const resolvedExercises = await resolveExercisesForUser(
+    supabase,
+    user.id,
+    safeWorkoutExercises.map((workoutExercise) => workoutExercise.exercises),
+  );
+  const resolvedById = resolvedExercises.reduce<Map<string, typeof resolvedExercises[number]>>(
+    (accumulator, exercise) => {
+      accumulator.set(exercise.id, exercise);
+      return accumulator;
+    },
+    new Map(),
+  );
+  const resolvedWorkoutExercises = safeWorkoutExercises.flatMap((workoutExercise) => {
+    const resolvedExercise = resolvedById.get(workoutExercise.exercise_id);
+
+    if (!resolvedExercise) {
+      return [];
+    }
+
+    return [{ ...workoutExercise, exercises: resolvedExercise }];
+  });
 
   return {
-    workoutExercises: safeWorkoutExercises,
+    workoutExercises: resolvedWorkoutExercises,
     sessions,
     setLogs,
   };
@@ -77,19 +101,14 @@ export async function getWorkoutAnalyticsRepository(workoutId: string) {
 export async function getExerciseAnalyticsRepository(exerciseId: string) {
   const { supabase, user } = await getAuthenticatedServerContext();
 
-  // 1. Fetch the exercise record (needed for the name and ownership check)
-  const { data: exerciseData, error: exerciseError } = await supabase
-    .from("exercises")
-    .select("*")
-    .eq("id", exerciseId)
-    .eq("user_id", user.id) // RLS + ownership guard
-    .single();
+  const exerciseData = await getAccessibleExerciseRecord(
+    supabase,
+    user.id,
+    exerciseId,
+  );
 
-  if (exerciseError) {
-    if (exerciseError.code === "PGRST116") {
-      throw new Error("Exercise not found");
-    }
-    throw new Error(exerciseError.message);
+  if (!exerciseData) {
+    throw new Error("Exercise not found");
   }
 
   // 2. Fetch all set_logs for this exercise across the user's sessions.
@@ -135,8 +154,14 @@ export async function getExerciseAnalyticsRepository(exerciseId: string) {
     sessions = (sessionsData as WorkoutSession[] | null) ?? [];
   }
 
+  const [resolvedExercise] = await resolveExercisesForUser(
+    supabase,
+    user.id,
+    [exerciseData],
+  );
+
   return {
-    exercise: exerciseData as Exercise,
+    exercise: resolvedExercise,
     sessions,
     setLogs,
   };

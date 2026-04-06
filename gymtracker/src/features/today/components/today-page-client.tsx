@@ -9,14 +9,25 @@ import {
     getTodayViewAction,
     listUserWorkoutsAction,
     rescheduleWorkoutAction,
+    saveCardioLogAction,
     saveSessionNotesAction,
     saveSetAction,
+    skipCardioAction,
+    skipExerciseAction,
     skipWorkoutAction,
     switchWorkoutForDayAction,
+    undoSkipCardioAction,
+    undoSkipExerciseAction,
     undoSkipWorkoutAction,
 } from '@/features/today/actions'
 import type { Workout, WorkoutSession } from '@/lib/types'
-import type { ExerciseLogSetState, ExerciseLogState, TodayViewData } from '@/features/today/types'
+import type {
+    CardioIntervalState,
+    CardioLogState,
+    ExerciseLogSetState,
+    ExerciseLogState,
+    TodayViewData,
+} from '@/features/today/types'
 
 interface PendingSetQueueItem {
     clientId: string
@@ -50,6 +61,65 @@ function cloneLogs(logs: ExerciseLogState[]) {
         ...log,
         sets: log.sets.map((set) => ({ ...set })),
     }))
+}
+
+function cloneCardioLogs(logs: CardioLogState[]) {
+    return logs.map((log) => ({
+        ...log,
+        intervals: log.intervals.map((interval) => ({ ...interval })),
+    }))
+}
+
+function parseNonNegativeInteger(value: string) {
+    const parsed = Number.parseInt(value, 10)
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return null
+    }
+
+    return parsed
+}
+
+function parsePositiveInteger(value: string) {
+    const parsed = Number.parseInt(value, 10)
+    if (!Number.isFinite(parsed) || parsed < 1) {
+        return null
+    }
+
+    return parsed
+}
+
+function parseNonNegativeNumber(value: string) {
+    const normalized = value.trim().replace(',', '.')
+    if (!normalized) {
+        return null
+    }
+
+    const parsed = Number.parseFloat(normalized)
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return null
+    }
+
+    return parsed
+}
+
+function splitTotalDuration(totalDurationMinutes: string) {
+    const parsed = parseNonNegativeInteger(totalDurationMinutes)
+    if (parsed == null) {
+        return { hours: '', minutes: '' }
+    }
+
+    return {
+        hours: String(Math.floor(parsed / 60)),
+        minutes: String(parsed % 60),
+    }
+}
+
+function combineDurationParts(hours: string, minutes: string) {
+    const parsedHours = parseNonNegativeInteger(hours) ?? 0
+    const parsedMinutes = parseNonNegativeInteger(minutes) ?? 0
+    const total = parsedHours * 60 + parsedMinutes
+
+    return total > 0 ? String(total) : ''
 }
 
 function readPendingQueue(): PendingSetQueueItem[] {
@@ -209,6 +279,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         initialData.session?.id,
         dateISO
     ))
+    const [cardioLogs, setCardioLogs] = useState<CardioLogState[]>(() => cloneCardioLogs(initialData.cardioLogs))
     const [notes, setNotes] = useState(initialData.notes)
     const [showOverrideModal, setShowOverrideModal] = useState(false)
     const [allWorkouts, setAllWorkouts] = useState<Workout[]>([])
@@ -355,6 +426,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         setSession(result.data.session)
         setRotation(result.data.rotation)
         setExerciseLogs(applyPendingStateToLogs(result.data.exerciseLogs, pendingQueue))
+        setCardioLogs(cloneCardioLogs(result.data.cardioLogs))
         setNotes(result.data.notes)
     }
 
@@ -544,6 +616,211 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         })
     }
 
+    async function handleSkipExercise(exerciseId: string) {
+        if (!session) return
+
+        const result = await skipExerciseAction(session.id, exerciseId)
+        if (!result.ok) {
+            showToast(result.message ?? 'Unable to skip exercise', 'error')
+            return
+        }
+
+        showToast(t('Today.toastExerciseSkipped'))
+        await refreshTodayView()
+    }
+
+    async function handleUndoSkipExercise(exerciseId: string) {
+        if (!session) return
+
+        const result = await undoSkipExerciseAction(session.id, exerciseId)
+        if (!result.ok) {
+            showToast(result.message ?? 'Unable to undo exercise skip', 'error')
+            return
+        }
+
+        await refreshTodayView()
+    }
+
+    function updateCardioLog(cardioBlockId: string, updater: (current: CardioLogState) => CardioLogState) {
+        setCardioLogs((prev) => prev.map((log) => {
+            if (log.cardioBlockId !== cardioBlockId) {
+                return log
+            }
+
+            return updater(log)
+        }))
+    }
+
+    function handleCardioDurationPartChange(
+        cardioBlockId: string,
+        field: 'hours' | 'minutes',
+        value: string,
+    ) {
+        updateCardioLog(cardioBlockId, (current) => {
+            const parts = splitTotalDuration(current.totalDurationMinutes)
+            const nextParts = {
+                hours: field === 'hours' ? value : parts.hours,
+                minutes: field === 'minutes' ? value : parts.minutes,
+            }
+
+            return {
+                ...current,
+                skipped: false,
+                saved: false,
+                totalDurationMinutes: combineDurationParts(nextParts.hours, nextParts.minutes),
+            }
+        })
+    }
+
+    function handleCardioDistanceChange(cardioBlockId: string, value: string) {
+        updateCardioLog(cardioBlockId, (current) => ({
+            ...current,
+            skipped: false,
+            saved: false,
+            totalDistanceKm: value,
+        }))
+    }
+
+    function handleAddCardioInterval(cardioBlockId: string) {
+        updateCardioLog(cardioBlockId, (current) => ({
+            ...current,
+            skipped: false,
+            saved: false,
+            intervals: [
+                ...current.intervals,
+                {
+                    durationMinutes: '',
+                    speedKmh: '',
+                    repeatCount: '1',
+                },
+            ],
+        }))
+    }
+
+    function handleRemoveCardioInterval(cardioBlockId: string, intervalIndex: number) {
+        updateCardioLog(cardioBlockId, (current) => ({
+            ...current,
+            saved: false,
+            intervals: current.intervals.filter((_, index) => index !== intervalIndex),
+        }))
+    }
+
+    function handleCardioIntervalChange(
+        cardioBlockId: string,
+        intervalIndex: number,
+        field: keyof CardioIntervalState,
+        value: string,
+    ) {
+        updateCardioLog(cardioBlockId, (current) => ({
+            ...current,
+            skipped: false,
+            saved: false,
+            intervals: current.intervals.map((interval, index) => {
+                if (index !== intervalIndex) {
+                    return interval
+                }
+
+                return {
+                    ...interval,
+                    [field]: value,
+                }
+            }),
+        }))
+    }
+
+    async function handleSaveCardio(cardioLog: CardioLogState) {
+        if (!session) return
+
+        const totalDurationMinutes = cardioLog.totalDurationMinutes
+            ? parsePositiveInteger(cardioLog.totalDurationMinutes)
+            : null
+        const totalDistanceKm = cardioLog.totalDistanceKm
+            ? parseNonNegativeNumber(cardioLog.totalDistanceKm)
+            : null
+        const normalizedIntervals = cardioLog.intervals.flatMap((interval) => {
+            const durationMinutes = parsePositiveInteger(interval.durationMinutes)
+            const repeatCount = parsePositiveInteger(interval.repeatCount)
+            const speedKmh = interval.speedKmh ? parseNonNegativeNumber(interval.speedKmh) : null
+
+            if (durationMinutes == null || repeatCount == null) {
+                return []
+            }
+
+            return [{
+                id: interval.id,
+                durationMinutes,
+                repeatCount,
+                speedKmh,
+            }]
+        })
+
+        const hasAnyMetric =
+            totalDurationMinutes != null ||
+            totalDistanceKm != null ||
+            normalizedIntervals.length > 0
+
+        if (!hasAnyMetric) {
+            showToast(t('Today.toastCardioRequiresMetric'), 'error')
+            return
+        }
+
+        const allIntervalsValid = cardioLog.intervals.every((interval) => {
+            if (!interval.durationMinutes && !interval.speedKmh) {
+                return true
+            }
+
+            return parsePositiveInteger(interval.durationMinutes) != null
+                && parsePositiveInteger(interval.repeatCount) != null
+                && (interval.speedKmh === '' || parseNonNegativeNumber(interval.speedKmh) != null)
+        })
+
+        if (!allIntervalsValid) {
+            showToast(t('Today.toastCardioInvalidInterval'), 'error')
+            return
+        }
+
+        const result = await saveCardioLogAction({
+            sessionId: session.id,
+            cardioBlockId: cardioLog.cardioBlockId,
+            totalDurationMinutes,
+            totalDistanceKm,
+            intervals: normalizedIntervals,
+        })
+
+        if (!result.ok) {
+            showToast(result.message ?? 'Unable to save cardio', 'error')
+            return
+        }
+
+        showToast(t('Today.toastCardioSaved'))
+        await refreshTodayView()
+    }
+
+    async function handleSkipCardio(cardioBlockId: string) {
+        if (!session) return
+
+        const result = await skipCardioAction(session.id, cardioBlockId)
+        if (!result.ok) {
+            showToast(result.message ?? 'Unable to skip cardio', 'error')
+            return
+        }
+
+        showToast(t('Today.toastCardioSkipped'))
+        await refreshTodayView()
+    }
+
+    async function handleUndoSkipCardio(cardioBlockId: string) {
+        if (!session) return
+
+        const result = await undoSkipCardioAction(session.id, cardioBlockId)
+        if (!result.ok) {
+            showToast(result.message ?? 'Unable to undo cardio skip', 'error')
+            return
+        }
+
+        await refreshTodayView()
+    }
+
     async function handleSaveNotes() {
         if (!session) return
 
@@ -557,12 +834,26 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         showToast(t('Today.toastNotesSaved'))
     }
 
-    const totalSets = useMemo(() => optimisticExerciseLogs.reduce((acc, exerciseLog) => acc + exerciseLog.targetSets, 0), [optimisticExerciseLogs])
-    const completedSets = useMemo(
-        () => optimisticExerciseLogs.reduce((acc, exerciseLog) => acc + exerciseLog.sets.filter((set) => set.saved).length, 0),
-        [optimisticExerciseLogs]
+    const totalProgressUnits = useMemo(
+        () => optimisticExerciseLogs.reduce((acc, exerciseLog) => acc + exerciseLog.targetSets, 0) + cardioLogs.length,
+        [cardioLogs.length, optimisticExerciseLogs]
     )
-    const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0
+    const completedProgressUnits = useMemo(
+        () => {
+            const exerciseUnits = optimisticExerciseLogs.reduce((acc, exerciseLog) => {
+                if (exerciseLog.skipped) {
+                    return acc + exerciseLog.targetSets
+                }
+
+                return acc + exerciseLog.sets.filter((set) => set.saved).length
+            }, 0)
+            const cardioUnits = cardioLogs.filter((cardioLog) => cardioLog.saved || cardioLog.skipped).length
+
+            return exerciseUnits + cardioUnits
+        },
+        [cardioLogs, optimisticExerciseLogs]
+    )
+    const progress = totalProgressUnits > 0 ? (completedProgressUnits / totalProgressUnits) * 100 : 0
     const sessionStatus = useMemo(() => parseWorkoutSessionStatus(session?.notes), [session?.notes])
     const isSkipped = sessionStatus.kind === 'skipped'
     const isRescheduledSource = sessionStatus.kind === 'rescheduled_to'
@@ -760,7 +1051,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             <div className="mb-6">
                 <div className="flex items-center justify-between mb-1.5">
                     <span className="text-xs text-zinc-500 dark:text-zinc-400">{t('Today.progress')}</span>
-                    <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">{completedSets}/{totalSets} {t('Today.sets')}</span>
+                    <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">{completedProgressUnits}/{totalProgressUnits} {t('Today.progressUnits')}</span>
                 </div>
                 <div className="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
@@ -775,17 +1066,40 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
 
             <div className="space-y-4">
                 {optimisticExerciseLogs.map((exerciseLog, exerciseIndex) => {
-                    const completed = exerciseLog.sets.filter((set) => set.saved).length
+                    const completed = exerciseLog.skipped
+                        ? exerciseLog.targetSets
+                        : exerciseLog.sets.filter((set) => set.saved).length
 
                     return (
                         <div key={exerciseLog.exerciseId} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/50 rounded-2xl overflow-hidden">
                             <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800/50 flex items-center justify-between">
-                                <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">{exerciseLog.exerciseName}</h3>
-                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${completed === exerciseLog.targetSets ? 'bg-emerald-600/20 text-emerald-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'}`}>
-                                    {completed}/{exerciseLog.targetSets}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">{exerciseLog.exerciseName}</h3>
+                                    {exerciseLog.skipped && (
+                                        <span className="rounded-md bg-amber-500/15 px-2 py-1 text-[11px] font-semibold text-amber-500">
+                                            {t('Today.exerciseSkippedBadge')}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => exerciseLog.skipped ? handleUndoSkipExercise(exerciseLog.exerciseId) : handleSkipExercise(exerciseLog.exerciseId)}
+                                        disabled={!exerciseLog.skipped && exerciseLog.sets.some((set) => set.saved)}
+                                        className="rounded-lg bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-200 disabled:opacity-40 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                                    >
+                                        {exerciseLog.skipped ? t('Today.undoSkip') : t('Today.skipExercise')}
+                                    </button>
+                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${completed === exerciseLog.targetSets ? 'bg-emerald-600/20 text-emerald-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'}`}>
+                                        {completed}/{exerciseLog.targetSets}
+                                    </span>
+                                </div>
                             </div>
 
+                            {exerciseLog.skipped ? (
+                                <div className="px-4 py-4 text-sm text-zinc-500 dark:text-zinc-400">
+                                    {t('Today.exerciseSkippedDescription')}
+                                </div>
+                            ) : (
                             <div className="divide-y divide-zinc-800/30">
                                 {exerciseLog.sets.map((set, setIndex) => {
                                     const prevMark = exerciseLog.previousSets?.[setIndex]
@@ -846,10 +1160,176 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                                     )
                                 })}
                             </div>
+                            )}
                         </div>
                     )
                 })}
             </div>
+
+            {cardioLogs.length > 0 && (
+                <div className="mt-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                            {t('Today.cardioSectionTitle')}
+                        </h2>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                            {cardioLogs.length} {t('Today.cardioItemsCount')}
+                        </span>
+                    </div>
+
+                    {cardioLogs.map((cardioLog) => {
+                        const durationParts = splitTotalDuration(cardioLog.totalDurationMinutes)
+
+                        return (
+                            <div key={cardioLog.cardioBlockId} className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                                <div className="mb-3 flex items-start justify-between gap-3">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">{cardioLog.cardioName}</h3>
+                                            {cardioLog.skipped && (
+                                                <span className="rounded-md bg-amber-500/15 px-2 py-1 text-[11px] font-semibold text-amber-500">
+                                                    {t('Today.exerciseSkippedBadge')}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {cardioLog.targetDurationMinutes != null && (
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                                {t('Today.cardioTargetDuration', { minutes: cardioLog.targetDurationMinutes })}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => cardioLog.skipped ? handleUndoSkipCardio(cardioLog.cardioBlockId) : handleSkipCardio(cardioLog.cardioBlockId)}
+                                        disabled={!cardioLog.skipped && cardioLog.saved}
+                                        className="rounded-lg bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-200 disabled:opacity-40 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                                    >
+                                        {cardioLog.skipped ? t('Today.undoSkip') : t('Today.skipExercise')}
+                                    </button>
+                                </div>
+
+                                {cardioLog.skipped ? (
+                                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                        {t('Today.cardioSkippedDescription')}
+                                    </p>
+                                ) : (
+                                    <>
+                                        <div className="grid gap-3 md:grid-cols-3">
+                                            <div>
+                                                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                                                    {t('Today.cardioDuration')}
+                                                </label>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        inputMode="numeric"
+                                                        value={durationParts.hours}
+                                                        onChange={(event) => handleCardioDurationPartChange(cardioLog.cardioBlockId, 'hours', event.target.value)}
+                                                        placeholder={t('Today.cardioHours')}
+                                                        className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-center text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                                    />
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        inputMode="numeric"
+                                                        value={durationParts.minutes}
+                                                        onChange={(event) => handleCardioDurationPartChange(cardioLog.cardioBlockId, 'minutes', event.target.value)}
+                                                        placeholder={t('Today.cardioMinutes')}
+                                                        className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-center text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                                                    {t('Today.cardioDistance')}
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    step="0.01"
+                                                    inputMode="decimal"
+                                                    value={cardioLog.totalDistanceKm}
+                                                    onChange={(event) => handleCardioDistanceChange(cardioLog.cardioBlockId, event.target.value)}
+                                                    placeholder="0"
+                                                    className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-center text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                                />
+                                            </div>
+                                            <div className="flex items-end">
+                                                <button
+                                                    onClick={() => handleSaveCardio(cardioLog)}
+                                                    className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
+                                                >
+                                                    {cardioLog.saved ? t('Common.edit') : t('Common.save')}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4 rounded-xl border border-zinc-200 bg-white/70 p-3 dark:border-zinc-800 dark:bg-zinc-950/40">
+                                            <div className="mb-3 flex items-center justify-between">
+                                                <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                                                    {t('Today.cardioIntervals')}
+                                                </span>
+                                                <button
+                                                    onClick={() => handleAddCardioInterval(cardioLog.cardioBlockId)}
+                                                    className="rounded-lg bg-emerald-600/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-500 transition-colors hover:bg-emerald-600/20"
+                                                >
+                                                    + {t('Today.cardioAddInterval')}
+                                                </button>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                {cardioLog.intervals.length === 0 && (
+                                                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                                        {t('Today.cardioIntervalsHint')}
+                                                    </p>
+                                                )}
+                                                {cardioLog.intervals.map((interval, intervalIndex) => (
+                                                    <div key={`${cardioLog.cardioBlockId}:${intervalIndex}`} className="grid gap-2 md:grid-cols-[0.9fr_0.9fr_0.8fr_auto]">
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            inputMode="numeric"
+                                                            value={interval.durationMinutes}
+                                                            onChange={(event) => handleCardioIntervalChange(cardioLog.cardioBlockId, intervalIndex, 'durationMinutes', event.target.value)}
+                                                            placeholder={t('Today.cardioDurationMinutes')}
+                                                            className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-center text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                                        />
+                                                        <input
+                                                            type="number"
+                                                            min={0}
+                                                            step="0.1"
+                                                            inputMode="decimal"
+                                                            value={interval.speedKmh}
+                                                            onChange={(event) => handleCardioIntervalChange(cardioLog.cardioBlockId, intervalIndex, 'speedKmh', event.target.value)}
+                                                            placeholder={t('Today.cardioSpeed')}
+                                                            className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-center text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                                        />
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            inputMode="numeric"
+                                                            value={interval.repeatCount}
+                                                            onChange={(event) => handleCardioIntervalChange(cardioLog.cardioBlockId, intervalIndex, 'repeatCount', event.target.value)}
+                                                            placeholder={t('Today.cardioRepeats')}
+                                                            className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-center text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                                        />
+                                                        <button
+                                                            onClick={() => handleRemoveCardioInterval(cardioLog.cardioBlockId, intervalIndex)}
+                                                            className="rounded-xl bg-red-500/10 px-3 py-2.5 text-sm font-semibold text-red-400 transition-colors hover:bg-red-500/20"
+                                                        >
+                                                            {t('Common.delete')}
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
 
             {session && (
                 <div className="mt-6 mb-8">

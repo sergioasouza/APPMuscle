@@ -11,19 +11,26 @@ import {
   archiveExerciseAction,
   checkExerciseHasLogsAction,
   createExerciseAndAddToWorkoutAction,
+  createWorkoutCardioBlockAction,
+  deleteWorkoutCardioBlockAction,
   deleteWorkoutExerciseAction,
   listAvailableExercisesAction,
   reorderWorkoutExercisesAction,
+  updateWorkoutCardioBlockAction,
   updateWorkoutExerciseTargetSetsAction,
   updateWorkoutNameAction,
 } from "@/features/workouts/actions";
 import { WorkoutsSectionNav } from "@/features/workouts/components/workouts-section-nav";
 import type { Workout } from "@/lib/types";
-import type { WorkoutEditorExercise } from "@/features/workouts/types";
+import type {
+  WorkoutEditorCardioBlock,
+  WorkoutEditorExercise,
+} from "@/features/workouts/types";
 
 interface WorkoutEditorClientProps {
   initialWorkout: Workout;
   initialWorkoutExercises: WorkoutEditorExercise[];
+  initialCardioBlocks: WorkoutEditorCardioBlock[];
 }
 
 function createClientMutationId() {
@@ -40,6 +47,7 @@ function createClientMutationId() {
 export function WorkoutEditorClient({
   initialWorkout,
   initialWorkoutExercises,
+  initialCardioBlocks,
 }: WorkoutEditorClientProps) {
   const t = useTranslations();
   const router = useRouter();
@@ -50,6 +58,7 @@ export function WorkoutEditorClient({
   const [workoutExercises, setWorkoutExercises] = useState(
     initialWorkoutExercises,
   );
+  const [cardioBlocks, setCardioBlocks] = useState(initialCardioBlocks);
   const [availableExercises, setAvailableExercises] = useState<
     WorkoutEditorExercise["exercises"][]
   >([]);
@@ -79,9 +88,37 @@ export function WorkoutEditorClient({
   const [reordering, setReordering] = useState(false);
   const [addingExercise, setAddingExercise] = useState(false);
   const [removingExercise, setRemovingExercise] = useState(false);
+  const [addingCardio, setAddingCardio] = useState(false);
+  const [cardioNameDraft, setCardioNameDraft] = useState("");
+  const [cardioTargetHoursDraft, setCardioTargetHoursDraft] = useState("");
+  const [cardioTargetMinutesDraft, setCardioTargetMinutesDraft] = useState("");
+  const [savingCardioById, setSavingCardioById] = useState<Record<string, boolean>>({});
+  const [cardioDraftsById, setCardioDraftsById] = useState<Record<string, { name: string; hours: string; minutes: string }>>({});
+  const [deletingCardioId, setDeletingCardioId] = useState<string | null>(null);
   const latestNameMutationRef = useRef<string | null>(null);
   const latestSetMutationByExerciseRef = useRef<Record<string, string>>({});
   const latestReorderMutationRef = useRef<string | null>(null);
+
+  function splitDurationMinutes(totalMinutes: number | null) {
+    if (!totalMinutes || totalMinutes <= 0) {
+      return { hours: "", minutes: "" };
+    }
+
+    return {
+      hours: String(Math.floor(totalMinutes / 60)),
+      minutes: String(totalMinutes % 60),
+    };
+  }
+
+  function buildDurationMinutesFromDraft(hours: string, minutes: string) {
+    const parsedHours = Number.parseInt(hours || "0", 10);
+    const parsedMinutes = Number.parseInt(minutes || "0", 10);
+    const safeHours = Number.isFinite(parsedHours) && parsedHours >= 0 ? parsedHours : 0;
+    const safeMinutes = Number.isFinite(parsedMinutes) && parsedMinutes >= 0 ? parsedMinutes : 0;
+    const totalMinutes = safeHours * 60 + safeMinutes;
+
+    return totalMinutes > 0 ? totalMinutes : null;
+  }
 
   const filteredAvailableExercises = useMemo(() => {
     const normalizedSearch = exerciseSearch.trim().toLowerCase();
@@ -91,7 +128,12 @@ export function WorkoutEditorClient({
     }
 
     return availableExercises.filter((exercise) =>
-      exercise.name.toLowerCase().includes(normalizedSearch),
+      [
+        exercise.name,
+        exercise.display_name,
+        exercise.modality ?? "",
+        exercise.muscle_group ?? "",
+      ].some((value) => value.toLowerCase().includes(normalizedSearch)),
     );
   }, [availableExercises, exerciseSearch]);
 
@@ -318,7 +360,7 @@ export function WorkoutEditorClient({
     if (exerciseLibraryLoaded && target.exercises) {
       setAvailableExercises((prev) =>
         [...prev, target.exercises].sort((a, b) =>
-          a.name.localeCompare(b.name),
+          a.display_name.localeCompare(b.display_name),
         ),
       );
     }
@@ -421,6 +463,141 @@ export function WorkoutEditorClient({
     }
   }
 
+  function getCardioDraft(cardioBlock: WorkoutEditorCardioBlock) {
+    const existingDraft = cardioDraftsById[cardioBlock.id];
+    if (existingDraft) {
+      return existingDraft;
+    }
+
+    const durationParts = splitDurationMinutes(
+      cardioBlock.target_duration_minutes,
+    );
+
+    return {
+      name: cardioBlock.name,
+      hours: durationParts.hours,
+      minutes: durationParts.minutes,
+    };
+  }
+
+  function handleCardioDraftChange(
+    cardioBlockId: string,
+    field: "name" | "hours" | "minutes",
+    value: string,
+  ) {
+    setCardioDraftsById((prev) => {
+      const currentCardio = cardioBlocks.find((cardio) => cardio.id === cardioBlockId);
+      const current = currentCardio
+        ? getCardioDraft(currentCardio)
+        : { name: "", hours: "", minutes: "" };
+
+      return {
+        ...prev,
+        [cardioBlockId]: {
+          ...current,
+          [field]: value,
+        },
+      };
+    });
+  }
+
+  async function handleCreateCardioBlock() {
+    if (addingCardio || !cardioNameDraft.trim()) {
+      return;
+    }
+
+    setAddingCardio(true);
+    const result = await createWorkoutCardioBlockAction(initialWorkout.id, {
+      name: cardioNameDraft.trim(),
+      targetDurationMinutes: buildDurationMinutesFromDraft(
+        cardioTargetHoursDraft,
+        cardioTargetMinutesDraft,
+      ),
+    });
+    setAddingCardio(false);
+
+    if (!result.ok || !result.data) {
+      showToast(result.message ?? "Unable to create cardio", "error");
+      return;
+    }
+
+    setCardioBlocks((prev) => [...prev, result.data!]);
+    setCardioNameDraft("");
+    setCardioTargetHoursDraft("");
+    setCardioTargetMinutesDraft("");
+    showToast(t("Workouts.toastCardioAdded"));
+  }
+
+  async function handleSaveCardioBlock(cardioBlock: WorkoutEditorCardioBlock) {
+    const draft = getCardioDraft(cardioBlock);
+
+    if (!draft.name.trim()) {
+      showToast(t("Workouts.cardioNameRequired"), "error");
+      return;
+    }
+
+    setSavingCardioById((prev) => ({ ...prev, [cardioBlock.id]: true }));
+
+    const result = await updateWorkoutCardioBlockAction(
+      initialWorkout.id,
+      cardioBlock.id,
+      {
+        name: draft.name.trim(),
+        targetDurationMinutes: buildDurationMinutesFromDraft(
+          draft.hours,
+          draft.minutes,
+        ),
+      },
+    );
+
+    setSavingCardioById((prev) => ({ ...prev, [cardioBlock.id]: false }));
+
+    if (!result.ok || !result.data) {
+      showToast(result.message ?? "Unable to update cardio", "error");
+      return;
+    }
+
+    setCardioBlocks((prev) =>
+      prev.map((currentBlock) =>
+        currentBlock.id === cardioBlock.id ? result.data! : currentBlock,
+      ),
+    );
+    setCardioDraftsById((prev) => {
+      const next = { ...prev };
+      delete next[cardioBlock.id];
+      return next;
+    });
+    showToast(t("Workouts.toastCardioUpdated"));
+  }
+
+  async function handleDeleteCardioBlock(cardioBlockId: string) {
+    if (deletingCardioId) {
+      return;
+    }
+
+    setDeletingCardioId(cardioBlockId);
+    const result = await deleteWorkoutCardioBlockAction(
+      initialWorkout.id,
+      cardioBlockId,
+    );
+    setDeletingCardioId(null);
+
+    if (!result.ok) {
+      showToast(result.message ?? "Unable to remove cardio", "error");
+      return;
+    }
+
+    setCardioBlocks((prev) =>
+      prev.filter((cardioBlock) => cardioBlock.id !== cardioBlockId),
+    );
+    setCardioDraftsById((prev) => {
+      const next = { ...prev };
+      delete next[cardioBlockId];
+      return next;
+    });
+    showToast(t("Workouts.toastCardioRemoved"));
+  }
+
   return (
     <div className="px-4 pt-6 pb-8">
       <button
@@ -496,14 +673,32 @@ export function WorkoutEditorClient({
                             href={`/workouts/exercises/${workoutExercise.exercises.id}`}
                             className="text-base font-semibold text-zinc-900 transition-colors hover:text-violet-600 dark:text-white dark:hover:text-violet-300"
                           >
-                            {workoutExercise.exercises.name}
+                            {workoutExercise.exercises.display_name}
                           </Link>
                         ) : (
                           <h3 className="text-base font-semibold text-zinc-900 dark:text-white">
                             (deleted)
                           </h3>
                         )}
+                        {workoutExercise.exercises && (
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                              workoutExercise.exercises.source === "system"
+                                ? "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+                                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                            }`}
+                          >
+                            {workoutExercise.exercises.source === "system"
+                              ? t("Workouts.exerciseSourceSystem")
+                              : t("Workouts.exerciseSourceCustom")}
+                          </span>
+                        )}
                       </div>
+                      {workoutExercise.exercises?.muscle_group && (
+                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                          {workoutExercise.exercises.muscle_group}
+                        </p>
+                      )}
 
                       <div className="flex items-center gap-3 mt-3">
                         <span className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -644,6 +839,142 @@ export function WorkoutEditorClient({
         </div>
       )}
 
+      <div className="mt-6 mb-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+            {t("Workouts.cardioSectionTitle")}
+          </h3>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+            {cardioBlocks.length} {t("Workouts.cardioItemsCount")}
+          </span>
+        </div>
+
+        {cardioBlocks.length > 0 && (
+          <div className="mb-3 space-y-3">
+            {cardioBlocks.map((cardioBlock) => {
+              const draft = getCardioDraft(cardioBlock);
+              const isSaving = !!savingCardioById[cardioBlock.id];
+              const isDeleting = deletingCardioId === cardioBlock.id;
+
+              return (
+                <div
+                  key={cardioBlock.id}
+                  className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4"
+                >
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-500">
+                        {t("Workouts.cardioBadge")}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteCardioBlock(cardioBlock.id)}
+                      disabled={isSaving || isDeleting}
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-40"
+                    >
+                      {isDeleting ? "..." : t("Common.delete")}
+                    </button>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-[1.4fr_0.5fr_0.5fr_auto]">
+                    <input
+                      type="text"
+                      value={draft.name}
+                      onChange={(event) =>
+                        handleCardioDraftChange(
+                          cardioBlock.id,
+                          "name",
+                          event.target.value,
+                        )
+                      }
+                      placeholder={t("Workouts.cardioNamePlaceholder")}
+                      className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                    />
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      value={draft.hours}
+                      onChange={(event) =>
+                        handleCardioDraftChange(
+                          cardioBlock.id,
+                          "hours",
+                          event.target.value,
+                        )
+                      }
+                      placeholder={t("Workouts.cardioHours")}
+                      className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                    />
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      value={draft.minutes}
+                      onChange={(event) =>
+                        handleCardioDraftChange(
+                          cardioBlock.id,
+                          "minutes",
+                          event.target.value,
+                        )
+                      }
+                      placeholder={t("Workouts.cardioMinutes")}
+                      className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                    />
+                    <button
+                      onClick={() => handleSaveCardioBlock(cardioBlock)}
+                      disabled={isSaving || isDeleting}
+                      className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+                    >
+                      {isSaving ? "..." : t("Common.save")}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="rounded-2xl border border-dashed border-emerald-500/30 bg-emerald-500/5 p-4">
+          <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+            {t("Workouts.cardioSectionDescription")}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-[1.4fr_0.5fr_0.5fr_auto]">
+            <input
+              type="text"
+              value={cardioNameDraft}
+              onChange={(event) => setCardioNameDraft(event.target.value)}
+              placeholder={t("Workouts.cardioNamePlaceholder")}
+              className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+            />
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={cardioTargetHoursDraft}
+              onChange={(event) => setCardioTargetHoursDraft(event.target.value)}
+              placeholder={t("Workouts.cardioHours")}
+              className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+            />
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={cardioTargetMinutesDraft}
+              onChange={(event) => setCardioTargetMinutesDraft(event.target.value)}
+              placeholder={t("Workouts.cardioMinutes")}
+              className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+            />
+            <button
+              onClick={handleCreateCardioBlock}
+              disabled={addingCardio || !cardioNameDraft.trim()}
+              className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+            >
+              {addingCardio ? "..." : t("Workouts.cardioAddAction")}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {showAddExercise ? (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 animate-[slideDown_0.2s_ease-out]">
           <h3 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mb-3">
@@ -686,7 +1017,29 @@ export function WorkoutEditorClient({
                       : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-800"
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  {exercise.name}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        {exercise.display_name}
+                      </p>
+                      <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                        {exercise.muscle_group ??
+                          exercise.modality ??
+                          t("Workouts.exerciseNoExtraMeta")}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                        exercise.source === "system"
+                          ? "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+                          : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                      }`}
+                    >
+                      {exercise.source === "system"
+                        ? t("Workouts.exerciseSourceSystem")
+                        : t("Workouts.exerciseSourceCustom")}
+                    </span>
+                  </div>
                 </button>
               ))}
             </div>

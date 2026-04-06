@@ -1,0 +1,7 @@
+---
+description: Padrões de UI e Formulários
+globs: *.tsx
+---
+1. Use os componentes do Shadcn UI / Radix UI presentes no projeto.
+2. Para formulários (como Onboarding ou Admin), use obrigatoriamente `react-hook-form` integrado com `@hookform/resolvers/zod` para validação de esquemas Zod.
+3. Mantenha os componentes client-side (`"use client"`) e server-side (`Server Actions`) estritamente separados.

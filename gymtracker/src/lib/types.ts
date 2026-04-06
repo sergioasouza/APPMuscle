@@ -35,22 +35,34 @@ export type Database = {
             exercises: {
                 Row: {
                     id: string
-                    user_id: string
+                    user_id: string | null
                     name: string
+                    system_key: string | null
+                    is_system: boolean
+                    modality: string | null
+                    muscle_group: string | null
                     archived_at: string | null
                     created_at: string
                 }
                 Insert: {
                     id?: string
-                    user_id: string
+                    user_id?: string | null
                     name: string
+                    system_key?: string | null
+                    is_system?: boolean
+                    modality?: string | null
+                    muscle_group?: string | null
                     archived_at?: string | null
                     created_at?: string
                 }
                 Update: {
                     id?: string
-                    user_id?: string
+                    user_id?: string | null
                     name?: string
+                    system_key?: string | null
+                    is_system?: boolean
+                    modality?: string | null
+                    muscle_group?: string | null
                     archived_at?: string | null
                     created_at?: string
                 }
@@ -60,6 +72,60 @@ export type Database = {
                         columns: ["user_id"]
                         isOneToOne: false
                         referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            exercise_overrides: {
+                Row: {
+                    id: string
+                    user_id: string
+                    exercise_id: string
+                    custom_name: string | null
+                    custom_modality: string | null
+                    custom_muscle_group: string | null
+                    archived_at: string | null
+                    hidden_at: string | null
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_id: string
+                    exercise_id: string
+                    custom_name?: string | null
+                    custom_modality?: string | null
+                    custom_muscle_group?: string | null
+                    archived_at?: string | null
+                    hidden_at?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    exercise_id?: string
+                    custom_name?: string | null
+                    custom_modality?: string | null
+                    custom_muscle_group?: string | null
+                    archived_at?: string | null
+                    hidden_at?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "exercise_overrides_user_id_fkey"
+                        columns: ["user_id"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "exercise_overrides_exercise_id_fkey"
+                        columns: ["exercise_id"]
+                        isOneToOne: false
+                        referencedRelation: "exercises"
                         referencedColumns: ["id"]
                     }
                 ]
@@ -128,6 +194,41 @@ export type Database = {
                         columns: ["exercise_id"]
                         isOneToOne: false
                         referencedRelation: "exercises"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            workout_cardio_blocks: {
+                Row: {
+                    id: string
+                    workout_id: string
+                    name: string
+                    target_duration_minutes: number | null
+                    display_order: number
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    workout_id: string
+                    name: string
+                    target_duration_minutes?: number | null
+                    display_order?: number
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    workout_id?: string
+                    name?: string
+                    target_duration_minutes?: number | null
+                    display_order?: number
+                    created_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "workout_cardio_blocks_workout_id_fkey"
+                        columns: ["workout_id"]
+                        isOneToOne: false
+                        referencedRelation: "workouts"
                         referencedColumns: ["id"]
                     }
                 ]
@@ -297,6 +398,131 @@ export type Database = {
                     }
                 ]
             }
+            session_exercise_skips: {
+                Row: {
+                    id: string
+                    session_id: string
+                    exercise_id: string
+                    skipped_at: string
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    session_id: string
+                    exercise_id: string
+                    skipped_at?: string
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    session_id?: string
+                    exercise_id?: string
+                    skipped_at?: string
+                    created_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "session_exercise_skips_session_id_fkey"
+                        columns: ["session_id"]
+                        isOneToOne: false
+                        referencedRelation: "workout_sessions"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "session_exercise_skips_exercise_id_fkey"
+                        columns: ["exercise_id"]
+                        isOneToOne: false
+                        referencedRelation: "exercises"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            session_cardio_logs: {
+                Row: {
+                    id: string
+                    session_id: string
+                    workout_cardio_block_id: string
+                    total_duration_minutes: number | null
+                    total_distance_km: number | null
+                    skipped_at: string | null
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    session_id: string
+                    workout_cardio_block_id: string
+                    total_duration_minutes?: number | null
+                    total_distance_km?: number | null
+                    skipped_at?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    session_id?: string
+                    workout_cardio_block_id?: string
+                    total_duration_minutes?: number | null
+                    total_distance_km?: number | null
+                    skipped_at?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "session_cardio_logs_session_id_fkey"
+                        columns: ["session_id"]
+                        isOneToOne: false
+                        referencedRelation: "workout_sessions"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "session_cardio_logs_workout_cardio_block_id_fkey"
+                        columns: ["workout_cardio_block_id"]
+                        isOneToOne: false
+                        referencedRelation: "workout_cardio_blocks"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            session_cardio_intervals: {
+                Row: {
+                    id: string
+                    cardio_log_id: string
+                    display_order: number
+                    duration_minutes: number
+                    speed_kmh: number | null
+                    repeat_count: number
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    cardio_log_id: string
+                    display_order?: number
+                    duration_minutes: number
+                    speed_kmh?: number | null
+                    repeat_count?: number
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    cardio_log_id?: string
+                    display_order?: number
+                    duration_minutes?: number
+                    speed_kmh?: number | null
+                    repeat_count?: number
+                    created_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "session_cardio_intervals_cardio_log_id_fkey"
+                        columns: ["cardio_log_id"]
+                        isOneToOne: false
+                        referencedRelation: "session_cardio_logs"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
             body_measurements: {
                 Row: {
                     id: string
@@ -376,17 +602,32 @@ export type Database = {
 // Convenience types
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type Exercise = Database['public']['Tables']['exercises']['Row']
+export type ExerciseOverride = Database['public']['Tables']['exercise_overrides']['Row']
 export type Workout = Database['public']['Tables']['workouts']['Row']
 export type WorkoutExercise = Database['public']['Tables']['workout_exercises']['Row']
+export type WorkoutCardioBlock = Database['public']['Tables']['workout_cardio_blocks']['Row']
 export type Schedule = Database['public']['Tables']['schedule']['Row']
 export type ScheduleRotation = Database['public']['Tables']['schedule_rotations']['Row']
 export type WorkoutSession = Database['public']['Tables']['workout_sessions']['Row']
 export type SetLog = Database['public']['Tables']['set_logs']['Row']
+export type SessionExerciseSkip = Database['public']['Tables']['session_exercise_skips']['Row']
+export type SessionCardioLog = Database['public']['Tables']['session_cardio_logs']['Row']
+export type SessionCardioInterval = Database['public']['Tables']['session_cardio_intervals']['Row']
 export type BodyMeasurement = Database['public']['Tables']['body_measurements']['Row']
+
+export type ResolvedExercise = Exercise & {
+    source: 'system' | 'custom'
+    display_name: string
+    hidden_at: string | null
+    is_customized: boolean
+    base_name: string
+    base_modality: string | null
+    base_muscle_group: string | null
+}
 
 // Extended types for joins
 export type WorkoutExerciseWithExercise = WorkoutExercise & {
-    exercises: Exercise
+    exercises: ResolvedExercise
 }
 
 export type WorkoutWithExercises = Workout & {
@@ -395,5 +636,5 @@ export type WorkoutWithExercises = Workout & {
 
 export type WorkoutSessionWithDetails = WorkoutSession & {
     workouts: Workout
-    set_logs: (SetLog & { exercises: Exercise })[]
+    set_logs: (SetLog & { exercises: ResolvedExercise })[]
 }

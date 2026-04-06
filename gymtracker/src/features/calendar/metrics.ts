@@ -15,6 +15,10 @@ interface SessionSetLogSummary {
     reps: number
 }
 
+interface SessionCardioLogSummary {
+    session_id: string
+}
+
 function formatDayISO(year: number, month: number, day: number) {
     return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
@@ -47,22 +51,41 @@ function buildScheduledObligationId(dateISO: string) {
 
 export function buildCalendarSessionMetrics(
     setLogs: SessionSetLogSummary[],
+    cardioLogs: SessionCardioLogSummary[] = [],
 ): Record<string, CalendarSessionMetrics> {
-    return setLogs.reduce<Record<string, CalendarSessionMetrics>>((accumulator, setLog) => {
+    const metricsFromSets = setLogs.reduce<Record<string, CalendarSessionMetrics>>((accumulator, setLog) => {
         const current = accumulator[setLog.session_id] ?? {
             setCount: 0,
             totalVolume: 0,
             exerciseCount: 0,
+            cardioCount: 0,
         }
 
         accumulator[setLog.session_id] = {
             setCount: current.setCount + 1,
             totalVolume: current.totalVolume + Number(setLog.weight_kg) * setLog.reps,
             exerciseCount: current.exerciseCount,
+            cardioCount: current.cardioCount,
         }
 
         return accumulator
     }, {})
+
+    return cardioLogs.reduce<Record<string, CalendarSessionMetrics>>((accumulator, cardioLog) => {
+        const current = accumulator[cardioLog.session_id] ?? {
+            setCount: 0,
+            totalVolume: 0,
+            exerciseCount: 0,
+            cardioCount: 0,
+        }
+
+        accumulator[cardioLog.session_id] = {
+            ...current,
+            cardioCount: current.cardioCount + 1,
+        }
+
+        return accumulator
+    }, metricsFromSets)
 }
 
 export function enrichCalendarSessionMetricsWithExerciseCounts(
@@ -142,8 +165,9 @@ export function buildCalendarWeeklySummaries(input: {
                     setCount: 0,
                     totalVolume: 0,
                     exerciseCount: 0,
+                    cardioCount: 0,
                 }
-                const hasCompletedLogs = metrics.setCount > 0
+                const hasCompletedLogs = metrics.setCount > 0 || metrics.cardioCount > 0
 
                 if (hasCompletedLogs) {
                     totalVolume += metrics.totalVolume

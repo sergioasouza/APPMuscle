@@ -1,9 +1,12 @@
 import type { ExerciseGlobalAnalyticsData } from '@/features/analytics/types'
-import type { Exercise } from '@/lib/types'
+import { buildExerciseDisplayName } from '@/lib/exercise-resolution'
+import type { ResolvedExercise } from '@/lib/types'
 import type {
     ExerciseDetailData,
     ExerciseLibraryFilter,
     ExerciseLibraryItem,
+    ExerciseLibrarySourceFilter,
+    ExerciseLibraryStats,
     ExerciseLinkedWorkout,
     ExerciseUsageSummary,
 } from '@/features/workouts/types'
@@ -22,23 +25,8 @@ export interface ExerciseLogSummaryRow {
     reps: number
 }
 
-function compareNullableDatesDesc(left: string | null, right: string | null) {
-    if (left == null && right == null) {
-        return 0
-    }
-
-    if (left == null) {
-        return 1
-    }
-
-    if (right == null) {
-        return -1
-    }
-
-    return right.localeCompare(left)
-}
-
 export function buildExerciseUsageSummary(input: {
+    exercise: ResolvedExercise
     linkedWorkoutCount: number
     logRows: ExerciseLogSummaryRow[]
 }): ExerciseUsageSummary {
@@ -54,6 +42,11 @@ export function buildExerciseUsageSummary(input: {
         (sum, row) => sum + row.weightKg * row.reps,
         0,
     )
+    const deleteMode = input.exercise.source === 'system'
+        ? 'hide'
+        : input.linkedWorkoutCount === 0 && loggedSessionIds.size === 0
+            ? 'hard'
+            : 'blocked'
 
     return {
         linkedWorkoutCount: input.linkedWorkoutCount,
@@ -61,12 +54,104 @@ export function buildExerciseUsageSummary(input: {
         totalSetCount: input.logRows.length,
         totalVolume,
         lastPerformedAt,
-        canDelete: input.linkedWorkoutCount === 0 && loggedSessionIds.size === 0,
+        canArchive: true,
+        canDelete: deleteMode !== 'blocked',
+        deleteMode,
+    }
+}
+
+function matchesExerciseLibraryFilter(
+    archivedAt: string | null,
+    statusFilter: ExerciseLibraryFilter,
+) {
+    return statusFilter === 'all'
+        ? true
+        : statusFilter === 'active'
+            ? archivedAt == null
+            : archivedAt != null
+}
+
+function matchesExerciseLibrarySearch(
+    fields: Array<string | null | undefined>,
+    search: string,
+) {
+    const normalizedSearch = search.trim().toLowerCase()
+
+    if (!normalizedSearch) {
+        return true
+    }
+
+    return fields.some((value) =>
+        (value ?? '').toLowerCase().includes(normalizedSearch),
+    )
+}
+
+export function filterResolvedExercisesForLibrary(
+    exercises: ResolvedExercise[],
+    search: string,
+    statusFilter: ExerciseLibraryFilter,
+    sourceFilter: ExerciseLibrarySourceFilter,
+) {
+    return exercises.filter((exercise) => {
+        if (exercise.hidden_at != null) {
+            return false
+        }
+
+        if (!matchesExerciseLibraryFilter(exercise.archived_at, statusFilter)) {
+            return false
+        }
+
+        if (
+            sourceFilter !== 'all' &&
+            exercise.source !== sourceFilter
+        ) {
+            return false
+        }
+
+        return matchesExerciseLibrarySearch(
+            [
+                exercise.name,
+                exercise.display_name,
+                exercise.modality,
+                exercise.muscle_group,
+            ],
+            search,
+        )
+    })
+}
+
+export function sortResolvedExercisesForLibrary(exercises: ResolvedExercise[]) {
+    return [...exercises].sort((left, right) => {
+        const archivedComparison =
+            Number(left.archived_at != null) - Number(right.archived_at != null)
+
+        if (archivedComparison !== 0) {
+            return archivedComparison
+        }
+
+        return left.display_name.localeCompare(right.display_name)
+    })
+}
+
+export function buildExerciseLibraryStats(
+    exercises: ResolvedExercise[],
+): ExerciseLibraryStats {
+    const visibleExercises = exercises.filter((exercise) => exercise.hidden_at == null)
+    const activeCount = visibleExercises.filter(
+        (exercise) => exercise.archived_at == null,
+    ).length
+
+    return {
+        totalCount: visibleExercises.length,
+        systemCount: visibleExercises.filter((exercise) => exercise.source === 'system')
+            .length,
+        activeCount,
+        archivedCount: visibleExercises.length - activeCount,
     }
 }
 
 export function buildExerciseLibraryItems(input: {
-    exercises: Exercise[]
+    exercises: ResolvedExercise[]
     workoutLinks: ExerciseWorkoutLinkRow[]
     logRows: ExerciseLogSummaryRow[]
 }): ExerciseLibraryItem[] {
@@ -87,6 +172,7 @@ export function buildExerciseLibraryItems(input: {
     return [...input.exercises]
         .map((exercise) => {
             const usageSummary = buildExerciseUsageSummary({
+                exercise,
                 linkedWorkoutCount: new Set(
                     (linksByExerciseId.get(exercise.id) ?? []).map((row) => row.workoutId),
                 ).size,
@@ -96,27 +182,22 @@ export function buildExerciseLibraryItems(input: {
             return {
                 id: exercise.id,
                 name: exercise.name,
+                displayName: exercise.display_name,
+                modality: exercise.modality,
+                muscleGroup: exercise.muscle_group,
                 archivedAt: exercise.archived_at,
+                hiddenAt: exercise.hidden_at,
+                source: exercise.source,
+                isCustomized: exercise.is_customized,
                 linkedWorkoutCount: usageSummary.linkedWorkoutCount,
                 loggedSessionCount: usageSummary.loggedSessionCount,
                 totalSetCount: usageSummary.totalSetCount,
                 totalVolume: usageSummary.totalVolume,
                 lastPerformedAt: usageSummary.lastPerformedAt,
+                canArchive: usageSummary.canArchive,
+                deleteMode: usageSummary.deleteMode,
                 canDelete: usageSummary.canDelete,
             }
-        })
-        .sort((left, right) => {
-            const archivedComparison = Number(left.archivedAt != null) - Number(right.archivedAt != null)
-            if (archivedComparison !== 0) {
-                return archivedComparison
-            }
-
-            const dateComparison = compareNullableDatesDesc(left.lastPerformedAt, right.lastPerformedAt)
-            if (dateComparison !== 0) {
-                return dateComparison
-            }
-
-            return left.name.localeCompare(right.name)
         })
 }
 
@@ -124,35 +205,37 @@ export function filterExerciseLibraryItems(
     items: ExerciseLibraryItem[],
     search: string,
     statusFilter: ExerciseLibraryFilter,
+    sourceFilter: ExerciseLibrarySourceFilter,
 ) {
-    const normalizedSearch = search.trim().toLowerCase()
-
     return items.filter((item) => {
-        const matchesFilter = statusFilter === 'all'
-            ? true
-            : statusFilter === 'active'
-                ? item.archivedAt == null
-                : item.archivedAt != null
-
-        if (!matchesFilter) {
+        if (!matchesExerciseLibraryFilter(item.archivedAt, statusFilter)) {
             return false
         }
 
-        if (!normalizedSearch) {
-            return true
+        if (sourceFilter !== 'all' && item.source !== sourceFilter) {
+            return false
         }
 
-        return item.name.toLowerCase().includes(normalizedSearch)
+        return matchesExerciseLibrarySearch(
+            [
+                item.name,
+                item.displayName,
+                item.modality,
+                item.muscleGroup,
+            ],
+            search,
+        )
     })
 }
 
 export function buildExerciseDetailData(input: {
-    exercise: Exercise
+    exercise: ResolvedExercise
     linkedWorkouts: ExerciseLinkedWorkout[]
     logRows: ExerciseLogSummaryRow[]
     globalAnalytics: ExerciseGlobalAnalyticsData
 }): ExerciseDetailData {
     const usageSummary = buildExerciseUsageSummary({
+        exercise: input.exercise,
         linkedWorkoutCount: input.linkedWorkouts.length,
         logRows: input.logRows,
     })
@@ -161,6 +244,12 @@ export function buildExerciseDetailData(input: {
         exercise: input.exercise,
         usageSummary,
         linkedWorkouts: [...input.linkedWorkouts].sort((left, right) => left.name.localeCompare(right.name)),
-        globalAnalytics: input.globalAnalytics,
+        globalAnalytics: {
+            ...input.globalAnalytics,
+            exerciseName: buildExerciseDisplayName({
+                name: input.exercise.name,
+                modality: input.exercise.modality,
+            }),
+        },
     }
 }

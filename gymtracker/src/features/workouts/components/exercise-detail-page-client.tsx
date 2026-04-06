@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -20,7 +20,7 @@ import {
   archiveExerciseAction,
   deleteExerciseAction,
   unarchiveExerciseAction,
-  updateExerciseNameAction,
+  updateExerciseAction,
 } from "@/features/workouts/actions";
 import { WorkoutsSectionNav } from "@/features/workouts/components/workouts-section-nav";
 import type { ExerciseDetailData } from "@/features/workouts/types";
@@ -48,12 +48,14 @@ export function ExerciseDetailPageClient({
   const t = useTranslations("Workouts");
   const { showToast } = useToast();
 
-  const [exerciseName, setExerciseName] = useState(initialData.exercise.name);
-  const [savedExerciseName, setSavedExerciseName] = useState(
-    initialData.exercise.name,
-  );
+  const [formState, setFormState] = useState({
+    name: initialData.exercise.name,
+    modality: initialData.exercise.modality ?? "",
+    muscleGroup: initialData.exercise.muscle_group ?? "",
+  });
+  const [savedState, setSavedState] = useState(formState);
   const [archivedAt, setArchivedAt] = useState(initialData.exercise.archived_at);
-  const [savingName, setSavingName] = useState(false);
+  const [savingExercise, setSavingExercise] = useState(false);
   const [togglingArchive, setTogglingArchive] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -69,33 +71,52 @@ export function ExerciseDetailPageClient({
       estimated1RM: point.estimated1RM,
     }),
   );
+  const hasUnsavedChanges = useMemo(
+    () =>
+      formState.name.trim() !== savedState.name ||
+      formState.modality.trim() !== savedState.modality ||
+      formState.muscleGroup.trim() !== savedState.muscleGroup,
+    [formState, savedState],
+  );
+  const deleteMode = initialData.usageSummary.deleteMode;
+  const deleteActionLabel =
+    deleteMode === "hide"
+      ? t("exerciseHideAction")
+      : t("exerciseDeleteAction");
 
-  async function handleSaveName() {
-    const normalizedName = exerciseName.trim();
+  async function handleSaveExercise() {
+    const normalizedName = formState.name.trim();
 
-    if (!normalizedName || normalizedName === savedExerciseName || savingName) {
-      setExerciseName(savedExerciseName);
+    if (!normalizedName || !hasUnsavedChanges || savingExercise) {
+      setFormState(savedState);
       return;
     }
 
-    setSavingName(true);
-    const result = await updateExerciseNameAction(
-      initialData.exercise.id,
-      normalizedName,
-    );
-    setSavingName(false);
+    setSavingExercise(true);
+    const result = await updateExerciseAction(initialData.exercise.id, {
+      name: normalizedName,
+      modality: formState.modality,
+      muscleGroup: formState.muscleGroup,
+    });
+    setSavingExercise(false);
 
     if (!result.ok || !result.data) {
-      setExerciseName(savedExerciseName);
+      setFormState(savedState);
       showToast(result.message ?? t("exerciseUpdateError"), "error");
       return;
     }
 
-    setExerciseName(result.data.name);
-    setSavedExerciseName(result.data.name);
+    const nextSavedState = {
+      name: result.data.name,
+      modality: result.data.modality ?? "",
+      muscleGroup: result.data.muscle_group ?? "",
+    };
+
+    setFormState(nextSavedState);
+    setSavedState(nextSavedState);
     showToast(
       t("exerciseToastUpdated", {
-        name: result.data.name,
+        name: result.data.display_name,
       }),
     );
     router.refresh();
@@ -129,14 +150,16 @@ export function ExerciseDetailPageClient({
     setArchivedAt(nextArchivedAt);
     showToast(
       archivedAt == null
-        ? t("exerciseToastArchived", { name: savedExerciseName })
-        : t("exerciseToastReactivated", { name: savedExerciseName }),
+        ? t("exerciseToastArchived", { name: initialData.exercise.display_name })
+        : t("exerciseToastReactivated", {
+            name: initialData.exercise.display_name,
+          }),
     );
     router.refresh();
   }
 
   async function handleDeleteExercise() {
-    if (deleting || !initialData.usageSummary.canDelete) {
+    if (deleting || deleteMode === "blocked") {
       return;
     }
 
@@ -151,9 +174,13 @@ export function ExerciseDetailPageClient({
     }
 
     showToast(
-      t("exerciseToastDeleted", {
-        name: savedExerciseName,
-      }),
+      deleteMode === "hide"
+        ? t("exerciseToastHidden", {
+            name: initialData.exercise.display_name,
+          })
+        : t("exerciseToastDeleted", {
+            name: initialData.exercise.display_name,
+          }),
     );
     router.push("/workouts/exercises");
   }
@@ -182,14 +209,9 @@ export function ExerciseDetailPageClient({
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <input
-            type="text"
-            value={exerciseName}
-            onChange={(event) => setExerciseName(event.target.value)}
-            onBlur={handleSaveName}
-            disabled={savingName}
-            className="w-full border-b-2 border-transparent bg-transparent py-1 text-2xl font-bold text-zinc-900 transition-colors focus:border-violet-600 focus:outline-none disabled:cursor-not-allowed disabled:opacity-70 dark:text-white"
-          />
+          <h1 className="truncate text-2xl font-bold text-zinc-900 dark:text-white">
+            {initialData.exercise.display_name}
+          </h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span
               className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
@@ -200,10 +222,29 @@ export function ExerciseDetailPageClient({
             >
               {archivedAt == null ? t("statusActive") : t("statusArchived")}
             </span>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              {t("exerciseRenameHint")}
+            <span
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+                initialData.exercise.source === "system"
+                  ? "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+              }`}
+            >
+              {initialData.exercise.source === "system"
+                ? t("exerciseSourceSystem")
+                : t("exerciseSourceCustom")}
             </span>
+            {initialData.exercise.source === "system" &&
+              initialData.exercise.is_customized && (
+                <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                  {t("exerciseCustomizedBadge")}
+                </span>
+              )}
           </div>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+            {initialData.exercise.source === "system"
+              ? t("exerciseSystemHint")
+              : t("exerciseCustomHint")}
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -220,49 +261,139 @@ export function ExerciseDetailPageClient({
           <button
             type="button"
             onClick={() => setDeleteDialogOpen(true)}
-            disabled={!initialData.usageSummary.canDelete || deleting}
+            disabled={deleteMode === "blocked" || deleting}
             className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {t("exerciseDeleteAction")}
+            {deleteActionLabel}
           </button>
         </div>
       </div>
 
       <WorkoutsSectionNav />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-4 grid gap-4 lg:grid-cols-[1.2fr_1.8fr]">
         <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            {t("exerciseLinkedWorkouts")}
-          </p>
-          <p className="mt-2 text-2xl font-bold text-zinc-900 dark:text-white">
-            {initialData.usageSummary.linkedWorkoutCount}
-          </p>
+          <div className="mb-3">
+            <h2 className="text-base font-semibold text-zinc-900 dark:text-white">
+              {t("exerciseFormTitle")}
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              {initialData.exercise.source === "system"
+                ? t("exerciseFormSystemDescription")
+                : t("exerciseFormCustomDescription")}
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                {t("exerciseFieldName")}
+              </span>
+              <input
+                type="text"
+                value={formState.name}
+                onChange={(event) =>
+                  setFormState((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                disabled={savingExercise}
+                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 disabled:cursor-not-allowed disabled:opacity-70 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                {t("exerciseFieldModality")}
+              </span>
+              <input
+                type="text"
+                value={formState.modality}
+                onChange={(event) =>
+                  setFormState((current) => ({
+                    ...current,
+                    modality: event.target.value,
+                  }))
+                }
+                disabled={savingExercise}
+                placeholder={t("exerciseFieldModalityPlaceholder")}
+                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 disabled:cursor-not-allowed disabled:opacity-70 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                {t("exerciseFieldMuscleGroup")}
+              </span>
+              <input
+                type="text"
+                value={formState.muscleGroup}
+                onChange={(event) =>
+                  setFormState((current) => ({
+                    ...current,
+                    muscleGroup: event.target.value,
+                  }))
+                }
+                disabled={savingExercise}
+                placeholder={t("exerciseFieldMuscleGroupPlaceholder")}
+                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 disabled:cursor-not-allowed disabled:opacity-70 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+              />
+            </label>
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              disabled={savingExercise || !hasUnsavedChanges}
+              onClick={() => setFormState(savedState)}
+              className="flex-1 rounded-xl bg-zinc-100 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            >
+              {t("exerciseResetAction")}
+            </button>
+            <button
+              type="button"
+              disabled={savingExercise || !formState.name.trim() || !hasUnsavedChanges}
+              onClick={handleSaveExercise}
+              className="flex-1 rounded-xl bg-violet-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {savingExercise ? t("exerciseSaving") : t("exerciseSaveAction")}
+            </button>
+          </div>
         </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            {t("exerciseLoggedSessions")}
-          </p>
-          <p className="mt-2 text-2xl font-bold text-zinc-900 dark:text-white">
-            {initialData.usageSummary.loggedSessionCount}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            {t("exerciseSetCount")}
-          </p>
-          <p className="mt-2 text-2xl font-bold text-zinc-900 dark:text-white">
-            {initialData.usageSummary.totalSetCount}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            {t("exerciseLastPerformed")}
-          </p>
-          <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-white">
-            {formatDateLabel(initialData.usageSummary.lastPerformedAt) ??
-              t("exerciseNeverPerformed")}
-          </p>
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              {t("exerciseLinkedWorkouts")}
+            </p>
+            <p className="mt-2 text-2xl font-bold text-zinc-900 dark:text-white">
+              {initialData.usageSummary.linkedWorkoutCount}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              {t("exerciseLoggedSessions")}
+            </p>
+            <p className="mt-2 text-2xl font-bold text-zinc-900 dark:text-white">
+              {initialData.usageSummary.loggedSessionCount}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              {t("exerciseSetCount")}
+            </p>
+            <p className="mt-2 text-2xl font-bold text-zinc-900 dark:text-white">
+              {initialData.usageSummary.totalSetCount}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              {t("exerciseLastPerformed")}
+            </p>
+            <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-white">
+              {formatDateLabel(initialData.usageSummary.lastPerformedAt) ??
+                t("exerciseNeverPerformed")}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -447,9 +578,27 @@ export function ExerciseDetailPageClient({
                   {t("exerciseDeleteRule")}
                 </p>
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  {initialData.usageSummary.canDelete
-                    ? t("exerciseDeleteAllowed")
-                    : t("exerciseDeleteBlocked")}
+                  {deleteMode === "hide"
+                    ? t("exerciseDeleteHidesLocally")
+                    : deleteMode === "hard"
+                      ? t("exerciseDeleteAllowed")
+                      : t("exerciseDeleteBlocked")}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  {t("exerciseFieldModality")}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-white">
+                  {savedState.modality || t("exerciseMetaEmpty")}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  {t("exerciseFieldMuscleGroup")}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-white">
+                  {savedState.muscleGroup || t("exerciseMetaEmpty")}
                 </p>
               </div>
             </div>
@@ -493,11 +642,25 @@ export function ExerciseDetailPageClient({
 
       <ConfirmDialog
         open={deleteDialogOpen}
-        title={t("exerciseDeleteConfirmTitle")}
-        description={t("exerciseDeleteConfirmDescription", {
-          name: savedExerciseName,
-        })}
-        confirmLabel={t("exerciseDeleteConfirmButton")}
+        title={
+          deleteMode === "hide"
+            ? t("exerciseHideConfirmTitle")
+            : t("exerciseDeleteConfirmTitle")
+        }
+        description={
+          deleteMode === "hide"
+            ? t("exerciseHideConfirmDescription", {
+                name: initialData.exercise.display_name,
+              })
+            : t("exerciseDeleteConfirmDescription", {
+                name: initialData.exercise.display_name,
+              })
+        }
+        confirmLabel={
+          deleteMode === "hide"
+            ? t("exerciseHideConfirmButton")
+            : t("exerciseDeleteConfirmButton")
+        }
         variant="danger"
         onConfirm={handleDeleteExercise}
         onCancel={() => setDeleteDialogOpen(false)}

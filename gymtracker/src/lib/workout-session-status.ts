@@ -112,6 +112,10 @@ export function removeSkippedWorkoutSessionNote(notes: string | null | undefined
     return status.details
 }
 
+export function clearWorkoutSessionStatus(notes: string | null | undefined) {
+    return parseWorkoutSessionStatus(notes).details
+}
+
 export function buildWorkoutSessionNotesWithStatus(
     existingNotes: string | null | undefined,
     nextDetails: string | null | undefined,

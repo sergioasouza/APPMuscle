@@ -3,6 +3,7 @@ import {
     buildRescheduledToWorkoutSessionNote,
     buildSkippedWorkoutSessionNote,
     buildWorkoutSessionNotesWithStatus,
+    clearWorkoutSessionStatus,
     isAnalyticsExcludedWorkoutSession,
     parseWorkoutSessionStatus,
     removeSkippedWorkoutSessionNote,
@@ -58,5 +59,17 @@ describe('workout-session-status', () => {
         expect(isAnalyticsExcludedWorkoutSession(rescheduledSource)).toBe(true)
         expect(isAnalyticsExcludedWorkoutSession(rescheduledTarget)).toBe(false)
         expect(removeSkippedWorkoutSessionNote(skipped)).toBe('Deload day')
+    })
+
+    it('can clear a status prefix while preserving free-form details', () => {
+        const rescheduled = buildRescheduledFromWorkoutSessionNote({
+            sourceDateISO: '2026-04-06',
+            sourceLabel: 'Monday',
+            existingNotes: 'Felt good',
+        })
+
+        expect(clearWorkoutSessionStatus(rescheduled)).toBe('Felt good')
+        expect(clearWorkoutSessionStatus(buildSkippedWorkoutSessionNote('Deload'))).toBe('Deload')
+        expect(clearWorkoutSessionStatus('Plain note')).toBe('Plain note')
     })
 })

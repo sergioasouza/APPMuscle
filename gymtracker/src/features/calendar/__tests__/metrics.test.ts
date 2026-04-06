@@ -66,8 +66,8 @@ describe('buildCalendarWeeklySummaries', () => {
             rotationCycleLength: 1,
             rotationSupportEnabled: false,
             sessionMetricsById: {
-                'session-source': { setCount: 0, totalVolume: 0, exerciseCount: 0 },
-                'session-target': { setCount: 3, totalVolume: 1220, exerciseCount: 1 },
+                'session-source': { setCount: 0, totalVolume: 0, exerciseCount: 0, cardioCount: 0 },
+                'session-target': { setCount: 3, totalVolume: 1220, exerciseCount: 1, cardioCount: 0 },
             },
         })
 

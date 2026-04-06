@@ -5,6 +5,7 @@ import { skipWorkout } from '@/features/today/service'
 import type { CalendarMonthData, SetLogWithExercise } from '@/features/calendar/types'
 import { errorResult, okResult } from '@/lib/action-result'
 import type { ActionResult } from '@/lib/action-result'
+import { revalidateTodaySurfaces } from '@/lib/revalidate-app-routes'
 import { assertIntegerInRange, assertUuid } from '@/lib/validation'
 
 export async function getCalendarMonthAction(year: number, month: number): Promise<ActionResult<CalendarMonthData>> {
@@ -31,6 +32,7 @@ export async function skipWorkoutFromCalendarAction(sessionId: string): Promise<
     try {
         assertUuid(sessionId, 'Session id')
         await skipWorkout(sessionId, null)
+        revalidateTodaySurfaces()
         return okResult(null)
     } catch (error) {
         return errorResult(error)
@@ -42,6 +44,7 @@ export async function undoSkipFromCalendarAction(sessionId: string): Promise<Act
         assertUuid(sessionId, 'Session id')
         const { undoSkipWorkout } = await import('@/features/today/service')
         await undoSkipWorkout(sessionId, null)
+        revalidateTodaySurfaces()
         return okResult(null)
     } catch (error) {
         return errorResult(error)
@@ -52,6 +55,7 @@ export async function deleteWorkoutSessionFromCalendarAction(sessionId: string):
     try {
         assertUuid(sessionId, 'Session id')
         await deleteWorkoutSession(sessionId)
+        revalidateTodaySurfaces()
         return okResult(null)
     } catch (error) {
         return errorResult(error)

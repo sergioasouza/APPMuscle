@@ -18,6 +18,7 @@ export default async function EditWorkoutPage({ params }: EditWorkoutPageProps) 
         <WorkoutEditorClient
             initialWorkout={workoutData.workout}
             initialWorkoutExercises={workoutData.workoutExercises}
+            initialCardioBlocks={workoutData.cardioBlocks}
         />
     )
 }

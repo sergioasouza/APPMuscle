@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidateScheduleSurfaces } from '@/lib/revalidate-app-routes'
 import {
     assignWorkoutToDay,
     clearRotationWeek,
@@ -22,6 +23,7 @@ export async function assignWorkoutToDayAction(
         assertIntegerInRange(dayOfWeek, 'Day of week', 0, 6)
         assertUuid(workoutId, 'Workout id')
         const data = await assignWorkoutToDay(dayOfWeek, workoutId)
+        revalidateScheduleSurfaces()
         return okResult(data)
     } catch (error) {
         return errorResult(error)
@@ -32,6 +34,7 @@ export async function clearScheduleDayAction(dayOfWeek: number): Promise<ActionR
     try {
         assertIntegerInRange(dayOfWeek, 'Day of week', 0, 6)
         await clearScheduleDay(dayOfWeek)
+        revalidateScheduleSurfaces()
         return okResult(null)
     } catch (error) {
         return errorResult(error)
@@ -48,6 +51,7 @@ export async function upsertScheduleRotationAction(
         assertIntegerInRange(rotationIndex, 'Rotation index', 2, 12)
         assertUuid(workoutId, 'Workout id')
         const data = await upsertScheduleRotation(dayOfWeek, rotationIndex, workoutId)
+        revalidateScheduleSurfaces()
         return okResult(data)
     } catch (error) {
         return errorResult(error)
@@ -59,6 +63,7 @@ export async function clearScheduleRotationAction(dayOfWeek: number, rotationInd
         assertIntegerInRange(dayOfWeek, 'Day of week', 0, 6)
         assertIntegerInRange(rotationIndex, 'Rotation index', 2, 12)
         await clearScheduleRotation(dayOfWeek, rotationIndex)
+        revalidateScheduleSurfaces()
         return okResult(null)
     } catch (error) {
         return errorResult(error)
@@ -69,6 +74,7 @@ export async function updateRotationAnchorDateAction(rotationAnchorDate: string)
     try {
         assertIsoDate(rotationAnchorDate, 'Rotation anchor date')
         await updateRotationAnchorDate(rotationAnchorDate)
+        revalidateScheduleSurfaces()
         return okResult(null)
     } catch (error) {
         return errorResult(error)
@@ -79,6 +85,7 @@ export async function createRotationWeekFromBaseAction(rotationIndex: number): P
     try {
         assertIntegerInRange(rotationIndex, 'Rotation index', 2, 12)
         const data = await createRotationWeekFromBase(rotationIndex)
+        revalidateScheduleSurfaces()
         return okResult(data)
     } catch (error) {
         return errorResult(error)
@@ -89,6 +96,7 @@ export async function clearRotationWeekAction(rotationIndex: number): Promise<Ac
     try {
         assertIntegerInRange(rotationIndex, 'Rotation index', 2, 12)
         await clearRotationWeek(rotationIndex)
+        revalidateScheduleSurfaces()
         return okResult(null)
     } catch (error) {
         return errorResult(error)

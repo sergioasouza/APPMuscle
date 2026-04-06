@@ -35,6 +35,11 @@ function createClientMutationId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
+function getDayOfWeekFromIsoDate(dateISO: string) {
+    const [year, month, day] = dateISO.split('-').map(Number)
+    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0)).getUTCDay()
+}
+
 export function SchedulePageClient({
     initialWorkouts,
     initialSchedule,
@@ -273,7 +278,7 @@ export function SchedulePageClient({
         }
     }
 
-    const today = new Date().getDay()
+    const today = useMemo(() => getDayOfWeekFromIsoDate(todayIso), [todayIso])
 
     return (
         <div className="px-4 pt-6 pb-8">

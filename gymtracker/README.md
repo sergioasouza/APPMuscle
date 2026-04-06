@@ -5,6 +5,7 @@ GymTracker is a mobile-first workout tracker built with Next.js App Router, Supa
 ## Product highlights
 
 - workout creation and exercise library
+- system exercise catalog with per-user overrides
 - weekly workout scheduling
 - daily training flow with session notes
 - analytics by workout
@@ -70,6 +71,8 @@ The current required migration baseline for production is:
 - [supabase/migrations/20260307_fix_missing_profiles_and_auth_trigger.sql](supabase/migrations/20260307_fix_missing_profiles_and_auth_trigger.sql)
 - [supabase/migrations/20260315_add_archived_at_to_exercises.sql](supabase/migrations/20260315_add_archived_at_to_exercises.sql)
 - [supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql](supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql)
+- [supabase/migrations/20260405_add_system_exercises_and_overrides.sql](supabase/migrations/20260405_add_system_exercises_and_overrides.sql)
+- [supabase/migrations/20260406_seed_system_exercises_catalog.sql](supabase/migrations/20260406_seed_system_exercises_catalog.sql)
 
 Reference docs:
 
@@ -79,6 +82,10 @@ Required schema for the current app version includes:
 
 - `profiles.rotation_anchor_date`
 - `exercises.archived_at`
+- `exercises.is_system`
+- `exercises.modality`
+- `exercises.muscle_group`
+- `exercise_overrides`
 - `schedule_rotations`
 - `body_measurements`
 

@@ -4,8 +4,10 @@ import {
   addExerciseToWorkoutRepository,
   archiveExerciseRepository,
   deleteExerciseRepository,
+  deleteWorkoutCardioBlockRepository,
   checkExerciseHasLogsRepository,
   createExerciseRepository,
+  createWorkoutCardioBlockRepository,
   createWorkoutRepository,
   deleteWorkoutExerciseRepository,
   deleteWorkoutRepository,
@@ -16,7 +18,8 @@ import {
   listWorkoutsRepository,
   reorderWorkoutExercisesRepository,
   unarchiveExerciseRepository,
-  updateExerciseNameRepository,
+  updateExerciseRepository,
+  updateWorkoutCardioBlockRepository,
   updateWorkoutExerciseTargetSetsRepository,
   updateWorkoutNameRepository,
 } from "@/features/workouts/repository";
@@ -25,16 +28,113 @@ import {
   buildExerciseLibraryItems,
 } from "@/features/workouts/library";
 import { getExerciseGlobalAnalytics } from "@/features/analytics/service";
+import { normalizeExerciseText } from "@/lib/exercise-resolution";
+import type {
+  ExerciseDraftInput,
+  ExerciseLibraryFilter,
+  ExerciseLibrarySourceFilter,
+  WorkoutCardioDraftInput,
+} from "@/features/workouts/types";
+
+export const EXERCISE_LIBRARY_PAGE_SIZE_OPTIONS = [10, 20, 30] as const;
+export const DEFAULT_EXERCISE_LIBRARY_PAGE_SIZE =
+  EXERCISE_LIBRARY_PAGE_SIZE_OPTIONS[0];
+
+function normalizeExerciseLibraryFilter(
+  value: string | undefined,
+): ExerciseLibraryFilter {
+  return value === "archived" || value === "all" ? value : "active";
+}
+
+function normalizeExerciseLibrarySourceFilter(
+  value: string | undefined,
+): ExerciseLibrarySourceFilter {
+  return value === "custom" || value === "system" ? value : "all";
+}
+
+function normalizePositiveInteger(value: string | number | undefined) {
+  const parsed =
+    typeof value === "number" ? value : Number.parseInt(value ?? "", 10);
+
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 1;
+  }
+
+  return Math.floor(parsed);
+}
+
+function normalizeExerciseLibraryPageSize(value: string | number | undefined) {
+  const parsed = normalizePositiveInteger(value);
+
+  return EXERCISE_LIBRARY_PAGE_SIZE_OPTIONS.includes(
+    parsed as (typeof EXERCISE_LIBRARY_PAGE_SIZE_OPTIONS)[number],
+  )
+    ? parsed
+    : DEFAULT_EXERCISE_LIBRARY_PAGE_SIZE;
+}
+
+function normalizeExerciseInput(input: ExerciseDraftInput): ExerciseDraftInput {
+  return {
+    name: input.name.trim(),
+    modality: normalizeExerciseText(input.modality),
+    muscleGroup: normalizeExerciseText(input.muscleGroup),
+  };
+}
+
+function normalizeWorkoutCardioInput(
+  input: WorkoutCardioDraftInput,
+): WorkoutCardioDraftInput {
+  return {
+    name: input.name.trim(),
+    targetDurationMinutes:
+      input.targetDurationMinutes == null ? null : input.targetDurationMinutes,
+  };
+}
 
 export async function listWorkouts() {
   return listWorkoutsRepository();
 }
 
-export async function listExerciseLibrary() {
-  const data = await listExerciseLibraryRepository();
+export async function listExerciseLibrary(input?: {
+  search?: string;
+  statusFilter?: string;
+  sourceFilter?: string;
+  page?: string | number;
+  pageSize?: string | number;
+}) {
+  const search = input?.search?.trim() ?? "";
+  const statusFilter = normalizeExerciseLibraryFilter(input?.statusFilter);
+  const sourceFilter = normalizeExerciseLibrarySourceFilter(input?.sourceFilter);
+  const page = normalizePositiveInteger(input?.page);
+  const pageSize = normalizeExerciseLibraryPageSize(input?.pageSize);
+  const data = await listExerciseLibraryRepository({
+    search,
+    statusFilter,
+    sourceFilter,
+    page,
+    pageSize,
+  });
+  const totalPages =
+    data.totalItems === 0 ? 1 : Math.ceil(data.totalItems / data.pageSize);
 
   return {
     items: buildExerciseLibraryItems(data),
+    stats: data.stats,
+    pagination: {
+      page: data.page,
+      pageSize: data.pageSize,
+      totalItems: data.totalItems,
+      totalPages,
+      hasPreviousPage: data.page > 1,
+      hasNextPage: data.page < totalPages,
+    },
+    query: {
+      search,
+      statusFilter,
+      sourceFilter,
+      page: data.page,
+      pageSize: data.pageSize,
+    },
   };
 }
 
@@ -86,13 +186,17 @@ export async function createWorkout(name: string) {
 }
 
 export async function createExercise(name: string) {
-  const normalizedName = name.trim();
+  return createExerciseFromInput({ name });
+}
 
-  if (!normalizedName) {
+export async function createExerciseFromInput(input: ExerciseDraftInput) {
+  const normalizedInput = normalizeExerciseInput(input);
+
+  if (!normalizedInput.name) {
     throw new Error("Exercise name is required");
   }
 
-  return createExerciseRepository(normalizedName);
+  return createExerciseRepository(normalizedInput);
 }
 
 export async function deleteWorkout(workoutId: string) {
@@ -117,18 +221,21 @@ export async function updateWorkoutName(workoutId: string, name: string) {
   return updateWorkoutNameRepository(workoutId, normalizedName);
 }
 
-export async function updateExerciseName(exerciseId: string, name: string) {
-  const normalizedName = name.trim();
+export async function updateExercise(
+  exerciseId: string,
+  input: ExerciseDraftInput,
+) {
+  const normalizedInput = normalizeExerciseInput(input);
 
   if (!exerciseId) {
     throw new Error("Exercise id is required");
   }
 
-  if (!normalizedName) {
+  if (!normalizedInput.name) {
     throw new Error("Exercise name is required");
   }
 
-  return updateExerciseNameRepository(exerciseId, normalizedName);
+  return updateExerciseRepository(exerciseId, normalizedInput);
 }
 
 export async function addExistingExerciseToWorkout(
@@ -144,19 +251,21 @@ export async function addExistingExerciseToWorkout(
 
 export async function createExerciseAndAddToWorkout(
   workoutId: string,
-  exerciseName: string,
+  exerciseInput: string | ExerciseDraftInput,
 ) {
-  const normalizedName = exerciseName.trim();
+  const normalizedInput = normalizeExerciseInput(
+    typeof exerciseInput === "string" ? { name: exerciseInput } : exerciseInput,
+  );
 
   if (!workoutId) {
     throw new Error("Workout id is required");
   }
 
-  if (!normalizedName) {
+  if (!normalizedInput.name) {
     throw new Error("Exercise name is required");
   }
 
-  const exercise = await createExerciseRepository(normalizedName);
+  const exercise = await createExerciseRepository(normalizedInput);
   const workoutExercise = await addExerciseToWorkoutRepository(
     workoutId,
     exercise.id,
@@ -250,4 +359,65 @@ export async function deleteExercise(exerciseId: string): Promise<void> {
   }
 
   await deleteExerciseRepository(exerciseId);
+}
+
+export async function createWorkoutCardioBlock(
+  workoutId: string,
+  input: WorkoutCardioDraftInput,
+) {
+  const normalizedInput = normalizeWorkoutCardioInput(input);
+
+  if (!workoutId) {
+    throw new Error("Workout id is required");
+  }
+
+  if (!normalizedInput.name) {
+    throw new Error("Cardio name is required");
+  }
+
+  if (
+    normalizedInput.targetDurationMinutes != null &&
+    (normalizedInput.targetDurationMinutes < 1 ||
+      normalizedInput.targetDurationMinutes > 1440)
+  ) {
+    throw new Error("Cardio target duration must be between 1 and 1440 minutes");
+  }
+
+  return createWorkoutCardioBlockRepository(workoutId, normalizedInput);
+}
+
+export async function updateWorkoutCardioBlock(
+  workoutCardioBlockId: string,
+  input: WorkoutCardioDraftInput,
+) {
+  const normalizedInput = normalizeWorkoutCardioInput(input);
+
+  if (!workoutCardioBlockId) {
+    throw new Error("Workout cardio block id is required");
+  }
+
+  if (!normalizedInput.name) {
+    throw new Error("Cardio name is required");
+  }
+
+  if (
+    normalizedInput.targetDurationMinutes != null &&
+    (normalizedInput.targetDurationMinutes < 1 ||
+      normalizedInput.targetDurationMinutes > 1440)
+  ) {
+    throw new Error("Cardio target duration must be between 1 and 1440 minutes");
+  }
+
+  return updateWorkoutCardioBlockRepository(
+    workoutCardioBlockId,
+    normalizedInput,
+  );
+}
+
+export async function deleteWorkoutCardioBlock(workoutCardioBlockId: string) {
+  if (!workoutCardioBlockId) {
+    throw new Error("Workout cardio block id is required");
+  }
+
+  await deleteWorkoutCardioBlockRepository(workoutCardioBlockId);
 }

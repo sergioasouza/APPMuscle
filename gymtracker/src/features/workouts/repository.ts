@@ -2,15 +2,36 @@ import "server-only";
 
 import { getAuthenticatedServerContext } from "@/lib/supabase/auth";
 import {
-  requireOwnedExercise,
+  buildExerciseConflictLabel,
+  isExerciseAvailableForPicker,
+  resolveExerciseForUser,
+} from "@/lib/exercise-resolution";
+import {
+  buildAccessibleExercisesFilter,
+  getAccessibleExerciseRecord,
+  resolveExercisesForUser,
+} from "@/lib/supabase/exercises";
+import {
+  requireAccessibleExercise,
   requireOwnedWorkout,
+  requireOwnedWorkoutCardioBlock,
   requireOwnedWorkoutExercise,
 } from "@/lib/supabase/ownership";
-import type { Exercise, Workout } from "@/lib/types";
 import type {
+  Exercise,
+  ExerciseOverride,
+  ResolvedExercise,
+  Workout,
+  WorkoutCardioBlock,
+  WorkoutExercise,
+} from "@/lib/types";
+import type {
+  ExerciseDraftInput,
+  ExerciseLibraryFilter,
+  ExerciseLibrarySourceFilter,
   ExerciseLinkedWorkout,
-} from "@/features/workouts/types";
-import type {
+  WorkoutCardioDraftInput,
+  WorkoutEditorCardioBlock,
   WorkoutEditorData,
   WorkoutEditorExercise,
   WorkoutListItem,
@@ -18,6 +39,11 @@ import type {
 import type {
   ExerciseLogSummaryRow,
   ExerciseWorkoutLinkRow,
+} from "@/features/workouts/library";
+import {
+  buildExerciseLibraryStats,
+  filterResolvedExercisesForLibrary,
+  sortResolvedExercisesForLibrary,
 } from "@/features/workouts/library";
 
 type WorkoutLinkQueryRow = {
@@ -33,23 +59,209 @@ type ExerciseLogQueryRow = {
   workout_sessions: { performed_at: string } | null;
 };
 
-function getSharedExercisePeerUserIds(currentUserId: string): string[] {
-  const raw = process.env.SHARED_EXERCISE_USER_IDS;
+type WorkoutExerciseQueryRow = WorkoutExercise & {
+  exercises: Exercise | null;
+};
 
-  if (!raw) {
-    return [];
+function buildExerciseAlreadyExistsMessage(input: {
+  name: string;
+  modality?: string | null;
+}) {
+  return `An exercise named "${buildExerciseConflictLabel(input)}" already exists in your library`;
+}
+
+function isOverrideEmpty(override: {
+  custom_name?: string | null;
+  custom_modality?: string | null;
+  custom_muscle_group?: string | null;
+  archived_at?: string | null;
+  hidden_at?: string | null;
+}) {
+  return (
+    override.custom_name == null &&
+    override.custom_modality == null &&
+    override.custom_muscle_group == null &&
+    override.archived_at == null &&
+    override.hidden_at == null
+  );
+}
+
+async function listAccessibleExerciseRows(
+  supabase: Awaited<ReturnType<typeof getAuthenticatedServerContext>>["supabase"],
+  userId: string,
+) {
+  const { data, error } = await supabase
+    .from("exercises")
+    .select("*")
+    .or(buildAccessibleExercisesFilter(userId))
+    .order("is_system", { ascending: false })
+    .order("name");
+
+  if (error) {
+    throw new Error(error.message);
   }
 
-  const configuredIds = raw
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
+  return (data as Exercise[] | null) ?? [];
+}
 
-  if (configuredIds.length !== 2 || !configuredIds.includes(currentUserId)) {
-    return [];
+async function resolveWorkoutExerciseRowsForUser(
+  supabase: Awaited<ReturnType<typeof getAuthenticatedServerContext>>["supabase"],
+  workoutExerciseRows: WorkoutExerciseQueryRow[],
+  userId: string,
+) {
+  const baseExercises = workoutExerciseRows.flatMap((row) =>
+    row.exercises == null ? [] : [row.exercises],
+  );
+  const resolvedExercises = await resolveExercisesForUser(
+    supabase,
+    userId,
+    baseExercises,
+  );
+  const resolvedById = resolvedExercises.reduce<Map<string, ResolvedExercise>>(
+    (accumulator, exercise) => {
+      accumulator.set(exercise.id, exercise);
+      return accumulator;
+    },
+    new Map(),
+  );
+
+  return workoutExerciseRows.flatMap((row) => {
+    const resolvedExercise = resolvedById.get(row.exercise_id);
+
+    if (!resolvedExercise) {
+      return [];
+    }
+
+    return [{ ...row, exercises: resolvedExercise }];
+  });
+}
+
+async function getExerciseOverrideRepository(
+  supabase: Awaited<ReturnType<typeof getAuthenticatedServerContext>>["supabase"],
+  userId: string,
+  exerciseId: string,
+): Promise<ExerciseOverride | null> {
+  const { data, error } = await supabase
+    .from("exercise_overrides")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("exercise_id", exerciseId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
   }
 
-  return configuredIds.filter((id) => id !== currentUserId);
+  return data;
+}
+
+async function upsertExerciseOverrideRepository(input: {
+  supabase: Awaited<ReturnType<typeof getAuthenticatedServerContext>>["supabase"];
+  userId: string;
+  exerciseId: string;
+  customName?: string | null;
+  customModality?: string | null;
+  customMuscleGroup?: string | null;
+  archivedAt?: string | null;
+  hiddenAt?: string | null;
+}) {
+  const now = new Date().toISOString();
+
+  const { error } = await input.supabase.from("exercise_overrides").upsert(
+    {
+      user_id: input.userId,
+      exercise_id: input.exerciseId,
+      custom_name: input.customName ?? null,
+      custom_modality: input.customModality ?? null,
+      custom_muscle_group: input.customMuscleGroup ?? null,
+      archived_at: input.archivedAt ?? null,
+      hidden_at: input.hiddenAt ?? null,
+      updated_at: now,
+    },
+    { onConflict: "user_id,exercise_id" },
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function deleteExerciseOverrideRepository(
+  supabase: Awaited<ReturnType<typeof getAuthenticatedServerContext>>["supabase"],
+  userId: string,
+  exerciseId: string,
+) {
+  const { error } = await supabase
+    .from("exercise_overrides")
+    .delete()
+    .eq("user_id", userId)
+    .eq("exercise_id", exerciseId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function updateSystemExerciseOverrideRepository(input: {
+  supabase: Awaited<ReturnType<typeof getAuthenticatedServerContext>>["supabase"];
+  userId: string;
+  exercise: Exercise;
+  draft: ExerciseDraftInput;
+}) {
+  const currentOverride = await getExerciseOverrideRepository(
+    input.supabase,
+    input.userId,
+    input.exercise.id,
+  );
+  const nextOverride = {
+    custom_name:
+      input.draft.name === input.exercise.name ? null : input.draft.name,
+    custom_modality:
+      input.draft.modality === input.exercise.modality
+        ? null
+        : input.draft.modality ?? null,
+    custom_muscle_group:
+      input.draft.muscleGroup === input.exercise.muscle_group
+        ? null
+        : input.draft.muscleGroup ?? null,
+    archived_at: currentOverride?.archived_at ?? null,
+    hidden_at: currentOverride?.hidden_at ?? null,
+  };
+
+  if (isOverrideEmpty(nextOverride)) {
+    await deleteExerciseOverrideRepository(
+      input.supabase,
+      input.userId,
+      input.exercise.id,
+    );
+    return resolveExerciseForUser(input.exercise, null);
+  }
+
+  await upsertExerciseOverrideRepository({
+    supabase: input.supabase,
+    userId: input.userId,
+    exerciseId: input.exercise.id,
+    customName: nextOverride.custom_name,
+    customModality: nextOverride.custom_modality,
+    customMuscleGroup: nextOverride.custom_muscle_group,
+    archivedAt: nextOverride.archived_at,
+    hiddenAt: nextOverride.hidden_at,
+  });
+
+  return resolveExerciseForUser(input.exercise, {
+    ...(currentOverride ?? {
+      id: "",
+      user_id: input.userId,
+      exercise_id: input.exercise.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }),
+    custom_name: nextOverride.custom_name,
+    custom_modality: nextOverride.custom_modality,
+    custom_muscle_group: nextOverride.custom_muscle_group,
+    archived_at: nextOverride.archived_at,
+    hidden_at: nextOverride.hidden_at,
+  });
 }
 
 export async function listWorkoutsRepository(): Promise<WorkoutListItem[]> {
@@ -68,32 +280,82 @@ export async function listWorkoutsRepository(): Promise<WorkoutListItem[]> {
   return data ?? [];
 }
 
-export async function listExerciseLibraryRepository(): Promise<{
-  exercises: Exercise[];
+export async function listExerciseLibraryRepository(input: {
+  search: string;
+  statusFilter: ExerciseLibraryFilter;
+  sourceFilter: ExerciseLibrarySourceFilter;
+  page: number;
+  pageSize: number;
+}): Promise<{
+  exercises: ResolvedExercise[];
   workoutLinks: ExerciseWorkoutLinkRow[];
   logRows: ExerciseLogSummaryRow[];
+  stats: {
+    totalCount: number;
+    systemCount: number;
+    activeCount: number;
+    archivedCount: number;
+  };
+  totalItems: number;
+  page: number;
+  pageSize: number;
 }> {
   const { supabase, user } = await getAuthenticatedServerContext();
 
-  const [exerciseResult, workoutLinksResult, logsResult] = await Promise.all([
-    supabase
-      .from("exercises")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("name"),
+  const exerciseRows = await listAccessibleExerciseRows(supabase, user.id);
+
+  const resolvedExercises = (await resolveExercisesForUser(
+    supabase,
+    user.id,
+    exerciseRows,
+  )).filter((exercise) => exercise.hidden_at == null);
+
+  const stats = buildExerciseLibraryStats(resolvedExercises);
+  const filteredExercises = sortResolvedExercisesForLibrary(
+    filterResolvedExercisesForLibrary(
+      resolvedExercises,
+      input.search,
+      input.statusFilter,
+      input.sourceFilter,
+    ),
+  );
+  const totalItems = filteredExercises.length;
+  const totalPages =
+    totalItems === 0 ? 1 : Math.ceil(totalItems / input.pageSize);
+  const page = Math.min(Math.max(input.page, 1), totalPages);
+  const startIndex = (page - 1) * input.pageSize;
+  const pageExercises = filteredExercises.slice(
+    startIndex,
+    startIndex + input.pageSize,
+  );
+  const pageExerciseIds = pageExercises.map((exercise) => exercise.id);
+
+  if (pageExerciseIds.length === 0) {
+    return {
+      exercises: [],
+      workoutLinks: [],
+      logRows: [],
+      stats,
+      totalItems,
+      page,
+      pageSize: input.pageSize,
+    };
+  }
+
+  const [workoutLinksResult, logsResult] = await Promise.all([
     supabase
       .from("workout_exercises")
       .select("exercise_id, workouts!inner(id, name, user_id)")
-      .eq("workouts.user_id", user.id),
+      .eq("workouts.user_id", user.id)
+      .in("exercise_id", pageExerciseIds),
     supabase
       .from("set_logs")
-      .select("exercise_id, session_id, weight_kg, reps, workout_sessions!inner(performed_at, user_id)")
-      .eq("workout_sessions.user_id", user.id),
+      .select(
+        "exercise_id, session_id, weight_kg, reps, workout_sessions!inner(performed_at, user_id)",
+      )
+      .eq("workout_sessions.user_id", user.id)
+      .in("exercise_id", pageExerciseIds),
   ]);
-
-  if (exerciseResult.error) {
-    throw new Error(exerciseResult.error.message);
-  }
 
   if (workoutLinksResult.error) {
     throw new Error(workoutLinksResult.error.message);
@@ -103,30 +365,43 @@ export async function listExerciseLibraryRepository(): Promise<{
     throw new Error(logsResult.error.message);
   }
 
-  const workoutLinks = ((workoutLinksResult.data as WorkoutLinkQueryRow[] | null) ?? [])
-    .flatMap((row) => row.workouts == null
+  const workoutLinks = (
+    (workoutLinksResult.data as WorkoutLinkQueryRow[] | null) ?? []
+  ).flatMap((row) =>
+    row.workouts == null
       ? []
-      : [{
-        exerciseId: row.exercise_id,
-        workoutId: row.workouts.id,
-        workoutName: row.workouts.name,
-      }]);
+      : [
+          {
+            exerciseId: row.exercise_id,
+            workoutId: row.workouts.id,
+            workoutName: row.workouts.name,
+          },
+        ],
+  );
 
-  const logRows = ((logsResult.data as ExerciseLogQueryRow[] | null) ?? [])
-    .flatMap((row) => row.workout_sessions == null
-      ? []
-      : [{
-        exerciseId: row.exercise_id,
-        sessionId: row.session_id,
-        performedAt: row.workout_sessions.performed_at,
-        weightKg: Number(row.weight_kg),
-        reps: row.reps,
-      }]);
+  const logRows = ((logsResult.data as ExerciseLogQueryRow[] | null) ?? []).flatMap(
+    (row) =>
+      row.workout_sessions == null
+        ? []
+        : [
+            {
+              exerciseId: row.exercise_id,
+              sessionId: row.session_id,
+              performedAt: row.workout_sessions.performed_at,
+              weightKg: Number(row.weight_kg),
+              reps: row.reps,
+            },
+          ],
+  );
 
   return {
-    exercises: exerciseResult.data ?? [],
+    exercises: pageExercises,
     workoutLinks,
     logRows,
+    stats,
+    totalItems,
+    page,
+    pageSize: input.pageSize,
   };
 }
 
@@ -135,7 +410,7 @@ export async function getWorkoutEditorDataRepository(
 ): Promise<WorkoutEditorData | null> {
   const { supabase, user } = await getAuthenticatedServerContext();
 
-  const [workoutResult, workoutExercisesResult] = await Promise.all([
+  const [workoutResult, workoutExercisesResult, cardioBlocksResult] = await Promise.all([
     supabase
       .from("workouts")
       .select("*")
@@ -145,6 +420,11 @@ export async function getWorkoutEditorDataRepository(
     supabase
       .from("workout_exercises")
       .select("*, exercises(*)")
+      .eq("workout_id", workoutId)
+      .order("display_order"),
+    supabase
+      .from("workout_cardio_blocks")
+      .select("*")
       .eq("workout_id", workoutId)
       .order("display_order"),
   ]);
@@ -161,35 +441,37 @@ export async function getWorkoutEditorDataRepository(
     throw new Error(workoutExercisesResult.error.message);
   }
 
+  if (cardioBlocksResult.error) {
+    throw new Error(cardioBlocksResult.error.message);
+  }
+
+  const workoutExercises = await resolveWorkoutExerciseRowsForUser(
+    supabase,
+    (workoutExercisesResult.data as WorkoutExerciseQueryRow[] | null) ?? [],
+    user.id,
+  );
+
   return {
     workout: workoutResult.data,
-    workoutExercises:
-      (workoutExercisesResult.data as WorkoutEditorExercise[] | null) ?? [],
+    workoutExercises,
+    cardioBlocks:
+      (cardioBlocksResult.data as WorkoutEditorCardioBlock[] | null) ?? [],
   };
 }
 
 export async function listAvailableExercisesRepository(
   workoutId: string,
-): Promise<Exercise[]> {
+): Promise<ResolvedExercise[]> {
   const { supabase, user } = await getAuthenticatedServerContext();
   await requireOwnedWorkout(supabase, user.id, workoutId);
 
-  const [exerciseResult, workoutExerciseResult] = await Promise.all([
-    supabase
-      .from("exercises")
-      .select("*")
-      .eq("user_id", user.id)
-      .is("archived_at", null)
-      .order("name"),
+  const [exerciseRows, workoutExerciseResult] = await Promise.all([
+    listAccessibleExerciseRows(supabase, user.id),
     supabase
       .from("workout_exercises")
       .select("exercise_id")
       .eq("workout_id", workoutId),
   ]);
-
-  if (exerciseResult.error) {
-    throw new Error(exerciseResult.error.message);
-  }
 
   if (workoutExerciseResult.error) {
     throw new Error(workoutExerciseResult.error.message);
@@ -198,15 +480,15 @@ export async function listAvailableExercisesRepository(
   const usedExerciseIds = new Set(
     (workoutExerciseResult.data ?? []).map((item) => item.exercise_id),
   );
+  const resolvedExercises = await resolveExercisesForUser(
+    supabase,
+    user.id,
+    exerciseRows,
+  );
 
-  // Filter out both already-added exercises and archived ones.
-  // archived_at IS NULL means active; archived exercises are hidden from
-  // the picker but their history is preserved in set_logs.
-  return (exerciseResult.data ?? []).filter(
+  return resolvedExercises.filter(
     (exercise) =>
-      !usedExerciseIds.has(exercise.id) &&
-      (exercise as Exercise & { archived_at: string | null }).archived_at ===
-        null,
+      !usedExerciseIds.has(exercise.id) && isExerciseAvailableForPicker(exercise),
   );
 }
 
@@ -273,8 +555,28 @@ export async function addExerciseToWorkoutRepository(
   const { supabase, user } = await getAuthenticatedServerContext();
   await Promise.all([
     requireOwnedWorkout(supabase, user.id, workoutId),
-    requireOwnedExercise(supabase, user.id, exerciseId),
+    requireAccessibleExercise(supabase, user.id, exerciseId),
   ]);
+
+  const resolvedExercise = await getAccessibleExerciseRecord(
+    supabase,
+    user.id,
+    exerciseId,
+  );
+
+  if (!resolvedExercise) {
+    throw new Error("Exercise not found");
+  }
+
+  const [resolvedCandidate] = await resolveExercisesForUser(
+    supabase,
+    user.id,
+    [resolvedExercise],
+  );
+
+  if (!resolvedCandidate || !isExerciseAvailableForPicker(resolvedCandidate)) {
+    throw new Error("This exercise is not available to add right now");
+  }
 
   const { count, error: countError } = await supabase
     .from("workout_exercises")
@@ -297,76 +599,83 @@ export async function addExerciseToWorkoutRepository(
     .single();
 
   if (error) {
-    // 23505 = unique_violation: this exercise is already in this workout
     if (error.code === "23505") {
       throw new Error("This exercise is already in this workout");
     }
+
     throw new Error(error.message);
   }
 
-  return data as WorkoutEditorExercise;
+  const [resolvedWorkoutExercise] = await resolveWorkoutExerciseRowsForUser(
+    supabase,
+    [data as WorkoutExerciseQueryRow],
+    user.id,
+  );
+
+  if (!resolvedWorkoutExercise) {
+    throw new Error("Exercise could not be resolved after insertion");
+  }
+
+  return resolvedWorkoutExercise;
 }
 
 export async function createExerciseRepository(
-  name: string,
-): Promise<Exercise> {
+  input: ExerciseDraftInput,
+): Promise<ResolvedExercise> {
   const { supabase, user } = await getAuthenticatedServerContext();
-
-  const peerUserIds = getSharedExercisePeerUserIds(user.id);
 
   const { data, error } = await supabase
     .from("exercises")
     .insert({
       user_id: user.id,
-      name,
+      name: input.name,
+      modality: input.modality ?? null,
+      muscle_group: input.muscleGroup ?? null,
+      is_system: false,
     })
     .select("*")
     .single();
 
   if (error) {
-    // 23505 = unique_violation: idx_exercises_user_name_unique prevents
-    // two exercises with the same (case-insensitive, trimmed) name per user
     if (error.code === "23505") {
-      throw new Error(
-        `An exercise named "${name}" already exists in your library`,
-      );
+      throw new Error(buildExerciseAlreadyExistsMessage(input));
     }
+
     throw new Error(error.message);
   }
 
-  if (peerUserIds.length > 0) {
-    for (const peerUserId of peerUserIds) {
-      const { error: peerInsertError } = await supabase.from("exercises").insert({
-        user_id: peerUserId,
-        name,
-      });
-
-      // Ignore duplicate-name conflicts on peer account to keep idempotent behavior.
-      if (peerInsertError && peerInsertError.code !== "23505") {
-        throw new Error(peerInsertError.message);
-      }
-    }
-  }
-
-  return data;
+  return resolveExerciseForUser(data, null);
 }
 
 export async function getExerciseDetailRepository(
   exerciseId: string,
 ): Promise<{
-  exercise: Exercise;
+  exercise: ResolvedExercise;
   linkedWorkouts: ExerciseLinkedWorkout[];
   logRows: ExerciseLogSummaryRow[];
 } | null> {
   const { supabase, user } = await getAuthenticatedServerContext();
+  const exerciseRecord = await getAccessibleExerciseRecord(
+    supabase,
+    user.id,
+    exerciseId,
+  );
 
-  const [exerciseResult, linkedWorkoutsResult, logsResult] = await Promise.all([
-    supabase
-      .from("exercises")
-      .select("*")
-      .eq("id", exerciseId)
-      .eq("user_id", user.id)
-      .maybeSingle(),
+  if (!exerciseRecord) {
+    return null;
+  }
+
+  const [resolvedExercise] = await resolveExercisesForUser(
+    supabase,
+    user.id,
+    [exerciseRecord],
+  );
+
+  if (!resolvedExercise) {
+    throw new Error("Exercise could not be resolved");
+  }
+
+  const [linkedWorkoutsResult, logsResult] = await Promise.all([
     supabase
       .from("workout_exercises")
       .select("exercise_id, workouts!inner(id, name, user_id)")
@@ -374,18 +683,12 @@ export async function getExerciseDetailRepository(
       .eq("workouts.user_id", user.id),
     supabase
       .from("set_logs")
-      .select("exercise_id, session_id, weight_kg, reps, workout_sessions!inner(performed_at, user_id)")
+      .select(
+        "exercise_id, session_id, weight_kg, reps, workout_sessions!inner(performed_at, user_id)",
+      )
       .eq("exercise_id", exerciseId)
       .eq("workout_sessions.user_id", user.id),
   ]);
-
-  if (exerciseResult.error) {
-    throw new Error(exerciseResult.error.message);
-  }
-
-  if (!exerciseResult.data) {
-    return null;
-  }
 
   if (linkedWorkoutsResult.error) {
     throw new Error(linkedWorkoutsResult.error.message);
@@ -395,43 +698,77 @@ export async function getExerciseDetailRepository(
     throw new Error(logsResult.error.message);
   }
 
-  const linkedWorkouts = ((linkedWorkoutsResult.data as WorkoutLinkQueryRow[] | null) ?? [])
-    .flatMap((row) => row.workouts == null
-      ? []
-      : [{
-        id: row.workouts.id,
-        name: row.workouts.name,
-      }])
-    .filter((workout, index, items) => items.findIndex((candidate) => candidate.id === workout.id) === index);
+  const linkedWorkouts = (
+    (linkedWorkoutsResult.data as WorkoutLinkQueryRow[] | null) ?? []
+  )
+    .flatMap((row) =>
+      row.workouts == null
+        ? []
+        : [
+            {
+              id: row.workouts.id,
+              name: row.workouts.name,
+            },
+          ],
+    )
+    .filter(
+      (workout, index, items) =>
+        items.findIndex((candidate) => candidate.id === workout.id) === index,
+    );
 
-  const logRows = ((logsResult.data as ExerciseLogQueryRow[] | null) ?? [])
-    .flatMap((row) => row.workout_sessions == null
-      ? []
-      : [{
-        exerciseId: row.exercise_id,
-        sessionId: row.session_id,
-        performedAt: row.workout_sessions.performed_at,
-        weightKg: Number(row.weight_kg),
-        reps: row.reps,
-      }]);
+  const logRows = ((logsResult.data as ExerciseLogQueryRow[] | null) ?? []).flatMap(
+    (row) =>
+      row.workout_sessions == null
+        ? []
+        : [
+            {
+              exerciseId: row.exercise_id,
+              sessionId: row.session_id,
+              performedAt: row.workout_sessions.performed_at,
+              weightKg: Number(row.weight_kg),
+              reps: row.reps,
+            },
+          ],
+  );
 
   return {
-    exercise: exerciseResult.data,
+    exercise: resolvedExercise,
     linkedWorkouts,
     logRows,
   };
 }
 
-export async function updateExerciseNameRepository(
+export async function updateExerciseRepository(
   exerciseId: string,
-  name: string,
-): Promise<Exercise> {
+  input: ExerciseDraftInput,
+): Promise<ResolvedExercise> {
   const { supabase, user } = await getAuthenticatedServerContext();
-  await requireOwnedExercise(supabase, user.id, exerciseId);
+  const exerciseRecord = await getAccessibleExerciseRecord(
+    supabase,
+    user.id,
+    exerciseId,
+  );
+
+  if (!exerciseRecord) {
+    throw new Error("Exercise not found");
+  }
+
+  if (exerciseRecord.is_system) {
+    return updateSystemExerciseOverrideRepository({
+      supabase,
+      userId: user.id,
+      exercise: exerciseRecord,
+      draft: input,
+    });
+  }
 
   const { data, error } = await supabase
     .from("exercises")
-    .update({ name })
+    .update({
+      name: input.name,
+      modality: input.modality ?? null,
+      muscle_group: input.muscleGroup ?? null,
+    })
     .eq("id", exerciseId)
     .eq("user_id", user.id)
     .select("*")
@@ -439,15 +776,13 @@ export async function updateExerciseNameRepository(
 
   if (error) {
     if (error.code === "23505") {
-      throw new Error(
-        `An exercise named "${name}" already exists in your library`,
-      );
+      throw new Error(buildExerciseAlreadyExistsMessage(input));
     }
 
     throw new Error(error.message);
   }
 
-  return data;
+  return resolveExerciseForUser(data, null);
 }
 
 export async function updateWorkoutExerciseTargetSetsRepository(
@@ -483,15 +818,11 @@ export async function deleteWorkoutExerciseRepository(
   }
 }
 
-/**
- * Checks whether an exercise has any set_logs recorded across all sessions.
- * Used before removing an exercise to decide whether to offer archive instead.
- */
 export async function checkExerciseHasLogsRepository(
   exerciseId: string,
 ): Promise<boolean> {
   const { supabase, user } = await getAuthenticatedServerContext();
-  await requireOwnedExercise(supabase, user.id, exerciseId);
+  await requireAccessibleExercise(supabase, user.id, exerciseId);
 
   const { count, error } = await supabase
     .from("set_logs")
@@ -505,52 +836,47 @@ export async function checkExerciseHasLogsRepository(
   return (count ?? 0) > 0;
 }
 
-/**
- * Archives an exercise by setting archived_at = NOW().
- * Archived exercises are hidden from the picker but their set_log history
- * is preserved and still visible in analytics.
- */
 export async function archiveExerciseRepository(
   exerciseId: string,
 ): Promise<void> {
   const { supabase, user } = await getAuthenticatedServerContext();
+  const exerciseRecord = await getAccessibleExerciseRecord(
+    supabase,
+    user.id,
+    exerciseId,
+  );
 
-  const peerUserIds = getSharedExercisePeerUserIds(user.id);
+  if (!exerciseRecord) {
+    throw new Error("Exercise not found");
+  }
 
-  const { data: sourceExercise, error: sourceExerciseError } = await supabase
-    .from("exercises")
-    .select("id, name")
-    .eq("id", exerciseId)
-    .eq("user_id", user.id)
-    .single();
-
-  if (sourceExerciseError) {
-    throw new Error(sourceExerciseError.message);
+  if (exerciseRecord.is_system) {
+    const currentOverride = await getExerciseOverrideRepository(
+      supabase,
+      user.id,
+      exerciseId,
+    );
+    await upsertExerciseOverrideRepository({
+      supabase,
+      userId: user.id,
+      exerciseId,
+      customName: currentOverride?.custom_name ?? null,
+      customModality: currentOverride?.custom_modality ?? null,
+      customMuscleGroup: currentOverride?.custom_muscle_group ?? null,
+      archivedAt: new Date().toISOString(),
+      hiddenAt: currentOverride?.hidden_at ?? null,
+    });
+    return;
   }
 
   const { error } = await supabase
     .from("exercises")
     .update({ archived_at: new Date().toISOString() })
     .eq("id", exerciseId)
-    .eq("user_id", user.id); // ownership guard (belt-and-suspenders on top of RLS)
+    .eq("user_id", user.id);
 
   if (error) {
     throw new Error(error.message);
-  }
-
-  if (peerUserIds.length > 0) {
-    for (const peerUserId of peerUserIds) {
-      const { error: peerArchiveError } = await supabase
-        .from("exercises")
-        .update({ archived_at: new Date().toISOString() })
-        .eq("user_id", peerUserId)
-        .eq("name", sourceExercise.name)
-        .is("archived_at", null);
-
-      if (peerArchiveError) {
-        throw new Error(peerArchiveError.message);
-      }
-    }
   }
 }
 
@@ -558,7 +884,52 @@ export async function unarchiveExerciseRepository(
   exerciseId: string,
 ): Promise<void> {
   const { supabase, user } = await getAuthenticatedServerContext();
-  await requireOwnedExercise(supabase, user.id, exerciseId);
+  const exerciseRecord = await getAccessibleExerciseRecord(
+    supabase,
+    user.id,
+    exerciseId,
+  );
+
+  if (!exerciseRecord) {
+    throw new Error("Exercise not found");
+  }
+
+  if (exerciseRecord.is_system) {
+    const currentOverride = await getExerciseOverrideRepository(
+      supabase,
+      user.id,
+      exerciseId,
+    );
+
+    if (!currentOverride) {
+      return;
+    }
+
+    const nextOverride = {
+      custom_name: currentOverride.custom_name,
+      custom_modality: currentOverride.custom_modality,
+      custom_muscle_group: currentOverride.custom_muscle_group,
+      archived_at: null,
+      hidden_at: currentOverride.hidden_at,
+    };
+
+    if (isOverrideEmpty(nextOverride)) {
+      await deleteExerciseOverrideRepository(supabase, user.id, exerciseId);
+      return;
+    }
+
+    await upsertExerciseOverrideRepository({
+      supabase,
+      userId: user.id,
+      exerciseId,
+      customName: nextOverride.custom_name,
+      customModality: nextOverride.custom_modality,
+      customMuscleGroup: nextOverride.custom_muscle_group,
+      archivedAt: null,
+      hiddenAt: nextOverride.hidden_at,
+    });
+    return;
+  }
 
   const { error } = await supabase
     .from("exercises")
@@ -575,7 +946,34 @@ export async function deleteExerciseRepository(
   exerciseId: string,
 ): Promise<void> {
   const { supabase, user } = await getAuthenticatedServerContext();
-  await requireOwnedExercise(supabase, user.id, exerciseId);
+  const exerciseRecord = await getAccessibleExerciseRecord(
+    supabase,
+    user.id,
+    exerciseId,
+  );
+
+  if (!exerciseRecord) {
+    throw new Error("Exercise not found");
+  }
+
+  if (exerciseRecord.is_system) {
+    const currentOverride = await getExerciseOverrideRepository(
+      supabase,
+      user.id,
+      exerciseId,
+    );
+    await upsertExerciseOverrideRepository({
+      supabase,
+      userId: user.id,
+      exerciseId,
+      customName: currentOverride?.custom_name ?? null,
+      customModality: currentOverride?.custom_modality ?? null,
+      customMuscleGroup: currentOverride?.custom_muscle_group ?? null,
+      archivedAt: currentOverride?.archived_at ?? null,
+      hiddenAt: new Date().toISOString(),
+    });
+    return;
+  }
 
   const [linkedWorkoutCountResult, logCountResult] = await Promise.all([
     supabase
@@ -596,8 +994,13 @@ export async function deleteExerciseRepository(
     throw new Error(logCountResult.error.message);
   }
 
-  if ((linkedWorkoutCountResult.count ?? 0) > 0 || (logCountResult.count ?? 0) > 0) {
-    throw new Error("Exercise cannot be deleted because it still has history or linked workouts");
+  if (
+    (linkedWorkoutCountResult.count ?? 0) > 0 ||
+    (logCountResult.count ?? 0) > 0
+  ) {
+    throw new Error(
+      "Exercise cannot be deleted because it still has history or linked workouts",
+    );
   }
 
   const { error } = await supabase
@@ -618,10 +1021,7 @@ export async function reorderWorkoutExercisesRepository(
   const { supabase, user } = await getAuthenticatedServerContext();
   await requireOwnedWorkout(supabase, user.id, workoutId);
 
-  for (const [
-    index,
-    workoutExerciseId,
-  ] of orderedWorkoutExerciseIds.entries()) {
+  for (const [index, workoutExerciseId] of orderedWorkoutExerciseIds.entries()) {
     const { error } = await supabase
       .from("workout_exercises")
       .update({ display_order: index })
@@ -631,5 +1031,95 @@ export async function reorderWorkoutExercisesRepository(
     if (error) {
       throw new Error(error.message);
     }
+  }
+}
+
+function normalizeWorkoutCardioBlockName(name: string) {
+  return name.trim();
+}
+
+export async function createWorkoutCardioBlockRepository(
+  workoutId: string,
+  input: WorkoutCardioDraftInput,
+): Promise<WorkoutCardioBlock> {
+  const { supabase, user } = await getAuthenticatedServerContext();
+  await requireOwnedWorkout(supabase, user.id, workoutId);
+
+  const normalizedName = normalizeWorkoutCardioBlockName(input.name);
+
+  const { count, error: countError } = await supabase
+    .from("workout_cardio_blocks")
+    .select("*", { count: "exact", head: true })
+    .eq("workout_id", workoutId);
+
+  if (countError) {
+    throw new Error(countError.message);
+  }
+
+  const { data, error } = await supabase
+    .from("workout_cardio_blocks")
+    .insert({
+      workout_id: workoutId,
+      name: normalizedName,
+      target_duration_minutes: input.targetDurationMinutes ?? null,
+      display_order: count ?? 0,
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error("A cardio block with this name already exists in this workout");
+    }
+
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function updateWorkoutCardioBlockRepository(
+  workoutCardioBlockId: string,
+  input: WorkoutCardioDraftInput,
+): Promise<WorkoutCardioBlock> {
+  const { supabase, user } = await getAuthenticatedServerContext();
+  await requireOwnedWorkoutCardioBlock(supabase, user.id, workoutCardioBlockId);
+
+  const normalizedName = normalizeWorkoutCardioBlockName(input.name);
+
+  const { data, error } = await supabase
+    .from("workout_cardio_blocks")
+    .update({
+      name: normalizedName,
+      target_duration_minutes: input.targetDurationMinutes ?? null,
+    })
+    .eq("id", workoutCardioBlockId)
+    .select("*")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error("A cardio block with this name already exists in this workout");
+    }
+
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function deleteWorkoutCardioBlockRepository(
+  workoutCardioBlockId: string,
+): Promise<void> {
+  const { supabase, user } = await getAuthenticatedServerContext();
+  await requireOwnedWorkoutCardioBlock(supabase, user.id, workoutCardioBlockId);
+
+  const { error } = await supabase
+    .from("workout_cardio_blocks")
+    .delete()
+    .eq("id", workoutCardioBlockId);
+
+  if (error) {
+    throw new Error(error.message);
   }
 }

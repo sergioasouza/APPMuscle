@@ -1,4 +1,4 @@
-import type { Exercise, Schedule, ScheduleRotation, SetLog, Workout, WorkoutSession } from '@/lib/types'
+import type { ResolvedExercise, Schedule, ScheduleRotation, SetLog, Workout, WorkoutSession } from '@/lib/types'
 
 export type SessionWithDetails = WorkoutSession & {
     workouts: Workout
@@ -13,13 +13,14 @@ export type ScheduleRotationEntry = ScheduleRotation & {
 }
 
 export type SetLogWithExercise = SetLog & {
-    exercises: Exercise
+    exercises: ResolvedExercise
 }
 
 export interface CalendarSessionMetrics {
     setCount: number
     totalVolume: number
     exerciseCount: number
+    cardioCount: number
 }
 
 export interface CalendarWeekSummary {

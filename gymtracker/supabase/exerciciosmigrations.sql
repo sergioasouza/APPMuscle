@@ -1,0 +1,16 @@
+-- Reference only.
+-- Do not apply this file directly in production.
+--
+-- The canonical, versioned system catalog now lives in:
+--   1. supabase/migrations/20260405_add_system_exercises_and_overrides.sql
+--   2. supabase/migrations/20260406_seed_system_exercises_catalog.sql
+--
+-- Catalog rules adopted in the versioned seed:
+--   - system exercises are visible to every account
+--   - personal edits/deletes happen through local overrides only
+--   - "Cabo" and "Polia" are both preserved when the movement context differs
+--   - modalities were normalized (for example: Barra-Livre, Halter, Máquina)
+--   - missing common exercises were added to the base catalog
+--
+-- If you need to inspect or review the current catalog list, open:
+--   supabase/migrations/20260406_seed_system_exercises_catalog.sql

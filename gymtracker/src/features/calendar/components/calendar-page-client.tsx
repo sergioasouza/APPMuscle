@@ -44,6 +44,7 @@ const EMPTY_SESSION_METRICS: CalendarSessionMetrics = {
     setCount: 0,
     totalVolume: 0,
     exerciseCount: 0,
+    cardioCount: 0,
 }
 
 function formatCalendarRangeLabel(startISO: string, endISO: string, locale: string) {
@@ -183,7 +184,10 @@ export function CalendarPageClient({
         }
 
         return (
-            selectedDateSessions.find((session) => getSessionMetrics(session.id).setCount > 0)
+            selectedDateSessions.find((session) => {
+                const metrics = getSessionMetrics(session.id)
+                return metrics.setCount > 0 || metrics.cardioCount > 0
+            })
             ?? selectedDateSessions[0]
         ).id
     }, [getSessionMetrics, selectedDateSessions, selectedSessionId])
@@ -258,7 +262,7 @@ export function CalendarPageClient({
     const groupedSets = useMemo(
         () =>
             visibleSessionSets.reduce<Record<string, { name: string; sets: SetLogWithExercise[] }>>((accumulator, setLog) => {
-                const exerciseName = setLog.exercises?.name ?? '(deleted)'
+      const exerciseName = setLog.exercises?.display_name ?? '(deleted)'
                 const currentGroup = accumulator[setLog.exercise_id]
 
                 if (!currentGroup) {
@@ -469,7 +473,8 @@ export function CalendarPageClient({
                 selectedSessionStatus.kind === 'normal'
                     ? selectedSession.notes
                     : selectedSessionStatus.details
-            const hasLogs = selectedSessionMetrics.setCount > 0
+            const hasStrengthLogs = selectedSessionMetrics.setCount > 0
+            const hasLogs = hasStrengthLogs || selectedSessionMetrics.cardioCount > 0
 
             return (
                 <div className="space-y-3">
@@ -573,7 +578,7 @@ export function CalendarPageClient({
                                 </div>
                             ) : (
                                 <>
-                                    <div className="grid grid-cols-3 gap-3 px-4 py-4 border-b border-zinc-200 dark:border-zinc-800/50">
+                                    <div className={`grid gap-3 px-4 py-4 border-b border-zinc-200 dark:border-zinc-800/50 ${selectedSessionMetrics.cardioCount > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
                                         <div className="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/70">
                                             <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{t('Calendar.totalSets')}</p>
                                             <p className="mt-1 text-lg font-bold text-zinc-900 dark:text-white">{selectedSessionMetrics.setCount}</p>
@@ -588,26 +593,38 @@ export function CalendarPageClient({
                                                 {selectedSessionMetrics.totalVolume.toLocaleString()}
                                             </p>
                                         </div>
+                                        {selectedSessionMetrics.cardioCount > 0 && (
+                                            <div className="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/70">
+                                                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{t('Calendar.totalCardio')}</p>
+                                                <p className="mt-1 text-lg font-bold text-zinc-900 dark:text-white">{selectedSessionMetrics.cardioCount}</p>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    <div className="divide-y divide-zinc-800/30">
-                                        {Object.entries(groupedSets).map(([exerciseId, group]) => (
-                                            <div key={exerciseId} className="px-4 py-3">
-                                                <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">{group.name}</h4>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {group.sets.map((setLog) => (
-                                                        <div key={setLog.id} className="bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 rounded-lg text-xs font-mono">
-                                                            <span className="text-zinc-900 dark:text-white font-semibold">{setLog.weight_kg}</span>
-                                                            <span className="text-zinc-500 dark:text-zinc-400">{t('Calendar.kg')}</span>
-                                                            <span className="text-zinc-600 dark:text-zinc-400 mx-1">x</span>
-                                                            <span className="text-zinc-900 dark:text-white font-semibold">{setLog.reps}</span>
-                                                            <span className="text-zinc-500 dark:text-zinc-400">{t('Calendar.reps')}</span>
-                                                        </div>
-                                                    ))}
+                                    {!hasStrengthLogs && selectedSessionMetrics.cardioCount > 0 ? (
+                                        <div className="px-4 py-4 text-sm text-zinc-500 dark:text-zinc-400">
+                                            {t('Calendar.cardioLogged')}
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-zinc-800/30">
+                                            {Object.entries(groupedSets).map(([exerciseId, group]) => (
+                                                <div key={exerciseId} className="px-4 py-3">
+                                                    <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">{group.name}</h4>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {group.sets.map((setLog) => (
+                                                            <div key={setLog.id} className="bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 rounded-lg text-xs font-mono">
+                                                                <span className="text-zinc-900 dark:text-white font-semibold">{setLog.weight_kg}</span>
+                                                                <span className="text-zinc-500 dark:text-zinc-400">{t('Calendar.kg')}</span>
+                                                                <span className="text-zinc-600 dark:text-zinc-400 mx-1">x</span>
+                                                                <span className="text-zinc-900 dark:text-white font-semibold">{setLog.reps}</span>
+                                                                <span className="text-zinc-500 dark:text-zinc-400">{t('Calendar.reps')}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </>
                             )}
 

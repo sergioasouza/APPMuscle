@@ -176,7 +176,7 @@ export function AnalyticsPageClient({
 
     // Per exercise, per session: get all set logs
     const rows = workoutExercises.map((we) => {
-      const exerciseName = we.exercises.name;
+      const exerciseName = we.exercises.display_name;
 
       const sessionsData = sorted.map((session) => {
         const sets = allSetLogs
@@ -305,7 +305,7 @@ export function AnalyticsPageClient({
                 >
                   {workoutExercises.map((we) => (
                     <option key={we.exercise_id} value={we.exercise_id}>
-                      {we.exercises.name}
+                      {we.exercises.display_name}
                     </option>
                   ))}
                 </select>
@@ -426,7 +426,7 @@ export function AnalyticsPageClient({
                 <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-sm">
                   <div className="flex items-baseline justify-between">
                     <h3 className="text-sm font-semibold text-foreground">
-                      {selectedExercise?.exercises.name}
+                    {selectedExercise?.exercises.display_name}
                     </h3>
                     <span className="text-xs text-muted-foreground">
                       {chartData.length} {t("Analytics.sessions")}

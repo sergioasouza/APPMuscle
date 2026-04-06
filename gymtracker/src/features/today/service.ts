@@ -4,16 +4,32 @@ import {
     getTodayViewRepository,
     listUserWorkoutsRepository,
     rescheduleWorkoutRepository,
+    saveCardioLogRepository,
     saveSessionNotesRepository,
     saveSetRepository,
+    skipCardioRepository,
+    skipExerciseRepository,
     skipWorkoutRepository,
     switchWorkoutForDayRepository,
+    undoSkipCardioRepository,
+    undoSkipExerciseRepository,
     undoSkipWorkoutRepository,
 } from '@/features/today/repository'
-import type { TodayViewData } from '@/features/today/types'
+import type { SaveCardioLogInput, TodayViewData } from '@/features/today/types'
 
 export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<TodayViewData> {
     const data = await getTodayViewRepository(dateISO, dayOfWeek)
+    const skippedExerciseIds = new Set(data.sessionExerciseSkips.map((skip) => skip.exercise_id))
+    const cardioLogByBlockId = data.sessionCardioLogs.reduce<Map<string, typeof data.sessionCardioLogs[number]>>((accumulator, cardioLog) => {
+        accumulator.set(cardioLog.workout_cardio_block_id, cardioLog)
+        return accumulator
+    }, new Map())
+    const intervalsByCardioLogId = data.sessionCardioIntervals.reduce<Map<string, typeof data.sessionCardioIntervals>>((accumulator, interval) => {
+        const current = accumulator.get(interval.cardio_log_id) ?? []
+        current.push(interval)
+        accumulator.set(interval.cardio_log_id, current)
+        return accumulator
+    }, new Map())
 
     const exerciseLogs = data.workoutExercises.map((workoutExercise) => {
         const existingSets = data.setLogs.filter((setLog) => setLog.exercise_id === workoutExercise.exercise_id)
@@ -21,7 +37,7 @@ export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<
 
         return {
             exerciseId: workoutExercise.exercise_id,
-            exerciseName: workoutExercise.exercises?.name ?? '(deleted)',
+            exerciseName: workoutExercise.exercises?.display_name ?? '(deleted)',
             targetSets: workoutExercise.target_sets,
             sets: Array.from({ length: workoutExercise.target_sets }, (_, index) => {
                 const existingSet = existingSets.find((setLog) => setLog.set_number === index + 1)
@@ -37,6 +53,33 @@ export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<
                 weight: Number(setLog.weight_kg),
                 reps: setLog.reps,
             })),
+            skipped: skippedExerciseIds.has(workoutExercise.exercise_id),
+        }
+    })
+
+    const cardioLogs = data.cardioBlocks.map((cardioBlock) => {
+        const cardioLog = cardioLogByBlockId.get(cardioBlock.id)
+        const intervals = cardioLog ? (intervalsByCardioLogId.get(cardioLog.id) ?? []) : []
+
+        return {
+            cardioBlockId: cardioBlock.id,
+            cardioName: cardioBlock.name,
+            targetDurationMinutes: cardioBlock.target_duration_minutes,
+            totalDurationMinutes: cardioLog?.total_duration_minutes != null ? String(cardioLog.total_duration_minutes) : '',
+            totalDistanceKm: cardioLog?.total_distance_km != null ? String(cardioLog.total_distance_km) : '',
+            intervals: intervals.map((interval) => ({
+                id: interval.id,
+                durationMinutes: String(interval.duration_minutes),
+                speedKmh: interval.speed_kmh != null ? String(interval.speed_kmh) : '',
+                repeatCount: String(interval.repeat_count),
+            })),
+            skipped: cardioLog?.skipped_at != null,
+            saved: cardioLog != null && (
+                cardioLog.skipped_at != null
+                || cardioLog.total_duration_minutes != null
+                || cardioLog.total_distance_km != null
+                || intervals.length > 0
+            ),
         }
     })
 
@@ -44,6 +87,7 @@ export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<
         workout: data.workout,
         session: data.session,
         exerciseLogs,
+        cardioLogs,
         notes: data.notes,
         rotation: data.rotation,
     }
@@ -117,4 +161,52 @@ export async function saveSessionNotes(sessionId: string, notes: string) {
     }
 
     await saveSessionNotesRepository(sessionId, notes)
+}
+
+export async function skipExercise(sessionId: string, exerciseId: string) {
+    if (!sessionId || !exerciseId) {
+        throw new Error('Session and exercise are required')
+    }
+
+    await skipExerciseRepository(sessionId, exerciseId)
+}
+
+export async function undoSkipExercise(sessionId: string, exerciseId: string) {
+    if (!sessionId || !exerciseId) {
+        throw new Error('Session and exercise are required')
+    }
+
+    await undoSkipExerciseRepository(sessionId, exerciseId)
+}
+
+export async function saveCardioLog(input: SaveCardioLogInput) {
+    if (!input.sessionId || !input.cardioBlockId) {
+        throw new Error('Session and cardio block are required')
+    }
+
+    const hasIntervals = input.intervals.length > 0
+    const hasTotalDuration = input.totalDurationMinutes != null
+    const hasDistance = input.totalDistanceKm != null
+
+    if (!hasIntervals && !hasTotalDuration && !hasDistance) {
+        throw new Error('At least one cardio metric is required')
+    }
+
+    return saveCardioLogRepository(input)
+}
+
+export async function skipCardio(sessionId: string, cardioBlockId: string) {
+    if (!sessionId || !cardioBlockId) {
+        throw new Error('Session and cardio block are required')
+    }
+
+    await skipCardioRepository(sessionId, cardioBlockId)
+}
+
+export async function undoSkipCardio(sessionId: string, cardioBlockId: string) {
+    if (!sessionId || !cardioBlockId) {
+        throw new Error('Session and cardio block are required')
+    }
+
+    await undoSkipCardioRepository(sessionId, cardioBlockId)
 }

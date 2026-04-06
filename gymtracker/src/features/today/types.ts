@@ -20,12 +20,32 @@ export interface ExerciseLogState {
     targetSets: number
     sets: ExerciseLogSetState[]
     previousSets: PreviousSetMark[]
+    skipped: boolean
+}
+
+export interface CardioIntervalState {
+    id?: string
+    durationMinutes: string
+    speedKmh: string
+    repeatCount: string
+}
+
+export interface CardioLogState {
+    cardioBlockId: string
+    cardioName: string
+    targetDurationMinutes: number | null
+    totalDurationMinutes: string
+    totalDistanceKm: string
+    intervals: CardioIntervalState[]
+    skipped: boolean
+    saved: boolean
 }
 
 export interface TodayViewData {
     workout: Workout | null
     session: WorkoutSession | null
     exerciseLogs: ExerciseLogState[]
+    cardioLogs: CardioLogState[]
     notes: string
     rotation: {
         activeRotationIndex: number | null
@@ -46,4 +66,19 @@ export interface SaveSetInput {
     weight: number
     reps: number
     setLogId?: string
+}
+
+export interface SaveCardioIntervalInput {
+    id?: string
+    durationMinutes: number
+    speedKmh?: number | null
+    repeatCount: number
+}
+
+export interface SaveCardioLogInput {
+    sessionId: string
+    cardioBlockId: string
+    totalDurationMinutes?: number | null
+    totalDistanceKm?: number | null
+    intervals: SaveCardioIntervalInput[]
 }

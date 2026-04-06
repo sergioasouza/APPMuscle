@@ -21,7 +21,7 @@ export async function getCalendarMonth(year: number, month: number) {
     const timezone = process.env.APP_TIMEZONE ?? 'America/Sao_Paulo'
     const todayISO = getTodayInTimezone(timezone).dateISO
     const sessionMetricsById = enrichCalendarSessionMetricsWithExerciseCounts(
-        buildCalendarSessionMetrics(data.sessionSetLogs),
+        buildCalendarSessionMetrics(data.sessionSetLogs, data.sessionCardioLogs),
         data.sessionSetLogs,
     )
 

@@ -208,7 +208,7 @@ export async function getExerciseGlobalAnalytics(
 
   return {
     exerciseId,
-    exerciseName: exercise.name,
+    exerciseName: exercise.display_name,
     evolution,
     summary,
   };

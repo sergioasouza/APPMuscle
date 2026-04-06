@@ -1,19 +1,25 @@
 'use server'
 
+import { revalidateTodaySurfaces } from '@/lib/revalidate-app-routes'
 import {
     getTodayView,
     listUserWorkouts,
     rescheduleWorkout,
+    saveCardioLog,
     saveSessionNotes,
     saveSet,
+    skipCardio,
+    skipExercise,
     skipWorkout,
     switchWorkoutForDay,
+    undoSkipCardio,
+    undoSkipExercise,
     undoSkipWorkout,
 } from '@/features/today/service'
-import type { TodayViewData } from '@/features/today/types'
+import type { SaveCardioLogInput, TodayViewData } from '@/features/today/types'
 import { errorResult, okResult } from '@/lib/action-result'
 import type { ActionResult } from '@/lib/action-result'
-import type { SetLog, Workout } from '@/lib/types'
+import type { SessionCardioLog, SetLog, Workout } from '@/lib/types'
 import {
     assertFiniteNumber,
     assertIntegerInRange,
@@ -49,6 +55,7 @@ export async function switchWorkoutForDayAction(dateISO: string, workoutId: stri
         assertIsoDate(dateISO, 'Date')
         assertUuid(workoutId, 'Workout id')
         await switchWorkoutForDay(dateISO, workoutId)
+        revalidateTodaySurfaces()
         return okResult(null)
     } catch (error) {
         return errorResult(error)
@@ -59,6 +66,7 @@ export async function skipWorkoutAction(sessionId: string, notes: string | null)
     try {
         assertUuid(sessionId, 'Session id')
         await skipWorkout(sessionId, notes)
+        revalidateTodaySurfaces()
         return okResult(null)
     } catch (error) {
         return errorResult(error)
@@ -69,6 +77,7 @@ export async function undoSkipWorkoutAction(sessionId: string, notes: string | n
     try {
         assertUuid(sessionId, 'Session id')
         await undoSkipWorkout(sessionId, notes)
+        revalidateTodaySurfaces()
         return okResult(null)
     } catch (error) {
         return errorResult(error)
@@ -91,6 +100,7 @@ export async function rescheduleWorkoutAction(
         assertOptionalUuid(sessionId, 'Session id')
         assertStringArray(dayNames, 'Day names', 7)
         await rescheduleWorkout(dateISO, dayOfWeek, targetDay, workoutId, sessionId, dayNames)
+        revalidateTodaySurfaces()
         return okResult(null)
     } catch (error) {
         return errorResult(error)
@@ -120,6 +130,7 @@ export async function saveSetAction(input: {
             input.reps,
             input.setLogId
         )
+        revalidateTodaySurfaces()
         return okResult(data)
     } catch (error) {
         return errorResult(error)
@@ -130,6 +141,98 @@ export async function saveSessionNotesAction(sessionId: string, notes: string): 
     try {
         assertUuid(sessionId, 'Session id')
         await saveSessionNotes(sessionId, notes)
+        revalidateTodaySurfaces()
+        return okResult(null)
+    } catch (error) {
+        return errorResult(error)
+    }
+}
+
+export async function skipExerciseAction(sessionId: string, exerciseId: string): Promise<ActionResult<null>> {
+    try {
+        assertUuid(sessionId, 'Session id')
+        assertUuid(exerciseId, 'Exercise id')
+        await skipExercise(sessionId, exerciseId)
+        revalidateTodaySurfaces()
+        return okResult(null)
+    } catch (error) {
+        return errorResult(error)
+    }
+}
+
+export async function undoSkipExerciseAction(sessionId: string, exerciseId: string): Promise<ActionResult<null>> {
+    try {
+        assertUuid(sessionId, 'Session id')
+        assertUuid(exerciseId, 'Exercise id')
+        await undoSkipExercise(sessionId, exerciseId)
+        revalidateTodaySurfaces()
+        return okResult(null)
+    } catch (error) {
+        return errorResult(error)
+    }
+}
+
+function assertSaveCardioLogInput(input: SaveCardioLogInput) {
+    assertUuid(input.sessionId, 'Session id')
+    assertUuid(input.cardioBlockId, 'Cardio block id')
+
+    if (input.totalDurationMinutes != null) {
+        assertPositiveInteger(input.totalDurationMinutes, 'Total duration minutes')
+    }
+
+    if (input.totalDistanceKm != null) {
+        assertFiniteNumber(input.totalDistanceKm, 'Total distance km', 0)
+    }
+
+    if (!Array.isArray(input.intervals)) {
+        throw new Error('Intervals must be an array')
+    }
+
+    for (const interval of input.intervals) {
+        assertPositiveInteger(interval.durationMinutes, 'Interval duration minutes')
+        assertPositiveInteger(interval.repeatCount, 'Interval repeat count')
+
+        if (interval.speedKmh != null) {
+            assertFiniteNumber(interval.speedKmh, 'Interval speed km/h', 0)
+        }
+
+        if (interval.id) {
+            assertUuid(interval.id, 'Interval id')
+        }
+    }
+}
+
+export async function saveCardioLogAction(
+    input: SaveCardioLogInput,
+): Promise<ActionResult<SessionCardioLog>> {
+    try {
+        assertSaveCardioLogInput(input)
+        const data = await saveCardioLog(input)
+        revalidateTodaySurfaces()
+        return okResult(data)
+    } catch (error) {
+        return errorResult(error)
+    }
+}
+
+export async function skipCardioAction(sessionId: string, cardioBlockId: string): Promise<ActionResult<null>> {
+    try {
+        assertUuid(sessionId, 'Session id')
+        assertUuid(cardioBlockId, 'Cardio block id')
+        await skipCardio(sessionId, cardioBlockId)
+        revalidateTodaySurfaces()
+        return okResult(null)
+    } catch (error) {
+        return errorResult(error)
+    }
+}
+
+export async function undoSkipCardioAction(sessionId: string, cardioBlockId: string): Promise<ActionResult<null>> {
+    try {
+        assertUuid(sessionId, 'Session id')
+        assertUuid(cardioBlockId, 'Cardio block id')
+        await undoSkipCardio(sessionId, cardioBlockId)
+        revalidateTodaySurfaces()
         return okResult(null)
     } catch (error) {
         return errorResult(error)

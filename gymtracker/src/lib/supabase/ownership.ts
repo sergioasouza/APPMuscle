@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createClient } from '@/lib/supabase/server'
+import { buildAccessibleExercisesFilter } from '@/lib/supabase/exercises'
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
 
@@ -15,6 +16,8 @@ interface OwnedWorkoutRow {
 
 interface OwnedExerciseRow {
     id: string
+    user_id: string | null
+    is_system: boolean
     name: string
 }
 
@@ -36,6 +39,26 @@ interface OwnedSetLogRow {
     id: string
     session_id: string
     exercise_id: string
+    workout_sessions: { user_id: string }
+}
+
+interface OwnedWorkoutCardioBlockRow {
+    id: string
+    workout_id: string
+    workouts: { user_id: string }
+}
+
+interface OwnedSessionExerciseSkipRow {
+    id: string
+    session_id: string
+    exercise_id: string
+    workout_sessions: { user_id: string }
+}
+
+interface OwnedSessionCardioLogRow {
+    id: string
+    session_id: string
+    workout_cardio_block_id: string
     workout_sessions: { user_id: string }
 }
 
@@ -80,9 +103,25 @@ export async function requireOwnedExercise(
     return requireOwnedResult(
         supabase
             .from('exercises')
-            .select('id, name')
+            .select('id, user_id, is_system, name')
             .eq('id', exerciseId)
             .eq('user_id', userId)
+            .maybeSingle(),
+        'Exercise',
+    )
+}
+
+export async function requireAccessibleExercise(
+    supabase: SupabaseServerClient,
+    userId: string,
+    exerciseId: string,
+): Promise<OwnedExerciseRow> {
+    return requireOwnedResult(
+        supabase
+            .from('exercises')
+            .select('id, user_id, is_system, name')
+            .eq('id', exerciseId)
+            .or(buildAccessibleExercisesFilter(userId))
             .maybeSingle(),
         'Exercise',
     )
@@ -133,5 +172,53 @@ export async function requireOwnedSetLog(
             .eq('workout_sessions.user_id', userId)
             .maybeSingle(),
         'Set log',
+    )
+}
+
+export async function requireOwnedWorkoutCardioBlock(
+    supabase: SupabaseServerClient,
+    userId: string,
+    workoutCardioBlockId: string,
+): Promise<OwnedWorkoutCardioBlockRow> {
+    return requireOwnedResult(
+        supabase
+            .from('workout_cardio_blocks')
+            .select('id, workout_id, workouts!inner(user_id)')
+            .eq('id', workoutCardioBlockId)
+            .eq('workouts.user_id', userId)
+            .maybeSingle(),
+        'Workout cardio block',
+    )
+}
+
+export async function requireOwnedSessionExerciseSkip(
+    supabase: SupabaseServerClient,
+    userId: string,
+    sessionExerciseSkipId: string,
+): Promise<OwnedSessionExerciseSkipRow> {
+    return requireOwnedResult(
+        supabase
+            .from('session_exercise_skips')
+            .select('id, session_id, exercise_id, workout_sessions!inner(user_id)')
+            .eq('id', sessionExerciseSkipId)
+            .eq('workout_sessions.user_id', userId)
+            .maybeSingle(),
+        'Session exercise skip',
+    )
+}
+
+export async function requireOwnedSessionCardioLog(
+    supabase: SupabaseServerClient,
+    userId: string,
+    sessionCardioLogId: string,
+): Promise<OwnedSessionCardioLogRow> {
+    return requireOwnedResult(
+        supabase
+            .from('session_cardio_logs')
+            .select('id, session_id, workout_cardio_block_id, workout_sessions!inner(user_id)')
+            .eq('id', sessionCardioLogId)
+            .eq('workout_sessions.user_id', userId)
+            .maybeSingle(),
+        'Session cardio log',
     )
 }
