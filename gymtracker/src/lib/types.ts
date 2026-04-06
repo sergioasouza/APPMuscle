@@ -16,21 +16,59 @@ export type Database = {
                     id: string
                     display_name: string
                     rotation_anchor_date: string | null
+                    role: 'member' | 'admin'
+                    access_status: 'active' | 'blocked'
+                    member_access_mode: 'internal' | 'billable' | 'trial'
+                    billing_day_of_month: number | null
+                    billing_grace_business_days: number
+                    paid_until: string | null
+                    trial_ends_at: string | null
+                    must_change_password: boolean
+                    created_by_admin_id: string | null
+                    updated_at: string
                     created_at: string
                 }
                 Insert: {
                     id: string
                     display_name: string
                     rotation_anchor_date?: string | null
+                    role?: 'member' | 'admin'
+                    access_status?: 'active' | 'blocked'
+                    member_access_mode?: 'internal' | 'billable' | 'trial'
+                    billing_day_of_month?: number | null
+                    billing_grace_business_days?: number
+                    paid_until?: string | null
+                    trial_ends_at?: string | null
+                    must_change_password?: boolean
+                    created_by_admin_id?: string | null
+                    updated_at?: string
                     created_at?: string
                 }
                 Update: {
                     id?: string
                     display_name?: string
                     rotation_anchor_date?: string | null
+                    role?: 'member' | 'admin'
+                    access_status?: 'active' | 'blocked'
+                    member_access_mode?: 'internal' | 'billable' | 'trial'
+                    billing_day_of_month?: number | null
+                    billing_grace_business_days?: number
+                    paid_until?: string | null
+                    trial_ends_at?: string | null
+                    must_change_password?: boolean
+                    created_by_admin_id?: string | null
+                    updated_at?: string
                     created_at?: string
                 }
-                Relationships: []
+                Relationships: [
+                    {
+                        foreignKeyName: "profiles_created_by_admin_id_fkey"
+                        columns: ["created_by_admin_id"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
             exercises: {
                 Row: {
@@ -591,6 +629,102 @@ export type Database = {
                     }
                 ]
             }
+            manual_billing_events: {
+                Row: {
+                    id: string
+                    user_id: string
+                    reference_month: string
+                    status: 'paid' | 'unpaid' | 'waived'
+                    note: string | null
+                    recorded_by: string
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    user_id: string
+                    reference_month: string
+                    status: 'paid' | 'unpaid' | 'waived'
+                    note?: string | null
+                    recorded_by: string
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    user_id?: string
+                    reference_month?: string
+                    status?: 'paid' | 'unpaid' | 'waived'
+                    note?: string | null
+                    recorded_by?: string
+                    created_at?: string
+                    updated_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "manual_billing_events_user_id_fkey"
+                        columns: ["user_id"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "manual_billing_events_recorded_by_fkey"
+                        columns: ["recorded_by"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            admin_audit_log: {
+                Row: {
+                    id: string
+                    actor_user_id: string
+                    target_user_id: string | null
+                    entity_type: 'user' | 'exercise' | 'billing' | 'access' | 'auth' | 'system'
+                    entity_id: string | null
+                    action: string
+                    metadata: Json
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    actor_user_id: string
+                    target_user_id?: string | null
+                    entity_type: 'user' | 'exercise' | 'billing' | 'access' | 'auth' | 'system'
+                    entity_id?: string | null
+                    action: string
+                    metadata?: Json
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    actor_user_id?: string
+                    target_user_id?: string | null
+                    entity_type?: 'user' | 'exercise' | 'billing' | 'access' | 'auth' | 'system'
+                    entity_id?: string | null
+                    action?: string
+                    metadata?: Json
+                    created_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "admin_audit_log_actor_user_id_fkey"
+                        columns: ["actor_user_id"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "admin_audit_log_target_user_id_fkey"
+                        columns: ["target_user_id"]
+                        isOneToOne: false
+                        referencedRelation: "profiles"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
         }
         Views: {}
         Functions: {}
@@ -614,6 +748,8 @@ export type SessionExerciseSkip = Database['public']['Tables']['session_exercise
 export type SessionCardioLog = Database['public']['Tables']['session_cardio_logs']['Row']
 export type SessionCardioInterval = Database['public']['Tables']['session_cardio_intervals']['Row']
 export type BodyMeasurement = Database['public']['Tables']['body_measurements']['Row']
+export type ManualBillingEvent = Database['public']['Tables']['manual_billing_events']['Row']
+export type AdminAuditLog = Database['public']['Tables']['admin_audit_log']['Row']
 
 export type ResolvedExercise = Exercise & {
     source: 'system' | 'custom'

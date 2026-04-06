@@ -4,6 +4,8 @@ GymTracker is a mobile-first workout tracker built with Next.js App Router, Supa
 
 ## Product highlights
 
+- public landing page, privacy policy, and terms page
+- admin backoffice for users, billing, and base exercise catalog
 - workout creation and exercise library
 - system exercise catalog with per-user overrides
 - weekly workout scheduling
@@ -40,7 +42,10 @@ cp .env.local.example .env.local
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
 - `NEXT_PUBLIC_SITE_URL`
+- `NEXT_PUBLIC_CONTACT_WHATSAPP_URL`
+- `NEXT_PUBLIC_CONTACT_EMAIL`
 
 4. Run the app:
 
@@ -57,9 +62,9 @@ npm run dev:stable
 ## Quality checks
 
 ```bash
-npm exec tsc --noEmit
+npm run typecheck
 npm test
-npm run lint
+npm run lint -- .
 npm run build
 ```
 
@@ -73,6 +78,7 @@ The current required migration baseline for production is:
 - [supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql](supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql)
 - [supabase/migrations/20260405_add_system_exercises_and_overrides.sql](supabase/migrations/20260405_add_system_exercises_and_overrides.sql)
 - [supabase/migrations/20260406_seed_system_exercises_catalog.sql](supabase/migrations/20260406_seed_system_exercises_catalog.sql)
+- [supabase/migrations/20260410_add_admin_access_manual_billing.sql](supabase/migrations/20260410_add_admin_access_manual_billing.sql)
 
 Reference docs:
 
@@ -81,6 +87,10 @@ Reference docs:
 Required schema for the current app version includes:
 
 - `profiles.rotation_anchor_date`
+- `profiles.role`
+- `profiles.access_status`
+- `profiles.paid_until`
+- `profiles.must_change_password`
 - `exercises.archived_at`
 - `exercises.is_system`
 - `exercises.modality`
@@ -88,6 +98,18 @@ Required schema for the current app version includes:
 - `exercise_overrides`
 - `schedule_rotations`
 - `body_measurements`
+- `manual_billing_events`
+- `admin_audit_log`
+
+## Admin bootstrap
+
+After applying the full migration baseline, create the first admin with:
+
+```bash
+npm run bootstrap:admin -- --email admin@your-domain.com --password "Temporary123" --name "GymTracker Admin"
+```
+
+The admin account lands in `/admin`. Member accounts land in `/today` only when access is active and the paid date is still valid.
 
 ## Deploy today
 
@@ -135,7 +157,15 @@ Use:
 
 ## Main routes
 
+- `/`
 - `/login`
+- `/privacy`
+- `/terms`
+- `/blocked`
+- `/auth/change-password`
+- `/admin`
+- `/admin/users`
+- `/admin/exercises`
 - `/today`
 - `/workouts`
 - `/schedule`

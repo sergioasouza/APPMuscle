@@ -1,39 +1,50 @@
 import 'server-only'
 
 import type { User } from '@supabase/supabase-js'
+import {
+    getOptionalAuthenticatedAppContext,
+    getRequiredAuthenticatedAppContext,
+    isProfileAdmin,
+    isProfileAccessActive,
+} from '@/lib/access-control'
 import { createClient } from '@/lib/supabase/server'
 
 export async function getAuthenticatedServerContext() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-        error,
-    } = await supabase.auth.getUser()
+    const context = await getRequiredAuthenticatedAppContext()
 
-    if (error) {
-        throw new Error(error.message)
+    if (isProfileAdmin(context.profile)) {
+        throw new Error('Admin accounts cannot use member routes')
     }
 
-    if (!user) {
-        throw new Error('Unauthorized')
+    if (
+        context.profile.must_change_password ||
+        !isProfileAccessActive(context.profile, context.todayISO)
+    ) {
+        throw new Error('Member account is not allowed to use the app')
     }
 
-    return { supabase, user }
+    return { supabase: context.supabase, user: context.user, profile: context.profile, todayISO: context.todayISO }
+}
+
+export async function getAdminServerContext() {
+    const context = await getRequiredAuthenticatedAppContext()
+
+    if (!isProfileAdmin(context.profile)) {
+        throw new Error('Forbidden')
+    }
+
+    return context
+}
+
+export async function getAuthenticatedAppContext() {
+    return getRequiredAuthenticatedAppContext()
 }
 
 export async function getOptionalUserServerContext(): Promise<{
     supabase: Awaited<ReturnType<typeof createClient>>
     user: User | null
 }> {
-    const supabase = await createClient()
-    const {
-        data: { user },
-        error,
-    } = await supabase.auth.getUser()
+    const context = await getOptionalAuthenticatedAppContext()
 
-    if (error) {
-        throw new Error(error.message)
-    }
-
-    return { supabase, user }
+    return { supabase: context.supabase, user: context.user }
 }

@@ -8,7 +8,13 @@ CREATE TABLE public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name TEXT NOT NULL,
   rotation_anchor_date DATE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('member', 'admin')),
+  access_status TEXT NOT NULL DEFAULT 'active' CHECK (access_status IN ('active', 'blocked')),
+  paid_until DATE,
+  must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
+  created_by_admin_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -41,6 +47,33 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+CREATE TABLE public.manual_billing_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  reference_month DATE NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('paid', 'unpaid', 'waived')),
+  note TEXT,
+  recorded_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT manual_billing_events_user_month_key UNIQUE (user_id, reference_month)
+);
+
+ALTER TABLE public.manual_billing_events ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.admin_audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
+  target_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('user', 'exercise', 'billing', 'access', 'auth', 'system')),
+  entity_id TEXT,
+  action TEXT NOT NULL,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.admin_audit_log ENABLE ROW LEVEL SECURITY;
 
 
 -- 2. Exercises

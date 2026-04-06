@@ -3,20 +3,30 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { signInWithPasswordAction } from '@/features/auth/actions'
+import {
+    requestPasswordResetAction,
+    signInWithPasswordAction,
+} from '@/features/auth/actions'
 
-export function LoginPageClient() {
+interface LoginPageClientProps {
+    initialError?: string | null
+}
+
+export function LoginPageClient({ initialError = null }: LoginPageClientProps) {
     const t = useTranslations('Login')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+    const [resetting, setResetting] = useState(false)
+    const [error, setError] = useState<string | null>(initialError)
+    const [resetMessage, setResetMessage] = useState<string | null>(null)
     const router = useRouter()
 
     async function handleLogin(event: React.FormEvent) {
         event.preventDefault()
         setLoading(true)
         setError(null)
+        setResetMessage(null)
 
         const result = await signInWithPasswordAction(email, password)
 
@@ -26,8 +36,30 @@ export function LoginPageClient() {
             return
         }
 
-        router.push('/today')
+        router.push(result.data?.redirectTo ?? '/today')
         router.refresh()
+    }
+
+    async function handlePasswordReset() {
+        if (!email.trim()) {
+            setError(t('resetNeedsEmail'))
+            return
+        }
+
+        setResetting(true)
+        setError(null)
+        setResetMessage(null)
+
+        const result = await requestPasswordResetAction(email)
+
+        if (!result.ok) {
+            setError(result.message || t('resetError'))
+            setResetting(false)
+            return
+        }
+
+        setResetMessage(t('resetSent'))
+        setResetting(false)
     }
 
     return (
@@ -45,6 +77,7 @@ export function LoginPageClient() {
 
                 <form onSubmit={handleLogin} className="space-y-4">
                     {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl">{error}</div>}
+                    {resetMessage && <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm px-4 py-3 rounded-xl">{resetMessage}</div>}
 
                     <div>
                         <label htmlFor="email" className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">
@@ -78,6 +111,17 @@ export function LoginPageClient() {
                         />
                     </div>
 
+                    <div className="flex justify-end">
+                        <button
+                            type="button"
+                            onClick={handlePasswordReset}
+                            disabled={resetting}
+                            className="text-sm text-violet-500 hover:text-violet-400 transition-colors disabled:opacity-60"
+                        >
+                            {resetting ? t('resetting') : t('forgotPassword')}
+                        </button>
+                    </div>
+
                     <button
                         type="submit"
                         disabled={loading}
@@ -97,7 +141,10 @@ export function LoginPageClient() {
                     </button>
                 </form>
 
-                <p className="text-center text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 text-xs mt-8">{t('footer')}</p>
+                <div className="text-center text-zinc-600 dark:text-zinc-400 text-xs mt-8 space-y-2">
+                    <p>{t('footer')}</p>
+                    <p>{t('contactHint')}</p>
+                </div>
             </div>
         </div>
     )

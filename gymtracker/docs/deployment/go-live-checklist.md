@@ -52,3 +52,10 @@ Launch only after:
 - `npm run build` passes
 - production login works
 - production writes succeed in Supabase
+- Confirm `NEXT_PUBLIC_CONTACT_WHATSAPP_URL`, `NEXT_PUBLIC_CONTACT_EMAIL`, `SUPABASE_SERVICE_ROLE_KEY`, and `NEXT_PUBLIC_SITE_URL`.
+- Apply the admin/access migration `20260410_add_admin_access_manual_billing.sql`.
+- Bootstrap the first admin with `npm run bootstrap:admin -- --email ... --password ... --name ...`.
+- Disable public signup in Supabase Auth and keep password recovery enabled.
+- Configure the reset password redirect to `/auth/callback?next=/auth/change-password`.
+- Run `npm run typecheck`, `npm test`, `npm run lint -- .`, and `npm run build`.
+- Review `/`, `/privacy`, `/terms`, `/login`, `/blocked`, and `/admin` before production cutover.

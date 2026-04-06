@@ -44,15 +44,26 @@ Isso foi deixado para uma fase seguinte para não quebrar dados históricos sem 
 3. executar [supabase/migrations/20260307_fix_missing_profiles_and_auth_trigger.sql](../../supabase/migrations/20260307_fix_missing_profiles_and_auth_trigger.sql)
 4. executar [supabase/migrations/20260315_add_archived_at_to_exercises.sql](../../supabase/migrations/20260315_add_archived_at_to_exercises.sql)
 5. executar [supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql](../../supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql)
-6. validar se os backups foram criados
-7. regenerar os tipos do Supabase para manter [src/lib/types.ts](../../src/lib/types.ts) sincronizado
+6. executar [supabase/migrations/20260405_add_system_exercises_and_overrides.sql](../../supabase/migrations/20260405_add_system_exercises_and_overrides.sql)
+7. executar [supabase/migrations/20260406_seed_system_exercises_catalog.sql](../../supabase/migrations/20260406_seed_system_exercises_catalog.sql)
+8. executar [supabase/migrations/20260410_add_admin_access_manual_billing.sql](../../supabase/migrations/20260410_add_admin_access_manual_billing.sql)
+9. validar se os backups foram criados
+10. regenerar os tipos do Supabase para manter [src/lib/types.ts](../../src/lib/types.ts) sincronizado
 
 ## Baseline atual esperado pela aplicação
 
 - `profiles.rotation_anchor_date`
+- `profiles.role`
+- `profiles.access_status`
+- `profiles.paid_until`
+- `profiles.must_change_password`
 - `exercises.archived_at`
+- `exercises.is_system`
+- `exercise_overrides`
 - `schedule_rotations`
 - `body_measurements`
+- `manual_billing_events`
+- `admin_audit_log`
 - trigger `on_auth_user_created` saudável para bootstrap de `profiles`
 
 ## Verificações pós-migração

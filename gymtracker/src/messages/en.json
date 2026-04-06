@@ -41,9 +41,15 @@
     "emailPlaceholder": "you@email.com",
     "password": "Password",
     "loginError": "Unable to sign in right now.",
+    "resetNeedsEmail": "Enter your email so we can send a reset link.",
+    "resetError": "Unable to send the reset email right now.",
+    "resetSent": "If the email exists, we sent a password reset link.",
+    "resetting": "Sending...",
+    "forgotPassword": "Forgot password?",
     "signingIn": "Signing in…",
     "signIn": "Sign In",
-    "footer": "GymTracker • Built for the grind 💪"
+    "footer": "GymTracker • Built for the grind 💪",
+    "contactHint": "If your account has not been released yet, contact the service owner."
   },
   "Workouts": {
     "title": "Workouts",

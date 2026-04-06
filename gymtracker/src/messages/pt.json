@@ -41,9 +41,15 @@
     "emailPlaceholder": "voce@email.com",
     "password": "Senha",
     "loginError": "Não foi possível entrar agora.",
+    "resetNeedsEmail": "Informe seu e-mail para receber o link de redefinição.",
+    "resetError": "Não foi possível enviar o e-mail de redefinição agora.",
+    "resetSent": "Se o e-mail existir, enviamos um link para redefinir sua senha.",
+    "resetting": "Enviando...",
+    "forgotPassword": "Esqueci minha senha",
     "signingIn": "Entrando…",
     "signIn": "Entrar",
-    "footer": "GymTracker • Feito para quem leva a sério 💪"
+    "footer": "GymTracker • Feito para quem leva a sério 💪",
+    "contactHint": "Se sua conta ainda não foi liberada, fale com o responsável pelo serviço."
   },
   "Workouts": {
     "title": "Treinos",

@@ -63,24 +63,28 @@ export async function updateSession(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser()
 
+    const pathname = request.nextUrl.pathname
+    const isProtectedPath =
+        pathname.startsWith('/today') ||
+        pathname.startsWith('/workouts') ||
+        pathname.startsWith('/schedule') ||
+        pathname.startsWith('/calendar') ||
+        pathname.startsWith('/analytics') ||
+        pathname.startsWith('/profile') ||
+        pathname.startsWith('/admin') ||
+        pathname.startsWith('/blocked') ||
+        pathname.startsWith('/auth/change-password')
+
     // If user is not signed in and trying to access protected routes, redirect to login
     if (
         !user &&
-        !request.nextUrl.pathname.startsWith('/login') &&
-        !request.nextUrl.pathname.startsWith('/auth') &&
-        !request.nextUrl.pathname.startsWith('/api/locale')
+        isProtectedPath &&
+        !pathname.startsWith('/login') &&
+        !pathname.startsWith('/auth') &&
+        !pathname.startsWith('/api/locale')
     ) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
-        const response = NextResponse.redirect(url)
-        applyLocaleCookie(request, response)
-        return response
-    }
-
-    // If user IS signed in and on the login page, redirect to /today
-    if (user && request.nextUrl.pathname === '/login') {
-        const url = request.nextUrl.clone()
-        url.pathname = '/today'
         const response = NextResponse.redirect(url)
         applyLocaleCookie(request, response)
         return response
