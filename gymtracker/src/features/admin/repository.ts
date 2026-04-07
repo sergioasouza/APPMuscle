@@ -1,7 +1,10 @@
 import "server-only";
 
 import { getAdminServerContext } from "@/lib/supabase/auth";
-import { getServiceRoleClient } from "@/lib/supabase/service-role";
+import {
+  getServiceRoleClient,
+  isServiceRoleConfigured,
+} from "@/lib/supabase/service-role";
 import type {
   AdminAuditLog,
   Exercise,
@@ -409,6 +412,9 @@ export async function getAdminDashboardRepository(): Promise<AdminDashboardData>
           profile.paid_until <= currentMonthEnd,
       ).length,
       currentMonthReceipts: (billingResult.data ?? []).length,
+    },
+    operational: {
+      serviceRoleConfigured: isServiceRoleConfigured(),
     },
     recentUsers: userItems.slice(0, 5),
     recentAuditLog: buildAuditEntries(

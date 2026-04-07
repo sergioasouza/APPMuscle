@@ -17,7 +17,12 @@ import {
   requireOwnedWorkout,
   requireOwnedWorkoutSession,
 } from "@/lib/supabase/ownership";
-import { resolveExercisesForUser } from "@/lib/supabase/exercises";
+import {
+  buildAccessibleExercisesFilter,
+  resolveExercisesForUser,
+  getResolvedAccessibleExercise,
+} from "@/lib/supabase/exercises";
+import { isExerciseAvailableForPicker } from "@/lib/exercise-resolution";
 import {
   buildWorkoutSessionNotesWithStatus,
   clearWorkoutSessionStatus,
@@ -44,6 +49,7 @@ import type {
   SessionCardioInterval,
   SessionCardioLog,
   SessionExerciseSkip,
+  SessionExerciseSubstitution,
   Workout,
   WorkoutCardioBlock,
   WorkoutExercise,
@@ -55,6 +61,10 @@ type WorkoutCardioBlockWithSessionLog = WorkoutCardioBlock;
 type ScheduleWithWorkout = Schedule & { workouts: Workout | null };
 type ScheduleRotationWithWorkout = ScheduleRotation & { workouts: Workout | null };
 type SessionWithWorkout = WorkoutSession & { workouts: Workout };
+
+type TodayExerciseSubstitution = SessionExerciseSubstitution & {
+  replacement: ResolvedExercise;
+};
 
 async function listSetLogsForSessions(
   supabase: Awaited<ReturnType<typeof getAuthenticatedServerContext>>["supabase"],
@@ -71,6 +81,10 @@ async function listSetLogsForSessions(
     .order("set_number");
 
   if (error) {
+    if (isMissingTableError(error, "session_exercise_substitutions")) {
+      return [];
+    }
+
     throw new Error(error.message);
   }
 
@@ -116,6 +130,50 @@ async function listSessionExerciseSkipsForSession(
   }
 
   return (data as SessionExerciseSkip[] | null) ?? [];
+}
+
+async function listSessionExerciseSubstitutionsForSession(
+  supabase: Awaited<ReturnType<typeof getAuthenticatedServerContext>>["supabase"],
+  userId: string,
+  sessionId: string | null,
+): Promise<TodayExerciseSubstitution[]> {
+  if (!sessionId) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("session_exercise_substitutions")
+    .select("*, replacement:exercises!session_exercise_substitutions_replacement_exercise_id_fkey(*)")
+    .eq("session_id", sessionId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rows = ((data as (SessionExerciseSubstitution & { replacement: Exercise | null })[] | null) ?? [])
+    .filter((row) => row.replacement != null) as (SessionExerciseSubstitution & { replacement: Exercise })[];
+  const resolvedReplacements = await resolveExercisesForUser(
+    supabase,
+    userId,
+    rows.map((row) => row.replacement),
+  );
+  const resolvedById = resolvedReplacements.reduce<Map<string, ResolvedExercise>>(
+    (accumulator, exercise) => {
+      accumulator.set(exercise.id, exercise);
+      return accumulator;
+    },
+    new Map(),
+  );
+
+  return rows.flatMap((row) => {
+    const replacement = resolvedById.get(row.replacement_exercise_id);
+
+    if (!replacement) {
+      return [];
+    }
+
+    return [{ ...row, replacement }];
+  });
 }
 
 async function listSessionExerciseSkipsForSessions(
@@ -448,16 +506,19 @@ export async function getTodayViewRepository(
 
   let setLogs: SetLog[] = [];
   let sessionExerciseSkips: SessionExerciseSkip[] = [];
+  let sessionExerciseSubstitutions: TodayExerciseSubstitution[] = [];
   let sessionCardioLogs: SessionCardioLog[] = [];
   let sessionCardioIntervals: SessionCardioInterval[] = [];
 
   if (session) {
     setLogs = allSetLogs.filter((setLog) => setLog.session_id === session.id);
-    const [exerciseSkips, cardioData] = await Promise.all([
+    const [exerciseSkips, exerciseSubstitutions, cardioData] = await Promise.all([
       listSessionExerciseSkipsForSession(supabase, session.id),
+      listSessionExerciseSubstitutionsForSession(supabase, user.id, session.id),
       listSessionCardioLogsForSession(supabase, session.id),
     ]);
     sessionExerciseSkips = exerciseSkips;
+    sessionExerciseSubstitutions = exerciseSubstitutions;
     sessionCardioLogs = cardioData.logs;
     sessionCardioIntervals = cardioData.intervals;
   }
@@ -499,6 +560,7 @@ export async function getTodayViewRepository(
     cardioBlocks,
     setLogs,
     sessionExerciseSkips,
+    sessionExerciseSubstitutions,
     sessionCardioLogs,
     sessionCardioIntervals,
     previousSetLogs,
@@ -609,6 +671,29 @@ export async function switchWorkoutForDayRepository(
   if (insertError && insertError.code !== "23505") {
     throw new Error(insertError.message);
   }
+}
+
+export async function listTodayExerciseOptionsRepository() {
+  const { supabase, user } = await getAuthenticatedServerContext();
+
+  const { data, error } = await supabase
+    .from("exercises")
+    .select("*")
+    .or(buildAccessibleExercisesFilter(user.id))
+    .order("is_system", { ascending: false })
+    .order("name");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const resolvedExercises = await resolveExercisesForUser(
+    supabase,
+    user.id,
+    ((data as Exercise[] | null) ?? []),
+  );
+
+  return resolvedExercises.filter(isExerciseAvailableForPicker);
 }
 
 export async function skipWorkoutRepository(
@@ -768,6 +853,7 @@ export async function rescheduleWorkoutRepository(
 export async function saveSetRepository(input: {
   sessionId: string;
   exerciseId: string;
+  originalExerciseId?: string;
   setNumber: number;
   weight: number;
   reps: number;
@@ -793,7 +879,7 @@ export async function saveSetRepository(input: {
       .from("session_exercise_skips")
       .delete()
       .eq("session_id", input.sessionId)
-      .eq("exercise_id", input.exerciseId);
+      .eq("exercise_id", input.originalExerciseId ?? input.exerciseId);
 
     if (clearSkipError) {
       throw new Error(clearSkipError.message);
@@ -834,6 +920,49 @@ export async function saveSetRepository(input: {
   }
 
   return data;
+}
+
+async function getSessionExerciseSubstitution(
+  supabase: Awaited<ReturnType<typeof getAuthenticatedServerContext>>["supabase"],
+  sessionId: string,
+  originalExerciseId: string,
+) {
+  const { data, error } = await supabase
+    .from("session_exercise_substitutions")
+    .select("*")
+    .eq("session_id", sessionId)
+    .eq("original_exercise_id", originalExerciseId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as SessionExerciseSubstitution | null;
+}
+
+async function countSetLogsForSessionExercises(input: {
+  supabase: Awaited<ReturnType<typeof getAuthenticatedServerContext>>["supabase"];
+  sessionId: string;
+  exerciseIds: string[];
+}) {
+  const exerciseIds = Array.from(new Set(input.exerciseIds));
+
+  if (exerciseIds.length === 0) {
+    return 0;
+  }
+
+  const { count, error } = await input.supabase
+    .from("set_logs")
+    .select("id", { head: true, count: "exact" })
+    .eq("session_id", input.sessionId)
+    .in("exercise_id", exerciseIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return count ?? 0;
 }
 
 export async function saveSessionNotesRepository(
@@ -879,6 +1008,27 @@ async function ensureExerciseBelongsToWorkoutSession(input: {
   }
 }
 
+async function ensureExerciseDoesNotBelongToWorkoutSession(input: {
+  supabase: Awaited<ReturnType<typeof getAuthenticatedServerContext>>["supabase"];
+  workoutId: string;
+  exerciseId: string;
+}) {
+  const { data, error } = await input.supabase
+    .from("workout_exercises")
+    .select("id")
+    .eq("workout_id", input.workoutId)
+    .eq("exercise_id", input.exerciseId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (data) {
+    throw new Error("Replacement exercise is already part of this workout");
+  }
+}
+
 async function ensureCardioBlockBelongsToWorkoutSession(input: {
   supabase: Awaited<ReturnType<typeof getAuthenticatedServerContext>>["supabase"];
   session: Awaited<ReturnType<typeof requireOwnedWorkoutSession>>;
@@ -910,17 +1060,21 @@ export async function skipExerciseRepository(sessionId: string, exerciseId: stri
     }),
   ]);
 
-  const { count, error: setCountError } = await supabase
-    .from("set_logs")
-    .select("id", { head: true, count: "exact" })
-    .eq("session_id", sessionId)
-    .eq("exercise_id", exerciseId);
+  const substitution = await getSessionExerciseSubstitution(
+    supabase,
+    sessionId,
+    exerciseId,
+  );
+  const setCount = await countSetLogsForSessionExercises({
+    supabase,
+    sessionId,
+    exerciseIds: [
+      exerciseId,
+      ...(substitution ? [substitution.replacement_exercise_id] : []),
+    ],
+  });
 
-  if (setCountError) {
-    throw new Error(setCountError.message);
-  }
-
-  if ((count ?? 0) > 0) {
+  if (setCount > 0) {
     throw new Error("Exercise already has saved sets and cannot be skipped");
   }
 
@@ -934,6 +1088,139 @@ export async function skipExerciseRepository(sessionId: string, exerciseId: stri
       },
       { onConflict: "session_id,exercise_id" },
     );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function substituteExerciseRepository(input: {
+  sessionId: string;
+  originalExerciseId: string;
+  replacementExerciseId: string;
+}) {
+  const { supabase, user } = await getAuthenticatedServerContext();
+
+  if (input.originalExerciseId === input.replacementExerciseId) {
+    throw new Error("Choose a different exercise to substitute");
+  }
+
+  const session = await requireOwnedWorkoutSession(supabase, user.id, input.sessionId);
+  const replacementExercise = await getResolvedAccessibleExercise(
+    supabase,
+    user.id,
+    input.replacementExerciseId,
+  );
+
+  if (!replacementExercise || !isExerciseAvailableForPicker(replacementExercise)) {
+    throw new Error("Replacement exercise is not available");
+  }
+
+  await ensureExerciseBelongsToWorkoutSession({
+    supabase,
+    workoutId: session.workout_id,
+    exerciseId: input.originalExerciseId,
+  });
+  await ensureExerciseDoesNotBelongToWorkoutSession({
+    supabase,
+    workoutId: session.workout_id,
+    exerciseId: input.replacementExerciseId,
+  });
+
+  const existingSubstitution = await getSessionExerciseSubstitution(
+    supabase,
+    input.sessionId,
+    input.originalExerciseId,
+  );
+  const { data: existingReplacementUse, error: existingReplacementUseError } = await supabase
+    .from("session_exercise_substitutions")
+    .select("id")
+    .eq("session_id", input.sessionId)
+    .eq("replacement_exercise_id", input.replacementExerciseId)
+    .neq("original_exercise_id", input.originalExerciseId)
+    .maybeSingle();
+
+  if (existingReplacementUseError) {
+    throw new Error(existingReplacementUseError.message);
+  }
+
+  if (existingReplacementUse) {
+    throw new Error("Replacement exercise is already used in this session");
+  }
+
+  const setCount = await countSetLogsForSessionExercises({
+    supabase,
+    sessionId: input.sessionId,
+    exerciseIds: [
+      input.originalExerciseId,
+      input.replacementExerciseId,
+      ...(existingSubstitution
+        ? [existingSubstitution.replacement_exercise_id]
+        : []),
+    ],
+  });
+
+  if (setCount > 0) {
+    throw new Error("Delete saved sets before changing this substitution");
+  }
+
+  const { error } = await supabase
+    .from("session_exercise_substitutions")
+    .upsert(
+      {
+        session_id: input.sessionId,
+        original_exercise_id: input.originalExerciseId,
+        replacement_exercise_id: input.replacementExerciseId,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "session_id,original_exercise_id" },
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function undoExerciseSubstitutionRepository(
+  sessionId: string,
+  originalExerciseId: string,
+) {
+  const { supabase, user } = await getAuthenticatedServerContext();
+  const session = await requireOwnedWorkoutSession(supabase, user.id, sessionId);
+  await ensureExerciseBelongsToWorkoutSession({
+    supabase,
+    workoutId: session.workout_id,
+    exerciseId: originalExerciseId,
+  });
+
+  const existingSubstitution = await getSessionExerciseSubstitution(
+    supabase,
+    sessionId,
+    originalExerciseId,
+  );
+
+  if (!existingSubstitution) {
+    return;
+  }
+
+  const setCount = await countSetLogsForSessionExercises({
+    supabase,
+    sessionId,
+    exerciseIds: [
+      originalExerciseId,
+      existingSubstitution.replacement_exercise_id,
+    ],
+  });
+
+  if (setCount > 0) {
+    throw new Error("Delete saved sets before undoing this substitution");
+  }
+
+  const { error } = await supabase
+    .from("session_exercise_substitutions")
+    .delete()
+    .eq("session_id", sessionId)
+    .eq("original_exercise_id", originalExerciseId);
 
   if (error) {
     throw new Error(error.message);

@@ -3,6 +3,7 @@
 import { revalidateTodaySurfaces } from '@/lib/revalidate-app-routes'
 import {
     getTodayView,
+    listTodayExerciseOptions,
     listUserWorkouts,
     rescheduleWorkout,
     saveCardioLog,
@@ -11,12 +12,14 @@ import {
     skipCardio,
     skipExercise,
     skipWorkout,
+    substituteExercise,
     switchWorkoutForDay,
+    undoExerciseSubstitution,
     undoSkipCardio,
     undoSkipExercise,
     undoSkipWorkout,
 } from '@/features/today/service'
-import type { SaveCardioLogInput, TodayViewData } from '@/features/today/types'
+import type { SaveCardioLogInput, TodayExerciseOption, TodayViewData } from '@/features/today/types'
 import { errorResult, okResult } from '@/lib/action-result'
 import type { ActionResult } from '@/lib/action-result'
 import type { SessionCardioLog, SetLog, Workout } from '@/lib/types'
@@ -45,6 +48,15 @@ export async function listUserWorkoutsAction(): Promise<ActionResult<Workout[]>>
     try {
         const workouts = await listUserWorkouts()
         return okResult(workouts)
+    } catch (error) {
+        return errorResult(error)
+    }
+}
+
+export async function listTodayExerciseOptionsAction(): Promise<ActionResult<TodayExerciseOption[]>> {
+    try {
+        const exercises = await listTodayExerciseOptions()
+        return okResult(exercises)
     } catch (error) {
         return errorResult(error)
     }
@@ -110,6 +122,7 @@ export async function rescheduleWorkoutAction(
 export async function saveSetAction(input: {
     sessionId: string
     exerciseId: string
+    originalExerciseId?: string
     setNumber: number
     weight: number
     reps: number
@@ -118,6 +131,7 @@ export async function saveSetAction(input: {
     try {
         assertUuid(input.sessionId, 'Session id')
         assertUuid(input.exerciseId, 'Exercise id')
+        assertOptionalUuid(input.originalExerciseId, 'Original exercise id')
         assertOptionalUuid(input.setLogId, 'Set log id')
         assertPositiveInteger(input.setNumber, 'Set number')
         assertFiniteNumber(input.weight, 'Weight', 0)
@@ -125,6 +139,7 @@ export async function saveSetAction(input: {
         const data = await saveSet(
             input.sessionId,
             input.exerciseId,
+            input.originalExerciseId,
             input.setNumber,
             input.weight,
             input.reps,
@@ -165,6 +180,38 @@ export async function undoSkipExerciseAction(sessionId: string, exerciseId: stri
         assertUuid(sessionId, 'Session id')
         assertUuid(exerciseId, 'Exercise id')
         await undoSkipExercise(sessionId, exerciseId)
+        revalidateTodaySurfaces()
+        return okResult(null)
+    } catch (error) {
+        return errorResult(error)
+    }
+}
+
+export async function substituteExerciseAction(input: {
+    sessionId: string
+    originalExerciseId: string
+    replacementExerciseId: string
+}): Promise<ActionResult<null>> {
+    try {
+        assertUuid(input.sessionId, 'Session id')
+        assertUuid(input.originalExerciseId, 'Original exercise id')
+        assertUuid(input.replacementExerciseId, 'Replacement exercise id')
+        await substituteExercise(input.sessionId, input.originalExerciseId, input.replacementExerciseId)
+        revalidateTodaySurfaces()
+        return okResult(null)
+    } catch (error) {
+        return errorResult(error)
+    }
+}
+
+export async function undoExerciseSubstitutionAction(
+    sessionId: string,
+    originalExerciseId: string,
+): Promise<ActionResult<null>> {
+    try {
+        assertUuid(sessionId, 'Session id')
+        assertUuid(originalExerciseId, 'Original exercise id')
+        await undoExerciseSubstitution(sessionId, originalExerciseId)
         revalidateTodaySurfaces()
         return okResult(null)
     } catch (error) {

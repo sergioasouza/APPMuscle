@@ -2,6 +2,7 @@ import 'server-only'
 
 import {
     getTodayViewRepository,
+    listTodayExerciseOptionsRepository,
     listUserWorkoutsRepository,
     rescheduleWorkoutRepository,
     saveCardioLogRepository,
@@ -10,16 +11,22 @@ import {
     skipCardioRepository,
     skipExerciseRepository,
     skipWorkoutRepository,
+    substituteExerciseRepository,
     switchWorkoutForDayRepository,
     undoSkipCardioRepository,
+    undoExerciseSubstitutionRepository,
     undoSkipExerciseRepository,
     undoSkipWorkoutRepository,
 } from '@/features/today/repository'
-import type { SaveCardioLogInput, TodayViewData } from '@/features/today/types'
+import type { SaveCardioLogInput, TodayExerciseOption, TodayViewData } from '@/features/today/types'
 
 export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<TodayViewData> {
     const data = await getTodayViewRepository(dateISO, dayOfWeek)
     const skippedExerciseIds = new Set(data.sessionExerciseSkips.map((skip) => skip.exercise_id))
+    const substitutionByOriginalExerciseId = data.sessionExerciseSubstitutions.reduce<Map<string, typeof data.sessionExerciseSubstitutions[number]>>((accumulator, substitution) => {
+        accumulator.set(substitution.original_exercise_id, substitution)
+        return accumulator
+    }, new Map())
     const cardioLogByBlockId = data.sessionCardioLogs.reduce<Map<string, typeof data.sessionCardioLogs[number]>>((accumulator, cardioLog) => {
         accumulator.set(cardioLog.workout_cardio_block_id, cardioLog)
         return accumulator
@@ -32,12 +39,24 @@ export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<
     }, new Map())
 
     const exerciseLogs = data.workoutExercises.map((workoutExercise) => {
-        const existingSets = data.setLogs.filter((setLog) => setLog.exercise_id === workoutExercise.exercise_id)
-        const prevSetsForExercise = data.previousSetLogs.filter((setLog) => setLog.exercise_id === workoutExercise.exercise_id)
+        const substitution = substitutionByOriginalExerciseId.get(workoutExercise.exercise_id)
+        const effectiveExerciseId = substitution?.replacement_exercise_id ?? workoutExercise.exercise_id
+        const effectiveExerciseName = substitution?.replacement.display_name ?? workoutExercise.exercises?.display_name ?? '(deleted)'
+        const originalExerciseName = workoutExercise.exercises?.display_name ?? '(deleted)'
+        const existingSets = data.setLogs.filter((setLog) => setLog.exercise_id === effectiveExerciseId)
+        const prevSetsForExercise = data.previousSetLogs.filter((setLog) => setLog.exercise_id === effectiveExerciseId)
 
         return {
-            exerciseId: workoutExercise.exercise_id,
-            exerciseName: workoutExercise.exercises?.display_name ?? '(deleted)',
+            exerciseId: effectiveExerciseId,
+            originalExerciseId: workoutExercise.exercise_id,
+            exerciseName: effectiveExerciseName,
+            originalExerciseName,
+            substitution: substitution
+                ? {
+                    replacementExerciseId: substitution.replacement_exercise_id,
+                    replacementExerciseName: substitution.replacement.display_name,
+                }
+                : null,
             targetSets: workoutExercise.target_sets,
             sets: Array.from({ length: workoutExercise.target_sets }, (_, index) => {
                 const existingSet = existingSets.find((setLog) => setLog.set_number === index + 1)
@@ -97,6 +116,18 @@ export async function listUserWorkouts() {
     return listUserWorkoutsRepository()
 }
 
+export async function listTodayExerciseOptions(): Promise<TodayExerciseOption[]> {
+    const exercises = await listTodayExerciseOptionsRepository()
+
+    return exercises.map((exercise) => ({
+        id: exercise.id,
+        displayName: exercise.display_name,
+        source: exercise.source,
+        modality: exercise.modality,
+        muscleGroup: exercise.muscle_group,
+    }))
+}
+
 export async function switchWorkoutForDay(dateISO: string, workoutId: string) {
     if (!dateISO || !workoutId) {
         throw new Error('Date and workout are required')
@@ -139,6 +170,7 @@ export async function rescheduleWorkout(
 export async function saveSet(
     sessionId: string,
     exerciseId: string,
+    originalExerciseId: string | undefined,
     setNumber: number,
     weight: number,
     reps: number,
@@ -152,7 +184,7 @@ export async function saveSet(
         throw new Error('Invalid set values')
     }
 
-    return saveSetRepository({ sessionId, exerciseId, setNumber, weight, reps, setLogId })
+    return saveSetRepository({ sessionId, exerciseId, originalExerciseId, setNumber, weight, reps, setLogId })
 }
 
 export async function saveSessionNotes(sessionId: string, notes: string) {
@@ -177,6 +209,33 @@ export async function undoSkipExercise(sessionId: string, exerciseId: string) {
     }
 
     await undoSkipExerciseRepository(sessionId, exerciseId)
+}
+
+export async function substituteExercise(
+    sessionId: string,
+    originalExerciseId: string,
+    replacementExerciseId: string,
+) {
+    if (!sessionId || !originalExerciseId || !replacementExerciseId) {
+        throw new Error('Session and exercises are required')
+    }
+
+    await substituteExerciseRepository({
+        sessionId,
+        originalExerciseId,
+        replacementExerciseId,
+    })
+}
+
+export async function undoExerciseSubstitution(
+    sessionId: string,
+    originalExerciseId: string,
+) {
+    if (!sessionId || !originalExerciseId) {
+        throw new Error('Session and exercise are required')
+    }
+
+    await undoExerciseSubstitutionRepository(sessionId, originalExerciseId)
 }
 
 export async function saveCardioLog(input: SaveCardioLogInput) {

@@ -1,0 +1,1365 @@
+⚠ Cross origin request detected from 127.0.0.1 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+Error [AuthApiError]: Invalid Refresh Token: Refresh Token Not Found
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 400,
+  code: 'refresh_token_not_found'
+}
+Error [AuthApiError]: Invalid Refresh Token: Refresh Token Not Found
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 400,
+  code: 'refresh_token_not_found'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:65:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:327:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '2693302152'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:65:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:327:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '2693302152'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:65:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:327:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '2693302152'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:65:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:327:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '2693302152'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:65:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:327:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '2693302152'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:65:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:327:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '681241163'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:65:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:327:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '681241163'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:65:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:327:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '681241163'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:65:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:327:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '681241163'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:357:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1444770016'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:357:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1444770016'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:357:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1444770016'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:357:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1444770016'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:404:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '2073453710'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:404:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '2073453710'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:404:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '2073453710'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:404:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '2073453710'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:412:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '2081196233'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:412:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '2081196233'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:412:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '2081196233'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:412:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '2081196233'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:416:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:416:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:416:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:416:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async AdminLayout (src\app\(admin)\layout.tsx:23:21)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '3173998578'
+}
+⨯ Error: column profiles.member_access_mode does not exist
+    at getOptionalAuthenticatedAppContext (src\lib\access-control.ts:161:11)
+    at async getRequiredAuthenticatedAppContext (src\lib\access-control.ts:177:19)
+    at async getAdminServerContext (src\lib\supabase\auth.ts:30:21)
+    at async getAdminOperationContext (src\features\admin\repository.ts:95:19)
+    at async listAdminUsersRepository (src\features\admin\repository.ts:425:19)
+    at async AdminUsersPage (src\app\(admin)\admin\users\page.tsx:35:19)
+  159 |
+  160 |   if (profileError) {
+> 161 |     throw new Error(profileError.message);
+      |           ^
+  162 |   }
+  163 |
+  164 |   if (!profile) { {
+  digest: '1452618829'
+}
+Error [AuthApiError]: Invalid Refresh Token: Refresh Token Not Found
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 400,
+  code: 'refresh_token_not_found'
+}
+Error [AuthApiError]: Invalid Refresh Token: Refresh Token Not Found
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 400,
+  code: 'refresh_token_not_found'
+}
+TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: znabieuuyukkafoqgvfx.supabase.co:443, timeout: 10000ms)
+      at ignore-listed frames {
+    code: 'UND_ERR_CONNECT_TIMEOUT'
+  }
+}
+TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: Error: getaddrinfo ENOTFOUND znabieuuyukkafoqgvfx.supabase.co
+      at ignore-listed frames {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'znabieuuyukkafoqgvfx.supabase.co'
+  }
+}
+TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: Error: getaddrinfo ENOTFOUND znabieuuyukkafoqgvfx.supabase.co
+      at ignore-listed frames {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'znabieuuyukkafoqgvfx.supabase.co'
+  }
+}
+TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: Error: getaddrinfo ENOTFOUND znabieuuyukkafoqgvfx.supabase.co
+      at ignore-listed frames {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'znabieuuyukkafoqgvfx.supabase.co'
+  }
+}
+TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: Error: getaddrinfo ENOTFOUND znabieuuyukkafoqgvfx.supabase.co
+      at ignore-listed frames {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'znabieuuyukkafoqgvfx.supabase.co'
+  }
+}
+TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: Error: getaddrinfo ENOTFOUND znabieuuyukkafoqgvfx.supabase.co
+      at ignore-listed frames {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'znabieuuyukkafoqgvfx.supabase.co'
+  }
+}
+TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: Error: getaddrinfo ENOTFOUND znabieuuyukkafoqgvfx.supabase.co
+      at ignore-listed frames {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'znabieuuyukkafoqgvfx.supabase.co'
+  }
+}
+Error [AuthRetryableFetchError]: fetch failed
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 0,
+  code: undefined
+}
+Error [AuthRetryableFetchError]: fetch failed
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 0,
+  code: undefined
+}

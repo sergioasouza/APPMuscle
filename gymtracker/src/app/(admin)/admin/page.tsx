@@ -60,6 +60,31 @@ export default async function AdminHomePage() {
                 </div>
             </div>
 
+            <section className="rounded-[2rem] border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
+                            Saúde operacional
+                        </p>
+                        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+                            Service role para ações administrativas
+                        </p>
+                    </div>
+                    <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        data.operational.serviceRoleConfigured
+                            ? 'bg-emerald-500/15 text-emerald-500'
+                            : 'bg-red-500/15 text-red-500'
+                    }`}>
+                        {data.operational.serviceRoleConfigured ? 'Configurada' : 'Faltando env'}
+                    </span>
+                </div>
+                {!data.operational.serviceRoleConfigured && (
+                    <p className="mt-3 text-xs text-red-500">
+                        Configure SUPABASE_SERVICE_ROLE_KEY em Production na Vercel e faça um novo deploy.
+                    </p>
+                )}
+            </section>
+
             <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                 <section className="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                     <div className="flex items-center justify-between gap-4">

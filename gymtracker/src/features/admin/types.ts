@@ -33,6 +33,9 @@ export interface AdminDashboardData {
     expiringThisMonth: number;
     currentMonthReceipts: number;
   };
+  operational: {
+    serviceRoleConfigured: boolean;
+  };
   recentUsers: AdminUserListItem[];
   recentAuditLog: AdminAuditEntry[];
   currentReferenceMonth: string;

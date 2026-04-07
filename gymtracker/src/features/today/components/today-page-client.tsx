@@ -5,8 +5,10 @@ import { useLocale, useTranslations } from 'next-intl'
 import { useToast } from '@/components/ui/toast'
 import { getLocalizedWeekdayNames } from '@/lib/utils'
 import { buildWorkoutSessionNotesWithStatus, parseWorkoutSessionStatus } from '@/lib/workout-session-status'
+import { getCompletedExerciseSetCount } from '@/features/today/progress'
 import {
     getTodayViewAction,
+    listTodayExerciseOptionsAction,
     listUserWorkoutsAction,
     rescheduleWorkoutAction,
     saveCardioLogAction,
@@ -15,8 +17,10 @@ import {
     skipCardioAction,
     skipExerciseAction,
     skipWorkoutAction,
+    substituteExerciseAction,
     switchWorkoutForDayAction,
     undoSkipCardioAction,
+    undoExerciseSubstitutionAction,
     undoSkipExerciseAction,
     undoSkipWorkoutAction,
 } from '@/features/today/actions'
@@ -26,6 +30,7 @@ import type {
     CardioLogState,
     ExerciseLogSetState,
     ExerciseLogState,
+    TodayExerciseOption,
     TodayViewData,
 } from '@/features/today/types'
 
@@ -35,6 +40,7 @@ interface PendingSetQueueItem {
     dateISO: string
     sessionId: string
     exerciseId: string
+    originalExerciseId?: string
     setNumber: number
     weight: number
     reps: number
@@ -285,6 +291,10 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
     const [allWorkouts, setAllWorkouts] = useState<Workout[]>([])
     const [showRescheduleModal, setShowRescheduleModal] = useState(false)
     const [loadingWorkouts, setLoadingWorkouts] = useState(false)
+    const [exerciseOptions, setExerciseOptions] = useState<TodayExerciseOption[]>([])
+    const [loadingExerciseOptions, setLoadingExerciseOptions] = useState(false)
+    const [substitutionTarget, setSubstitutionTarget] = useState<ExerciseLogState | null>(null)
+    const [substitutionSearch, setSubstitutionSearch] = useState('')
     const latestMutationRef = useRef<Record<string, string>>({})
     const [optimisticExerciseLogs, addOptimisticSetPatch] = useOptimistic(
         exerciseLogs,
@@ -330,6 +340,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             const result = await saveSetAction({
                 sessionId: item.sessionId,
                 exerciseId: item.exerciseId,
+                originalExerciseId: item.originalExerciseId,
                 setNumber: item.setNumber,
                 weight: item.weight,
                 reps: item.reps,
@@ -447,6 +458,62 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         setAllWorkouts(result.data)
     }
 
+    async function loadExerciseOptions() {
+        if (exerciseOptions.length > 0 || loadingExerciseOptions) {
+            return
+        }
+
+        setLoadingExerciseOptions(true)
+        const result = await listTodayExerciseOptionsAction()
+        setLoadingExerciseOptions(false)
+
+        if (!result.ok || !result.data) {
+            showToast(result.message ?? 'Unable to load exercises', 'error')
+            return
+        }
+
+        setExerciseOptions(result.data)
+    }
+
+    async function openSubstitutionModal(exerciseLog: ExerciseLogState) {
+        setSubstitutionTarget(exerciseLog)
+        setSubstitutionSearch('')
+        await loadExerciseOptions()
+    }
+
+    async function handleSubstituteExercise(replacementExerciseId: string) {
+        if (!session || !substitutionTarget) return
+
+        const result = await substituteExerciseAction({
+            sessionId: session.id,
+            originalExerciseId: substitutionTarget.originalExerciseId,
+            replacementExerciseId,
+        })
+
+        if (!result.ok) {
+            showToast(result.message ?? 'Unable to substitute exercise', 'error')
+            return
+        }
+
+        showToast(t('Today.toastExerciseSubstituted'))
+        setSubstitutionTarget(null)
+        await refreshTodayView()
+    }
+
+    async function handleUndoSubstitution(exerciseLog: ExerciseLogState) {
+        if (!session) return
+
+        const result = await undoExerciseSubstitutionAction(session.id, exerciseLog.originalExerciseId)
+
+        if (!result.ok) {
+            showToast(result.message ?? 'Unable to undo substitution', 'error')
+            return
+        }
+
+        showToast(t('Today.toastExerciseSubstitutionUndone'))
+        await refreshTodayView()
+    }
+
     async function handleSwitchWorkout(newWorkoutId: string) {
         const result = await switchWorkoutForDayAction(dateISO, newWorkoutId)
 
@@ -531,6 +598,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             result = await saveSetAction({
                 sessionId: session.id,
                 exerciseId: currentLog.exerciseId,
+                originalExerciseId: currentLog.originalExerciseId,
                 setNumber: setIndex + 1,
                 weight,
                 reps,
@@ -549,6 +617,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             dateISO,
             sessionId: session.id,
             exerciseId: currentLog.exerciseId,
+            originalExerciseId: currentLog.originalExerciseId,
             setNumber: setIndex + 1,
             weight,
             reps,
@@ -842,10 +911,10 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         () => {
             const exerciseUnits = optimisticExerciseLogs.reduce((acc, exerciseLog) => {
                 if (exerciseLog.skipped) {
-                    return acc + exerciseLog.targetSets
+                    return acc
                 }
 
-                return acc + exerciseLog.sets.filter((set) => set.saved).length
+                return acc + getCompletedExerciseSetCount(exerciseLog)
             }, 0)
             const cardioUnits = cardioLogs.filter((cardioLog) => cardioLog.saved || cardioLog.skipped).length
 
@@ -862,6 +931,31 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         () => optimisticExerciseLogs.reduce((acc, exerciseLog) => acc + exerciseLog.sets.filter((set) => set.pendingSync).length, 0),
         [optimisticExerciseLogs]
     )
+    const filteredSubstitutionOptions = useMemo(() => {
+        const normalizedSearch = substitutionSearch.trim().toLowerCase()
+        const unavailableExerciseIds = new Set(
+            optimisticExerciseLogs.flatMap((exerciseLog) => [
+                exerciseLog.originalExerciseId,
+                exerciseLog.exerciseId,
+            ]),
+        )
+
+        return exerciseOptions.filter((exercise) => {
+            if (!substitutionTarget || unavailableExerciseIds.has(exercise.id)) {
+                return false
+            }
+
+            if (!normalizedSearch) {
+                return true
+            }
+
+            return [
+                exercise.displayName,
+                exercise.modality,
+                exercise.muscleGroup,
+            ].some((value) => (value ?? '').toLowerCase().includes(normalizedSearch))
+        })
+    }, [exerciseOptions, optimisticExerciseLogs, substitutionSearch, substitutionTarget])
 
     if (loading) {
         return (
@@ -1066,15 +1160,24 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
 
             <div className="space-y-4">
                 {optimisticExerciseLogs.map((exerciseLog, exerciseIndex) => {
-                    const completed = exerciseLog.skipped
-                        ? exerciseLog.targetSets
-                        : exerciseLog.sets.filter((set) => set.saved).length
+                    const completed = getCompletedExerciseSetCount(exerciseLog)
+                    const hasSavedSets = exerciseLog.sets.some((set) => set.saved)
 
                     return (
                         <div key={exerciseLog.exerciseId} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/50 rounded-2xl overflow-hidden">
                             <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800/50 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">{exerciseLog.exerciseName}</h3>
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">{exerciseLog.exerciseName}</h3>
+                                        {exerciseLog.substitution && (
+                                            <p className="mt-0.5 text-xs text-violet-500 dark:text-violet-300">
+                                                {t('Today.exerciseSubstitutionLabel', {
+                                                    original: exerciseLog.originalExerciseName,
+                                                    replacement: exerciseLog.exerciseName,
+                                                })}
+                                            </p>
+                                        )}
+                                    </div>
                                     {exerciseLog.skipped && (
                                         <span className="rounded-md bg-amber-500/15 px-2 py-1 text-[11px] font-semibold text-amber-500">
                                             {t('Today.exerciseSkippedBadge')}
@@ -1082,9 +1185,26 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                                     )}
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    {exerciseLog.substitution ? (
+                                        <button
+                                            onClick={() => handleUndoSubstitution(exerciseLog)}
+                                            disabled={hasSavedSets || exerciseLog.skipped}
+                                            className="rounded-lg bg-violet-600/10 px-2.5 py-1 text-[11px] font-semibold text-violet-500 transition-colors hover:bg-violet-600/20 disabled:opacity-40"
+                                        >
+                                            {t('Today.undoSubstitution')}
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => openSubstitutionModal(exerciseLog)}
+                                            disabled={hasSavedSets || exerciseLog.skipped}
+                                            className="rounded-lg bg-violet-600/10 px-2.5 py-1 text-[11px] font-semibold text-violet-500 transition-colors hover:bg-violet-600/20 disabled:opacity-40"
+                                        >
+                                            {t('Today.substituteToday')}
+                                        </button>
+                                    )}
                                     <button
-                                        onClick={() => exerciseLog.skipped ? handleUndoSkipExercise(exerciseLog.exerciseId) : handleSkipExercise(exerciseLog.exerciseId)}
-                                        disabled={!exerciseLog.skipped && exerciseLog.sets.some((set) => set.saved)}
+                                        onClick={() => exerciseLog.skipped ? handleUndoSkipExercise(exerciseLog.originalExerciseId) : handleSkipExercise(exerciseLog.originalExerciseId)}
+                                        disabled={!exerciseLog.skipped && hasSavedSets}
                                         className="rounded-lg bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-200 disabled:opacity-40 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
                                     >
                                         {exerciseLog.skipped ? t('Today.undoSkip') : t('Today.skipExercise')}
@@ -1380,6 +1500,49 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                         </div>
 
                         <button onClick={() => setShowOverrideModal(false)} className="w-full py-3.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white font-semibold rounded-xl hover:bg-zinc-800 transition-colors">
+                            {t('Common.cancel')}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {substitutionTarget && (
+                <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+                    <div className="w-full max-w-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 animate-[slideUp_0.3s_ease-out]">
+                        <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">{t('Today.substituteToday')}</h3>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                            {t('Today.substituteExerciseDescription', { exercise: substitutionTarget.originalExerciseName })}
+                        </p>
+                        <input
+                            value={substitutionSearch}
+                            onChange={(event) => setSubstitutionSearch(event.target.value)}
+                            placeholder={t('Today.substituteExerciseSearch')}
+                            className="mb-4 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                        />
+                        <div className="mb-6 max-h-80 space-y-2 overflow-y-auto">
+                            {loadingExerciseOptions && (
+                                <p className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">{t('Common.loading')}</p>
+                            )}
+                            {!loadingExerciseOptions && filteredSubstitutionOptions.map((exercise) => (
+                                <button
+                                    key={exercise.id}
+                                    onClick={() => handleSubstituteExercise(exercise.id)}
+                                    className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left transition hover:border-violet-500 dark:border-zinc-800 dark:bg-zinc-900"
+                                >
+                                    <span className="block text-sm font-semibold text-zinc-900 dark:text-white">{exercise.displayName}</span>
+                                    <span className="mt-1 block text-xs text-zinc-500 dark:text-zinc-400">
+                                        {[exercise.source === 'system' ? t('Today.baseExercise') : t('Today.myExercise'), exercise.muscleGroup, exercise.modality].filter(Boolean).join(' • ')}
+                                    </span>
+                                </button>
+                            ))}
+                            {!loadingExerciseOptions && filteredSubstitutionOptions.length === 0 && (
+                                <p className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">{t('Today.noSubstitutionOptions')}</p>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => setSubstitutionTarget(null)}
+                            className="w-full py-3.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white font-semibold rounded-xl hover:bg-zinc-800 transition-colors"
+                        >
                             {t('Common.cancel')}
                         </button>
                     </div>

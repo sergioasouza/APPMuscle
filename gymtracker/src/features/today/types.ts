@@ -1,5 +1,13 @@
 import type { Workout, WorkoutSession } from '@/lib/types'
 
+export interface TodayExerciseOption {
+    id: string
+    displayName: string
+    source: 'system' | 'custom'
+    modality: string | null
+    muscleGroup: string | null
+}
+
 export interface ExerciseLogSetState {
     weight: string
     reps: string
@@ -16,7 +24,13 @@ export interface PreviousSetMark {
 
 export interface ExerciseLogState {
     exerciseId: string
+    originalExerciseId: string
     exerciseName: string
+    originalExerciseName: string
+    substitution: {
+        replacementExerciseId: string
+        replacementExerciseName: string
+    } | null
     targetSets: number
     sets: ExerciseLogSetState[]
     previousSets: PreviousSetMark[]
@@ -62,6 +76,7 @@ export interface ActionResult<T> {
 export interface SaveSetInput {
     sessionId: string
     exerciseId: string
+    originalExerciseId?: string
     setNumber: number
     weight: number
     reps: number

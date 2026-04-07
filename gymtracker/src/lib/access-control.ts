@@ -1,7 +1,6 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import { getServiceRoleClient } from "@/lib/supabase/service-role";
 import { getTodayInTimezone } from "@/lib/utils";
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE ?? "America/Sao_Paulo";
@@ -164,26 +163,6 @@ export async function getOptionalAuthenticatedAppContext(): Promise<{
 
   if (!profile) {
     throw new Error("Profile not found for authenticated user");
-  }
-
-  if (
-    profile.role === "member" &&
-    profile.member_access_mode === "trial" &&
-    profile.trial_ends_at != null &&
-    profile.trial_ends_at < todayISO
-  ) {
-    const deleteResult = await getServiceRoleClient().auth.admin.deleteUser(user.id);
-
-    if (deleteResult.error) {
-      throw new Error(deleteResult.error.message);
-    }
-
-    return {
-      supabase,
-      user: null,
-      profile: null,
-      todayISO,
-    };
   }
 
   return {
