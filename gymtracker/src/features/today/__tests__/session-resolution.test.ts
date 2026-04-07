@@ -5,7 +5,10 @@ import {
   selectActiveTodaySession,
   type TodaySessionCandidate,
 } from "@/features/today/session-resolution";
-import { buildRescheduledToWorkoutSessionNote } from "@/lib/workout-session-status";
+import {
+  buildManualOverrideWorkoutSessionNote,
+  buildRescheduledToWorkoutSessionNote,
+} from "@/lib/workout-session-status";
 import type { Workout } from "@/lib/types";
 
 const workoutA: Workout = {
@@ -61,7 +64,7 @@ describe("today session resolution", () => {
     expect(selected?.id).toBe("session-a");
   });
 
-  it("prefers the latest real session after a manual switch", () => {
+  it("prefers a manual override session over the scheduled workout", () => {
     const selected = selectActiveTodaySession({
       scheduledWorkoutId: workoutA.id,
       sessions: [
@@ -74,6 +77,7 @@ describe("today session resolution", () => {
           id: "session-b",
           workout: workoutB,
           createdAt: "2026-04-05T10:00:00.000Z",
+          notes: buildManualOverrideWorkoutSessionNote(),
         }),
       ],
       setCountBySessionId: {},
@@ -82,7 +86,7 @@ describe("today session resolution", () => {
     expect(selected?.id).toBe("session-b");
   });
 
-  it("does not let an empty scheduled placeholder hide an older real session", () => {
+  it("prefers the scheduled workout when the agenda changed after older logs", () => {
     const selected = selectActiveTodaySession({
       scheduledWorkoutId: workoutA.id,
       sessions: [
@@ -102,7 +106,7 @@ describe("today session resolution", () => {
       },
     });
 
-    expect(selected?.id).toBe("session-b");
+    expect(selected?.id).toBe("session-a");
   });
 
   it("shows a manual session on a rest day instead of rest", () => {

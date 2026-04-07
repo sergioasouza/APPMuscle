@@ -1,6 +1,7 @@
 export type WorkoutSessionStatusKind =
     | 'normal'
     | 'skipped'
+    | 'manual_override'
     | 'rescheduled_to'
     | 'rescheduled_from'
 
@@ -13,6 +14,7 @@ export interface ParsedWorkoutSessionStatus {
 }
 
 const SKIPPED_PREFIX = '[SKIPPED]'
+const MANUAL_OVERRIDE_PREFIX = '[MANUAL_OVERRIDE]'
 const MODERN_RESCHEDULED_PATTERN =
     /^\[(RESCHEDULED_TO|RESCHEDULED_FROM)\s+(\d{4}-\d{2}-\d{2})\|([^\]]+)\](?:\s*([\s\S]*))?$/
 const LEGACY_RESCHEDULED_PATTERN =
@@ -47,6 +49,16 @@ export function parseWorkoutSessionStatus(notes: string | null | undefined): Par
             dateISO: null,
             label: null,
             details: cleanDetails(raw.slice(SKIPPED_PREFIX.length)),
+        }
+    }
+
+    if (raw.startsWith(MANUAL_OVERRIDE_PREFIX)) {
+        return {
+            kind: 'manual_override',
+            raw,
+            dateISO: null,
+            label: null,
+            details: cleanDetails(raw.slice(MANUAL_OVERRIDE_PREFIX.length)),
         }
     }
 
@@ -85,6 +97,10 @@ export function isSkippedWorkoutSession(notes: string | null | undefined) {
     return parseWorkoutSessionStatus(notes).kind === 'skipped'
 }
 
+export function isManualOverrideWorkoutSession(notes: string | null | undefined) {
+    return parseWorkoutSessionStatus(notes).kind === 'manual_override'
+}
+
 export function isRescheduledSourceWorkoutSession(notes: string | null | undefined) {
     return parseWorkoutSessionStatus(notes).kind === 'rescheduled_to'
 }
@@ -101,6 +117,11 @@ export function isAnalyticsExcludedWorkoutSession(notes: string | null | undefin
 export function buildSkippedWorkoutSessionNote(existingNotes: string | null | undefined) {
     const details = cleanDetails(existingNotes)
     return details ? `${SKIPPED_PREFIX} ${details}` : SKIPPED_PREFIX
+}
+
+export function buildManualOverrideWorkoutSessionNote(existingNotes?: string | null) {
+    const details = clearWorkoutSessionStatus(existingNotes)
+    return joinStatusPrefix(MANUAL_OVERRIDE_PREFIX, details)
 }
 
 export function removeSkippedWorkoutSessionNote(notes: string | null | undefined) {
@@ -129,6 +150,10 @@ export function buildWorkoutSessionNotesWithStatus(
 
     if (status.kind === 'skipped') {
         return joinStatusPrefix(SKIPPED_PREFIX, details)
+    }
+
+    if (status.kind === 'manual_override') {
+        return joinStatusPrefix(MANUAL_OVERRIDE_PREFIX, details)
     }
 
     if (status.kind === 'rescheduled_to') {

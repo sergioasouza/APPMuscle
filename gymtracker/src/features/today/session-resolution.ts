@@ -45,6 +45,15 @@ function sortByCreatedDesc(left: TodaySessionCandidate, right: TodaySessionCandi
   return right.created_at.localeCompare(left.created_at);
 }
 
+function isRealSession(session: TodaySessionCandidate) {
+  const status = parseWorkoutSessionStatus(session.notes).kind;
+  return status !== "skipped" && status !== "rescheduled_to";
+}
+
+function isManualOverrideSession(session: TodaySessionCandidate) {
+  return parseWorkoutSessionStatus(session.notes).kind === "manual_override";
+}
+
 export function isReusableTodayPlaceholder(
   session: TodaySessionCandidate,
   setCountBySessionId: Record<string, number>,
@@ -128,51 +137,22 @@ export function selectActiveTodaySession(input: {
   const sortedSessions = [...input.sessions].sort(sortByCreatedDesc);
   const latestSession = sortedSessions[0];
   const latestRealSession =
-    sortedSessions.find((session) => {
-      const status = parseWorkoutSessionStatus(session.notes).kind;
-      return status !== "skipped" && status !== "rescheduled_to";
-    }) ?? null;
+    sortedSessions.find((session) => isRealSession(session)) ?? null;
+  const latestManualOverrideSession =
+    sortedSessions.find((session) => isManualOverrideSession(session)) ?? null;
 
   if (!input.scheduledWorkoutId) {
     return latestRealSession ?? latestSession;
+  }
+
+  if (latestManualOverrideSession) {
+    return latestManualOverrideSession;
   }
 
   const latestScheduledSession =
     sortedSessions.find(
       (session) => session.workout_id === input.scheduledWorkoutId,
     ) ?? null;
-  const latestNonScheduledRealSession =
-    sortedSessions.find((session) => {
-      const status = parseWorkoutSessionStatus(session.notes).kind;
-      return (
-        session.workout_id !== input.scheduledWorkoutId &&
-        status !== "skipped" &&
-        status !== "rescheduled_to"
-      );
-    }) ?? null;
-
-  if (
-    latestScheduledSession &&
-    latestNonScheduledRealSession &&
-    isReusableTodayPlaceholder(
-      latestScheduledSession,
-      input.setCountBySessionId,
-    ) &&
-    (
-      getSetCount(latestNonScheduledRealSession, input.setCountBySessionId) > 0 ||
-      latestNonScheduledRealSession.created_at > latestScheduledSession.created_at
-    )
-  ) {
-    return latestNonScheduledRealSession;
-  }
-
-  if (
-    latestScheduledSession &&
-    latestNonScheduledRealSession &&
-    latestNonScheduledRealSession.created_at > latestScheduledSession.created_at
-  ) {
-    return latestNonScheduledRealSession;
-  }
 
   if (latestScheduledSession) {
     return latestScheduledSession;

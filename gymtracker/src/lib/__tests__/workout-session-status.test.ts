@@ -1,6 +1,7 @@
 import {
     buildRescheduledFromWorkoutSessionNote,
     buildRescheduledToWorkoutSessionNote,
+    buildManualOverrideWorkoutSessionNote,
     buildSkippedWorkoutSessionNote,
     buildWorkoutSessionNotesWithStatus,
     clearWorkoutSessionStatus,
@@ -71,5 +72,17 @@ describe('workout-session-status', () => {
         expect(clearWorkoutSessionStatus(rescheduled)).toBe('Felt good')
         expect(clearWorkoutSessionStatus(buildSkippedWorkoutSessionNote('Deload'))).toBe('Deload')
         expect(clearWorkoutSessionStatus('Plain note')).toBe('Plain note')
+    })
+
+    it('marks manual overrides without excluding them from analytics', () => {
+        const notes = buildManualOverrideWorkoutSessionNote('Doing a different workout today')
+
+        expect(notes).toBe('[MANUAL_OVERRIDE] Doing a different workout today')
+        expect(parseWorkoutSessionStatus(notes)).toMatchObject({
+            kind: 'manual_override',
+            details: 'Doing a different workout today',
+        })
+        expect(buildWorkoutSessionNotesWithStatus(notes, 'Changed plan')).toBe('[MANUAL_OVERRIDE] Changed plan')
+        expect(isAnalyticsExcludedWorkoutSession(notes)).toBe(false)
     })
 })

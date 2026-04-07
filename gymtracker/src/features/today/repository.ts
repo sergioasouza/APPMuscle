@@ -25,7 +25,7 @@ import {
 import { isExerciseAvailableForPicker } from "@/lib/exercise-resolution";
 import {
   buildWorkoutSessionNotesWithStatus,
-  clearWorkoutSessionStatus,
+  buildManualOverrideWorkoutSessionNote,
   buildRescheduledFromWorkoutSessionNote,
   buildRescheduledToWorkoutSessionNote,
   buildSkippedWorkoutSessionNote,
@@ -389,7 +389,14 @@ export async function getTodayViewRepository(
     );
   }
 
-  if (scheduledWorkout && sessions.length === 0) {
+  const hasScheduledSession = scheduledWorkout
+    ? sessions.some((session) => session.workout_id === scheduledWorkout.id)
+    : false;
+  const hasManualOverrideSession = sessions.some(
+    (session) => parseWorkoutSessionStatus(session.notes).kind === "manual_override",
+  );
+
+  if (scheduledWorkout && !hasScheduledSession && !hasManualOverrideSession) {
     const { data: newSession, error } = await supabase
       .from("workout_sessions")
       .insert({
@@ -414,6 +421,8 @@ export async function getTodayViewRepository(
               .eq("user_id", user.id)
               .eq("workout_id", scheduledWorkout.id)
               .eq("performed_at", dateISO)
+              .order("created_at", { ascending: false })
+              .limit(1)
               .maybeSingle();
 
           if (duplicateSessionError) {
@@ -421,14 +430,14 @@ export async function getTodayViewRepository(
           }
 
           if (duplicateSession) {
-            sessions = [duplicateSession as SessionWithWorkout];
+            sessions = [duplicateSession as SessionWithWorkout, ...sessions];
           }
         } else {
           throw new Error(error.message);
         }
       }
     } else if (newSession) {
-      sessions = [newSession as SessionWithWorkout];
+      sessions = [newSession as SessionWithWorkout, ...sessions];
     }
 
     allSetLogs = await listSetLogsForSessions(
@@ -632,7 +641,7 @@ export async function switchWorkoutForDayRepository(
       throw new Error("Target session not found");
     }
 
-    const nextNotes = clearWorkoutSessionStatus(targetSession.notes);
+    const nextNotes = buildManualOverrideWorkoutSessionNote(targetSession.notes);
     if (nextNotes !== targetSession.notes) {
       const { error: updateError } = await supabase
         .from("workout_sessions")
@@ -649,9 +658,15 @@ export async function switchWorkoutForDayRepository(
   }
 
   if (decision.type === "reuse-placeholder" && decision.sessionId) {
+    const placeholderSession = sessions.find(
+      (session) => session.id === decision.sessionId,
+    );
     const { error: updateError } = await supabase
       .from("workout_sessions")
-      .update({ workout_id: workoutId })
+      .update({
+        workout_id: workoutId,
+        notes: buildManualOverrideWorkoutSessionNote(placeholderSession?.notes),
+      })
       .eq("id", decision.sessionId)
       .eq("user_id", user.id);
 
@@ -666,6 +681,7 @@ export async function switchWorkoutForDayRepository(
     user_id: user.id,
     workout_id: workoutId,
     performed_at: dateISO,
+    notes: buildManualOverrideWorkoutSessionNote(),
   });
 
   if (insertError && insertError.code !== "23505") {
