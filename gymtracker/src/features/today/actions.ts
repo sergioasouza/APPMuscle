@@ -7,6 +7,7 @@ import {
     listUserWorkouts,
     rescheduleWorkout,
     saveCardioLog,
+    saveExerciseTargetSets,
     saveSessionNotes,
     saveSet,
     skipCardio,
@@ -147,6 +148,23 @@ export async function saveSetAction(input: {
         )
         revalidateTodaySurfaces()
         return okResult(data)
+    } catch (error) {
+        return errorResult(error)
+    }
+}
+
+export async function saveExerciseTargetSetsAction(input: {
+    sessionId: string
+    exerciseId: string
+    validSets: number
+}): Promise<ActionResult<null>> {
+    try {
+        assertUuid(input.sessionId, 'Session id')
+        assertUuid(input.exerciseId, 'Exercise id')
+        assertPositiveInteger(input.validSets, 'Valid sets')
+        await saveExerciseTargetSets(input.sessionId, input.exerciseId, input.validSets)
+        revalidateTodaySurfaces()
+        return okResult(null)
     } catch (error) {
         return errorResult(error)
     }

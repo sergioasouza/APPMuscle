@@ -524,6 +524,48 @@ export type Database = {
                     }
                 ]
             }
+            session_exercise_targets: {
+                Row: {
+                    id: string
+                    session_id: string
+                    exercise_id: string
+                    valid_sets: number
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    session_id: string
+                    exercise_id: string
+                    valid_sets: number
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    session_id?: string
+                    exercise_id?: string
+                    valid_sets?: number
+                    created_at?: string
+                    updated_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "session_exercise_targets_session_id_fkey"
+                        columns: ["session_id"]
+                        isOneToOne: false
+                        referencedRelation: "workout_sessions"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "session_exercise_targets_exercise_id_fkey"
+                        columns: ["exercise_id"]
+                        isOneToOne: false
+                        referencedRelation: "exercises"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
             session_cardio_logs: {
                 Row: {
                     id: string
@@ -795,6 +837,7 @@ export type WorkoutSession = Database['public']['Tables']['workout_sessions']['R
 export type SetLog = Database['public']['Tables']['set_logs']['Row']
 export type SessionExerciseSkip = Database['public']['Tables']['session_exercise_skips']['Row']
 export type SessionExerciseSubstitution = Database['public']['Tables']['session_exercise_substitutions']['Row']
+export type SessionExerciseTarget = Database['public']['Tables']['session_exercise_targets']['Row']
 export type SessionCardioLog = Database['public']['Tables']['session_cardio_logs']['Row']
 export type SessionCardioInterval = Database['public']['Tables']['session_cardio_intervals']['Row']
 export type BodyMeasurement = Database['public']['Tables']['body_measurements']['Row']

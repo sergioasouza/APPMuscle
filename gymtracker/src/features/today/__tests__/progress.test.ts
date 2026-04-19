@@ -11,6 +11,7 @@ function buildExerciseLog(overrides: Partial<ExerciseLogState>): ExerciseLogStat
     originalExerciseName: "Voador",
     substitution: null,
     targetSets: 3,
+    plannedTargetSets: 3,
     previousSets: [],
     skipped: false,
     sets: [
@@ -29,5 +30,20 @@ describe("today progress", () => {
 
   it("does not count target sets for skipped exercises", () => {
     expect(getCompletedExerciseSetCount(buildExerciseLog({ skipped: true }))).toBe(0);
+  });
+
+  it("does not count more saved sets than the valid target for the session", () => {
+    expect(
+      getCompletedExerciseSetCount(
+        buildExerciseLog({
+          targetSets: 1,
+          sets: [
+            { weight: "10", reps: "12", saved: true },
+            { weight: "10", reps: "10", saved: true },
+            { weight: "", reps: "", saved: false },
+          ],
+        }),
+      ),
+    ).toBe(1);
   });
 });

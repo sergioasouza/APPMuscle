@@ -456,7 +456,47 @@ CREATE POLICY "Users can delete own session exercise skips"
     session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
   );
 
--- 10. Session Cardio Logs
+-- 10. Session Exercise Targets
+CREATE TABLE public.session_exercise_targets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES public.workout_sessions(id) ON DELETE CASCADE,
+  exercise_id UUID NOT NULL REFERENCES public.exercises(id) ON DELETE RESTRICT,
+  valid_sets INT NOT NULL CHECK (valid_sets BETWEEN 1 AND 20),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (session_id, exercise_id)
+);
+
+ALTER TABLE public.session_exercise_targets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own session exercise targets"
+  ON public.session_exercise_targets FOR SELECT
+  USING (
+    session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can insert own session exercise targets"
+  ON public.session_exercise_targets FOR INSERT
+  WITH CHECK (
+    session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can update own session exercise targets"
+  ON public.session_exercise_targets FOR UPDATE
+  USING (
+    session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
+  )
+  WITH CHECK (
+    session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can delete own session exercise targets"
+  ON public.session_exercise_targets FOR DELETE
+  USING (
+    session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
+  );
+
+-- 11. Session Cardio Logs
 CREATE TABLE public.session_cardio_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES public.workout_sessions(id) ON DELETE CASCADE,
@@ -501,7 +541,7 @@ CREATE POLICY "Users can delete own session cardio logs"
     session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
   );
 
--- 11. Session Cardio Intervals
+-- 12. Session Cardio Intervals
 CREATE TABLE public.session_cardio_intervals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cardio_log_id UUID NOT NULL REFERENCES public.session_cardio_logs(id) ON DELETE CASCADE,
@@ -562,7 +602,7 @@ CREATE POLICY "Users can delete own session cardio intervals"
     )
   );
 
--- 12. Body Measurements
+-- 13. Body Measurements
 CREATE TABLE public.body_measurements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -620,6 +660,8 @@ CREATE INDEX idx_set_logs_exercise ON public.set_logs(exercise_id);
 CREATE INDEX idx_set_logs_session_exercise ON public.set_logs(session_id, exercise_id, set_number);
 CREATE INDEX idx_session_exercise_skips_session ON public.session_exercise_skips(session_id);
 CREATE INDEX idx_session_exercise_skips_exercise ON public.session_exercise_skips(exercise_id);
+CREATE INDEX idx_session_exercise_targets_session ON public.session_exercise_targets(session_id);
+CREATE INDEX idx_session_exercise_targets_exercise ON public.session_exercise_targets(exercise_id);
 CREATE INDEX idx_session_cardio_logs_session ON public.session_cardio_logs(session_id);
 CREATE INDEX idx_session_cardio_logs_block ON public.session_cardio_logs(workout_cardio_block_id);
 CREATE INDEX idx_session_cardio_intervals_log_order ON public.session_cardio_intervals(cardio_log_id, display_order);

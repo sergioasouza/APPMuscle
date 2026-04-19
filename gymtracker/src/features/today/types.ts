@@ -29,9 +29,10 @@ export interface ExerciseLogState {
     originalExerciseName: string
     substitution: {
         replacementExerciseId: string
-        replacementExerciseName: string
+                replacementExerciseName: string
     } | null
     targetSets: number
+    plannedTargetSets: number
     sets: ExerciseLogSetState[]
     previousSets: PreviousSetMark[]
     skipped: boolean

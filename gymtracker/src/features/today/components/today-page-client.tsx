@@ -12,6 +12,7 @@ import {
     listUserWorkoutsAction,
     rescheduleWorkoutAction,
     saveCardioLogAction,
+    saveExerciseTargetSetsAction,
     saveSessionNotesAction,
     saveSetAction,
     skipCardioAction,
@@ -268,6 +269,21 @@ function applySetPatch(
     })
 }
 
+function applyExerciseTargetSetCount(
+    logs: ExerciseLogState[],
+    exerciseIndex: number,
+    targetSets: number
+) {
+    return logs.map((log, logIndex) => {
+        if (logIndex !== exerciseIndex) return log
+
+        return {
+            ...log,
+            targetSets,
+        }
+    })
+}
+
 export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData }: TodayPageClientProps) {
     const t = useTranslations()
     const locale = useLocale()
@@ -293,6 +309,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
     const [loadingWorkouts, setLoadingWorkouts] = useState(false)
     const [exerciseOptions, setExerciseOptions] = useState<TodayExerciseOption[]>([])
     const [loadingExerciseOptions, setLoadingExerciseOptions] = useState(false)
+    const [savingExerciseTargetIds, setSavingExerciseTargetIds] = useState<string[]>([])
     const [substitutionTarget, setSubstitutionTarget] = useState<ExerciseLogState | null>(null)
     const [substitutionSearch, setSubstitutionSearch] = useState('')
     const latestMutationRef = useRef<Record<string, string>>({})
@@ -675,6 +692,51 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         )
 
         showToast(t('Today.toastSetSaved', { setNumber: setIndex + 1 }))
+    }
+
+    async function handleTargetSetsChange(exerciseIndex: number, nextTargetSets: number) {
+        if (!session) return
+
+        const currentLog = optimisticExerciseLogs[exerciseIndex]
+        const minimumTargetSets = Math.max(1, getCompletedExerciseSetCount(currentLog))
+        const maximumTargetSets = currentLog.plannedTargetSets
+
+        if (nextTargetSets < minimumTargetSets) {
+            showToast(t('Today.toastValidSetsMinCompleted'), 'error')
+            return
+        }
+
+        if (nextTargetSets > maximumTargetSets) {
+            showToast(t('Today.toastValidSetsOutOfRange', { count: maximumTargetSets }), 'error')
+            return
+        }
+
+        const previousLogs = cloneLogs(exerciseLogs)
+
+        setSavingExerciseTargetIds((prev) => [...new Set([...prev, currentLog.originalExerciseId])])
+        setExerciseLogs((prev) => applyExerciseTargetSetCount(prev, exerciseIndex, nextTargetSets))
+
+        const result = await saveExerciseTargetSetsAction({
+            sessionId: session.id,
+            exerciseId: currentLog.originalExerciseId,
+            validSets: nextTargetSets,
+        })
+
+        setSavingExerciseTargetIds((prev) => prev.filter((exerciseId) => exerciseId !== currentLog.originalExerciseId))
+
+        if (result.ok) {
+            return
+        }
+
+        setExerciseLogs(previousLogs)
+
+        const message = result.message?.includes('Cannot reduce valid sets below completed sets')
+            ? t('Today.toastValidSetsMinCompleted')
+            : result.message?.includes('Valid sets must be between 1 and planned target sets')
+                ? t('Today.toastValidSetsOutOfRange', { count: maximumTargetSets })
+                : (result.message ?? 'Unable to update valid sets')
+
+        showToast(message, 'error')
     }
 
     function handleSetChange(exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: string) {
@@ -1161,7 +1223,9 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             <div className="space-y-4">
                 {optimisticExerciseLogs.map((exerciseLog, exerciseIndex) => {
                     const completed = getCompletedExerciseSetCount(exerciseLog)
+                    const minimumTargetSets = Math.max(1, completed)
                     const hasSavedSets = exerciseLog.sets.some((set) => set.saved)
+                    const isSavingTargetSets = savingExerciseTargetIds.includes(exerciseLog.originalExerciseId)
 
                     return (
                         <div key={exerciseLog.exerciseId} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/50 rounded-2xl overflow-hidden">
@@ -1177,6 +1241,39 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                                                 })}
                                             </p>
                                         )}
+                                        <div className="mt-1 flex items-center gap-2">
+                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                                                {t('Today.validSetsLabel')}
+                                            </span>
+                                            <div className="inline-flex items-center rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/60">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleTargetSetsChange(exerciseIndex, exerciseLog.targetSets - 1)}
+                                                    disabled={exerciseLog.skipped || isSavingTargetSets || exerciseLog.targetSets <= minimumTargetSets}
+                                                    aria-label={t('Today.decreaseValidSets')}
+                                                    className="px-2 py-1 text-sm font-bold text-zinc-600 transition-colors hover:bg-zinc-100 disabled:opacity-30 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                                                >
+                                                    −
+                                                </button>
+                                                <span className="min-w-[58px] px-2 py-1 text-center text-[11px] font-semibold text-zinc-700 dark:text-zinc-200">
+                                                    {exerciseLog.targetSets}/{exerciseLog.plannedTargetSets}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleTargetSetsChange(exerciseIndex, exerciseLog.targetSets + 1)}
+                                                    disabled={exerciseLog.skipped || isSavingTargetSets || exerciseLog.targetSets >= exerciseLog.plannedTargetSets}
+                                                    aria-label={t('Today.increaseValidSets')}
+                                                    className="px-2 py-1 text-sm font-bold text-zinc-600 transition-colors hover:bg-zinc-100 disabled:opacity-30 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                                                >
+                                                    +
+                                                </button>
+                                            </div>
+                                            {exerciseLog.targetSets !== exerciseLog.plannedTargetSets && (
+                                                <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                                                    {t('Today.validSetsAdjusted')}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                     {exerciseLog.skipped && (
                                         <span className="rounded-md bg-amber-500/15 px-2 py-1 text-[11px] font-semibold text-amber-500">
@@ -1221,7 +1318,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                                 </div>
                             ) : (
                             <div className="divide-y divide-zinc-800/30">
-                                {exerciseLog.sets.map((set, setIndex) => {
+                                {exerciseLog.sets.slice(0, exerciseLog.targetSets).map((set, setIndex) => {
                                     const prevMark = exerciseLog.previousSets?.[setIndex]
                                     return (
                                     <div key={setIndex} className={`px-4 py-3 ${set.saved ? 'bg-zinc-100 dark:bg-zinc-800/20' : ''}`}>

@@ -6,6 +6,7 @@ import {
     listUserWorkoutsRepository,
     rescheduleWorkoutRepository,
     saveCardioLogRepository,
+    saveExerciseTargetSetsRepository,
     saveSessionNotesRepository,
     saveSetRepository,
     skipCardioRepository,
@@ -23,6 +24,10 @@ import type { SaveCardioLogInput, TodayExerciseOption, TodayViewData } from '@/f
 export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<TodayViewData> {
     const data = await getTodayViewRepository(dateISO, dayOfWeek)
     const skippedExerciseIds = new Set(data.sessionExerciseSkips.map((skip) => skip.exercise_id))
+    const validTargetByExerciseId = data.sessionExerciseTargets.reduce<Map<string, number>>((accumulator, target) => {
+        accumulator.set(target.exercise_id, target.valid_sets)
+        return accumulator
+    }, new Map())
     const substitutionByOriginalExerciseId = data.sessionExerciseSubstitutions.reduce<Map<string, typeof data.sessionExerciseSubstitutions[number]>>((accumulator, substitution) => {
         accumulator.set(substitution.original_exercise_id, substitution)
         return accumulator
@@ -45,6 +50,12 @@ export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<
         const originalExerciseName = workoutExercise.exercises?.display_name ?? '(deleted)'
         const existingSets = data.setLogs.filter((setLog) => setLog.exercise_id === effectiveExerciseId)
         const prevSetsForExercise = data.previousSetLogs.filter((setLog) => setLog.exercise_id === effectiveExerciseId)
+        const savedSetCount = existingSets.reduce((accumulator, setLog) => Math.max(accumulator, setLog.set_number), 0)
+        const desiredTargetSets = validTargetByExerciseId.get(workoutExercise.exercise_id) ?? workoutExercise.target_sets
+        const effectiveTargetSets = Math.min(
+            workoutExercise.target_sets,
+            Math.max(desiredTargetSets, savedSetCount || 1)
+        )
 
         return {
             exerciseId: effectiveExerciseId,
@@ -57,7 +68,8 @@ export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<
                     replacementExerciseName: substitution.replacement.display_name,
                 }
                 : null,
-            targetSets: workoutExercise.target_sets,
+            targetSets: effectiveTargetSets,
+            plannedTargetSets: workoutExercise.target_sets,
             sets: Array.from({ length: workoutExercise.target_sets }, (_, index) => {
                 const existingSet = existingSets.find((setLog) => setLog.set_number === index + 1)
 
@@ -185,6 +197,26 @@ export async function saveSet(
     }
 
     return saveSetRepository({ sessionId, exerciseId, originalExerciseId, setNumber, weight, reps, setLogId })
+}
+
+export async function saveExerciseTargetSets(
+    sessionId: string,
+    exerciseId: string,
+    validSets: number,
+) {
+    if (!sessionId || !exerciseId) {
+        throw new Error('Session and exercise are required')
+    }
+
+    if (!Number.isInteger(validSets) || validSets < 1) {
+        throw new Error('Invalid valid sets value')
+    }
+
+    await saveExerciseTargetSetsRepository({
+        sessionId,
+        exerciseId,
+        validSets,
+    })
 }
 
 export async function saveSessionNotes(sessionId: string, notes: string) {

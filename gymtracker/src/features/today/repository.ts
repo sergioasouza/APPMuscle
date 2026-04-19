@@ -9,6 +9,7 @@ import {
 import {
   isMissingColumnError,
   isMissingTableError,
+  toMigrationRequiredError,
 } from "@/lib/supabase/schema-compat";
 import {
   requireAccessibleExercise,
@@ -50,6 +51,7 @@ import type {
   SessionCardioLog,
   SessionExerciseSkip,
   SessionExerciseSubstitution,
+  SessionExerciseTarget,
   Workout,
   WorkoutCardioBlock,
   WorkoutExercise,
@@ -174,6 +176,30 @@ async function listSessionExerciseSubstitutionsForSession(
 
     return [{ ...row, replacement }];
   });
+}
+
+async function listSessionExerciseTargetsForSession(
+  supabase: Awaited<ReturnType<typeof getAuthenticatedServerContext>>["supabase"],
+  sessionId: string | null,
+) {
+  if (!sessionId) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("session_exercise_targets")
+    .select("*")
+    .eq("session_id", sessionId);
+
+  if (error) {
+    if (isMissingTableError(error, "session_exercise_targets")) {
+      return [];
+    }
+
+    throw new Error(error.message);
+  }
+
+  return (data as SessionExerciseTarget[] | null) ?? [];
 }
 
 async function listSessionExerciseSkipsForSessions(
@@ -516,18 +542,21 @@ export async function getTodayViewRepository(
   let setLogs: SetLog[] = [];
   let sessionExerciseSkips: SessionExerciseSkip[] = [];
   let sessionExerciseSubstitutions: TodayExerciseSubstitution[] = [];
+  let sessionExerciseTargets: SessionExerciseTarget[] = [];
   let sessionCardioLogs: SessionCardioLog[] = [];
   let sessionCardioIntervals: SessionCardioInterval[] = [];
 
   if (session) {
     setLogs = allSetLogs.filter((setLog) => setLog.session_id === session.id);
-    const [exerciseSkips, exerciseSubstitutions, cardioData] = await Promise.all([
+    const [exerciseSkips, exerciseSubstitutions, exerciseTargets, cardioData] = await Promise.all([
       listSessionExerciseSkipsForSession(supabase, session.id),
       listSessionExerciseSubstitutionsForSession(supabase, user.id, session.id),
+      listSessionExerciseTargetsForSession(supabase, session.id),
       listSessionCardioLogsForSession(supabase, session.id),
     ]);
     sessionExerciseSkips = exerciseSkips;
     sessionExerciseSubstitutions = exerciseSubstitutions;
+    sessionExerciseTargets = exerciseTargets;
     sessionCardioLogs = cardioData.logs;
     sessionCardioIntervals = cardioData.intervals;
   }
@@ -570,6 +599,7 @@ export async function getTodayViewRepository(
     setLogs,
     sessionExerciseSkips,
     sessionExerciseSubstitutions,
+    sessionExerciseTargets,
     sessionCardioLogs,
     sessionCardioIntervals,
     previousSetLogs,
@@ -981,6 +1011,82 @@ async function countSetLogsForSessionExercises(input: {
   return count ?? 0;
 }
 
+export async function saveExerciseTargetSetsRepository(input: {
+  sessionId: string;
+  exerciseId: string;
+  validSets: number;
+}) {
+  const { supabase, user } = await getAuthenticatedServerContext();
+  const session = await requireOwnedWorkoutSession(supabase, user.id, input.sessionId);
+  const workoutExercise = await ensureExerciseBelongsToWorkoutSession({
+    supabase,
+    workoutId: session.workout_id,
+    exerciseId: input.exerciseId,
+  });
+
+  const plannedTargetSets = workoutExercise.target_sets;
+
+  if (input.validSets < 1 || input.validSets > plannedTargetSets) {
+    throw new Error("Valid sets must be between 1 and planned target sets");
+  }
+
+  const substitution = await getSessionExerciseSubstitution(
+    supabase,
+    input.sessionId,
+    input.exerciseId,
+  );
+  const completedSetCount = await countSetLogsForSessionExercises({
+    supabase,
+    sessionId: input.sessionId,
+    exerciseIds: [
+      input.exerciseId,
+      ...(substitution ? [substitution.replacement_exercise_id] : []),
+    ],
+  });
+
+  if (input.validSets < completedSetCount) {
+    throw new Error("Cannot reduce valid sets below completed sets");
+  }
+
+  if (input.validSets === plannedTargetSets) {
+    const { error } = await supabase
+      .from("session_exercise_targets")
+      .delete()
+      .eq("session_id", input.sessionId)
+      .eq("exercise_id", input.exerciseId);
+
+    if (error) {
+      if (isMissingTableError(error, "session_exercise_targets")) {
+        throw toMigrationRequiredError("Today workout adjustments");
+      }
+
+      throw new Error(error.message);
+    }
+
+    return;
+  }
+
+  const { error } = await supabase
+    .from("session_exercise_targets")
+    .upsert(
+      {
+        session_id: input.sessionId,
+        exercise_id: input.exerciseId,
+        valid_sets: input.validSets,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "session_id,exercise_id" },
+    );
+
+  if (error) {
+    if (isMissingTableError(error, "session_exercise_targets")) {
+      throw toMigrationRequiredError("Today workout adjustments");
+    }
+
+    throw new Error(error.message);
+  }
+}
+
 export async function saveSessionNotesRepository(
   sessionId: string,
   notes: string,
@@ -1010,7 +1116,7 @@ async function ensureExerciseBelongsToWorkoutSession(input: {
 }) {
   const { data, error } = await input.supabase
     .from("workout_exercises")
-    .select("id")
+    .select("id, target_sets")
     .eq("workout_id", input.workoutId)
     .eq("exercise_id", input.exerciseId)
     .maybeSingle();
@@ -1022,6 +1128,8 @@ async function ensureExerciseBelongsToWorkoutSession(input: {
   if (!data) {
     throw new Error("Exercise is not part of this workout");
   }
+
+  return data;
 }
 
 async function ensureExerciseDoesNotBelongToWorkoutSession(input: {
