@@ -17,8 +17,26 @@ export default defineConfig({
     },
     projects: [
         {
-            name: 'chromium',
-            use: { ...devices['Desktop Chrome'] },
+            name: 'setup',
+            testMatch: /auth\.setup\.ts/,
+        },
+        {
+            name: 'desktop-chrome',
+            testIgnore: /auth\.setup\.ts/,
+            dependencies: ['setup'],
+            use: {
+                ...devices['Desktop Chrome'],
+                viewport: { width: 1440, height: 900 },
+            },
+        },
+        {
+            name: 'mobile-chrome',
+            testIgnore: /auth\.setup\.ts/,
+            dependencies: ['setup'],
+            use: {
+                ...devices['Pixel 5'],
+                viewport: { width: 390, height: 844 },
+            },
         },
     ],
     webServer: process.env.E2E_BASE_URL
