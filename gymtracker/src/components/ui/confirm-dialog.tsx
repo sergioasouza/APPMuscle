@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { Button } from '@/components/ui/button'
+import { Surface } from '@/components/ui/surface'
 
 interface ConfirmDialogProps {
     open: boolean
@@ -26,6 +28,70 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
     const t = useTranslations('Common')
     const [loading, setLoading] = useState(false)
+    const titleId = useId()
+    const descriptionId = useId()
+    const panelRef = useRef<HTMLDivElement>(null)
+    const lastFocusedElementRef = useRef<HTMLElement | null>(null)
+
+    useEffect(() => {
+        if (!open) {
+            return
+        }
+
+        lastFocusedElementRef.current = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null
+
+        const focusableSelector = [
+            'button:not([disabled])',
+            '[href]',
+            'input:not([disabled])',
+            'select:not([disabled])',
+            'textarea:not([disabled])',
+            '[tabindex]:not([tabindex="-1"])',
+        ].join(',')
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && !loading) {
+                onCancel()
+                return
+            }
+
+            if (event.key !== 'Tab' || !panelRef.current) {
+                return
+            }
+
+            const focusableElements = Array.from(
+                panelRef.current.querySelectorAll<HTMLElement>(focusableSelector),
+            )
+
+            if (focusableElements.length === 0) {
+                return
+            }
+
+            const firstElement = focusableElements[0]
+            const lastElement = focusableElements[focusableElements.length - 1]
+
+            if (event.shiftKey && document.activeElement === firstElement) {
+                event.preventDefault()
+                lastElement.focus()
+            } else if (!event.shiftKey && document.activeElement === lastElement) {
+                event.preventDefault()
+                firstElement.focus()
+            }
+        }
+
+        window.setTimeout(() => {
+            panelRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus()
+        }, 0)
+
+        document.addEventListener('keydown', handleKeyDown)
+
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown)
+            lastFocusedElementRef.current?.focus()
+        }
+    }, [loading, onCancel, open])
 
     if (!open) return null
 
@@ -40,41 +106,41 @@ export function ConfirmDialog({
 
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-            {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
                 onClick={onCancel}
             />
 
-            {/* Dialog */}
-            <div className="relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-sm p-6
-        animate-[slideUp_0.2s_ease-out] shadow-2xl">
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">{title}</h3>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">{description}</p>
+            <Surface
+                ref={panelRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                aria-describedby={descriptionId}
+                className="relative w-full max-w-sm animate-[slideUp_0.2s_ease-out] p-6"
+            >
+                <h3 id={titleId} className="text-lg font-semibold text-zinc-900 dark:text-white">{title}</h3>
+                <p id={descriptionId} className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">{description}</p>
 
                 <div className="flex gap-3 mt-6">
-                    <button
+                    <Button
                         onClick={onCancel}
                         disabled={loading}
-                        className="flex-1 py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium rounded-xl
-              hover:bg-zinc-700 transition-colors active:scale-[0.98]"
+                        variant="secondary"
+                        className="flex-1"
                     >
                         {cancelLabel ?? t('cancel')}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={handleConfirm}
                         disabled={loading}
-                        className={`flex-1 py-3 font-medium rounded-xl transition-colors active:scale-[0.98]
-              disabled:opacity-50
-              ${variant === 'danger'
-                                ? 'bg-red-600 text-zinc-900 dark:text-white hover:bg-red-500'
-                                : 'bg-violet-600 text-zinc-900 dark:text-white hover:bg-violet-500'
-                            }`}
+                        variant={variant === 'danger' ? 'danger' : 'primary'}
+                        className="flex-1"
                     >
                         {loading ? t('loading') : (confirmLabel ?? t('confirm'))}
-                    </button>
+                    </Button>
                 </div>
-            </div>
+            </Surface>
         </div>
     )
 }

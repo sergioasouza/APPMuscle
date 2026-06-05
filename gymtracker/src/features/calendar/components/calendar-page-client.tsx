@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { PageHeader, PageShell, StatusPill, Surface } from '@/components/ui/surface'
 import { useToast } from '@/components/ui/toast'
 import {
     deleteWorkoutSessionFromCalendarAction,
@@ -710,39 +711,46 @@ export function CalendarPageClient({
 
     if (loading) {
         return (
-            <div className="px-4 pt-6 pb-8">
+            <PageShell>
                 <div className="h-8 w-32 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse mb-4" />
-                <div className="h-72 bg-white dark:bg-zinc-900 rounded-2xl animate-pulse" />
-            </div>
+                <Surface className="h-72 animate-pulse" />
+            </PageShell>
         )
     }
 
     return (
-        <div className="px-4 pt-6 pb-24">
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-4">{t('Calendar.title')}</h1>
+        <PageShell size="wide">
+            <PageHeader
+                eyebrow={t('Calendar.eyebrow')}
+                title={t('Calendar.title')}
+                description={t('Calendar.description')}
+                actions={<StatusPill>{monthName}</StatusPill>}
+            />
 
-            <div className="flex items-center justify-between mb-4">
-                <button onClick={prevMonth} className="p-2 text-zinc-600 dark:text-zinc-400 hover:text-white transition-colors">
+            <Surface className="mt-6 p-4">
+            <div className="flex items-center justify-between">
+                <button aria-label={t('Calendar.previousMonth')} onClick={prevMonth} className="app-icon-button">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                     </svg>
                 </button>
-                <h2 className="text-base font-semibold text-zinc-900 dark:text-white">{monthName}</h2>
-                <button onClick={nextMonth} className="p-2 text-zinc-600 dark:text-zinc-400 hover:text-white transition-colors">
+                <h2 className="text-lg font-black text-zinc-950 dark:text-white">{monthName}</h2>
+                <button aria-label={t('Calendar.nextMonth')} onClick={nextMonth} className="app-icon-button">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     </svg>
                 </button>
             </div>
+            </Surface>
 
-            <div className="mb-4 space-y-3">
+            <div className="my-6 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
                 {weeklySummaries.map((summary) => {
                     const adherencePercentage = summary.adherenceRate == null
                         ? null
                         : Math.round(summary.adherenceRate * 100)
 
                     return (
-                        <div key={summary.weekIndex} className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800/50 dark:bg-zinc-900">
+                        <Surface key={summary.weekIndex} className="p-4">
                             <div className="flex items-start justify-between gap-3">
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
@@ -768,13 +776,13 @@ export function CalendarPageClient({
                             </div>
 
                             <div className="mt-3 grid grid-cols-2 gap-3">
-                                <div className="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/70">
+                                <div className="rounded-2xl bg-zinc-50 p-3 dark:bg-white/5">
                                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{t('Calendar.completedPlanned')}</p>
                                     <p className="mt-1 text-lg font-bold text-zinc-900 dark:text-white">
                                         {summary.completedCount}/{summary.elapsedScheduledCount || summary.scheduledCount}
                                     </p>
                                 </div>
-                                <div className="rounded-xl bg-zinc-50 p-3 dark:bg-zinc-800/70">
+                                <div className="rounded-2xl bg-zinc-50 p-3 dark:bg-white/5">
                                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{t('Calendar.weeklyVolume')}</p>
                                     <p className="mt-1 text-lg font-bold text-zinc-900 dark:text-white">
                                         {summary.totalVolume.toLocaleString()}
@@ -788,12 +796,12 @@ export function CalendarPageClient({
                                 <span>{t('Calendar.upcomingCount', { count: summary.upcomingCount })}</span>
                                 <span>{t('Calendar.movedCount', { count: summary.movedCount })}</span>
                             </div>
-                        </div>
+                        </Surface>
                     )
                 })}
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/50 rounded-2xl p-3 mb-4">
+            <Surface className="p-3 mb-4">
                 <div className="grid grid-cols-7 gap-1 mb-1">
                     {dayNamesShort.map((dayName) => (
                         <div key={dayName} className="text-center text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 py-1">
@@ -888,7 +896,7 @@ export function CalendarPageClient({
                         )
                     })}
                 </div>
-            </div>
+            </Surface>
 
             <div className="flex flex-wrap gap-3 mb-4 px-1">
                 <div className="flex items-center gap-1.5">
@@ -924,6 +932,6 @@ export function CalendarPageClient({
                 onConfirm={handleDeleteSession}
                 onCancel={() => setShowDeleteDialog(false)}
             />
-        </div>
+        </PageShell>
     )
 }

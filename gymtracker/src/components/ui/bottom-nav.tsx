@@ -11,8 +11,8 @@ export function BottomNav() {
     const t = useTranslations('Nav')
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-50 dark:bg-zinc-950/80 backdrop-blur-xl border-t border-zinc-200 dark:border-zinc-800/50">
-            <div className="flex items-center justify-around max-w-lg mx-auto pb-safe">
+        <nav aria-label={t('mainNavigation')} className="fixed bottom-3 left-0 right-0 z-40 px-2 sm:bottom-4 sm:px-6">
+            <div className="app-panel mx-auto grid max-w-2xl grid-cols-6 items-stretch gap-1 px-1 pb-safe sm:gap-2 sm:px-2">
                 {bottomNavItems.map((tab) => {
                     const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`)
                     const Icon = tab.icon
@@ -21,15 +21,16 @@ export function BottomNav() {
                         <Link
                             key={tab.key}
                             href={tab.href}
+                            aria-current={isActive ? 'page' : undefined}
                             className={cn(
-                                'flex flex-col items-center gap-0.5 pt-2 pb-1 px-3 min-w-[4rem] transition-colors',
+                                'flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 pb-2 pt-3 text-center transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/25 sm:px-3',
                                 isActive
                                     ? 'text-violet-400'
                                     : 'text-zinc-500 dark:text-zinc-400 active:text-zinc-300'
                             )}
                         >
-                            <Icon className="h-5 w-5" strokeWidth={2} />
-                            <span className="text-[10px] font-medium">{t(tab.key)}</span>
+                            <Icon className="h-5 w-5 shrink-0" strokeWidth={2} />
+                            <span className="max-w-full truncate text-[9px] font-semibold uppercase tracking-[0.08em] sm:text-[10px] sm:tracking-[0.14em]">{t(tab.key)}</span>
                         </Link>
                     )
                 })}

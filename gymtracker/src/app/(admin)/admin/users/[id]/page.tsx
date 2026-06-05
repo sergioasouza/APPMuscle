@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AdminUserDetailPageClient } from '@/features/admin/components/admin-user-detail-page-client'
 import { getAdminUserDetail } from '@/features/admin/service'
+import { getCurrentReferenceMonth } from '@/features/admin/utils'
 
 interface AdminUserDetailPageProps {
     params: Promise<{ id: string }>
@@ -29,7 +30,10 @@ export default async function AdminUserDetailPage({
             >
                 Voltar para usuários
             </Link>
-            <AdminUserDetailPageClient detail={detail} />
+            <AdminUserDetailPageClient
+                detail={detail}
+                currentReferenceMonth={getCurrentReferenceMonth()}
+            />
         </div>
     )
 }

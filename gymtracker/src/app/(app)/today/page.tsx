@@ -1,4 +1,6 @@
 import { TodayPageClient } from "@/features/today/components/today-page-client";
+import { TodayDashboardSummaryPanel } from "@/features/today/components/today-dashboard-summary";
+import { getTodayDashboardSummary } from "@/features/today/dashboard-summary";
 import { getTodayView } from "@/features/today/service";
 import type { TodayViewData } from "@/features/today/types";
 import { getTodayInTimezone } from "@/lib/utils";
@@ -51,9 +53,14 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   }
 
   let initialData: TodayViewData;
+  let dashboardSummary = null;
 
   try {
     initialData = await getTodayView(dateISO, dayOfWeek);
+    dashboardSummary = await getTodayDashboardSummary({
+      dateISO,
+      currentWorkoutName: initialData.workout?.name ?? null,
+    });
   } catch (error) {
     console.error("TodayPage/getTodayView failed", {
       dateISO,
@@ -74,11 +81,14 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   }
 
   return (
-    <TodayPageClient
-      dateISO={dateISO}
-      dayOfWeek={dayOfWeek}
-      isHistorical={!!dateParam}
-      initialData={initialData}
-    />
+    <>
+      {dashboardSummary ? <TodayDashboardSummaryPanel summary={dashboardSummary} /> : null}
+      <TodayPageClient
+        dateISO={dateISO}
+        dayOfWeek={dayOfWeek}
+        isHistorical={!!dateParam}
+        initialData={initialData}
+      />
+    </>
   );
 }

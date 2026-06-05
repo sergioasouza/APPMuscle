@@ -5,6 +5,7 @@ import {
   getAccessibleExerciseRecord,
   resolveExercisesForUser,
 } from "@/lib/supabase/exercises";
+import { requireOwnedWorkout } from "@/lib/supabase/ownership";
 import type {
   SetLog,
   WorkoutExerciseWithExercise,
@@ -13,6 +14,8 @@ import type {
 
 export async function getWorkoutAnalyticsRepository(workoutId: string) {
   const { supabase, user } = await getAuthenticatedServerContext();
+
+  await requireOwnedWorkout(supabase, user.id, workoutId);
 
   const [workoutExercisesResult, sessionsResult] = await Promise.all([
     supabase

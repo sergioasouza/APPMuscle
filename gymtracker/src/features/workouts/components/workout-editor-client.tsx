@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { FieldLabel, Input } from "@/components/ui/fields";
+import { EmptyState, PageHeader, PageShell, StatusPill, Surface } from "@/components/ui/surface";
 import { useToast } from "@/components/ui/toast";
 import {
   addExistingExerciseToWorkoutAction,
@@ -12,6 +15,7 @@ import {
   checkExerciseHasLogsAction,
   createExerciseAndAddToWorkoutAction,
   createWorkoutCardioBlockAction,
+  duplicateWorkoutAction,
   deleteWorkoutCardioBlockAction,
   deleteWorkoutExerciseAction,
   listAvailableExercisesAction,
@@ -95,6 +99,7 @@ export function WorkoutEditorClient({
   const [savingCardioById, setSavingCardioById] = useState<Record<string, boolean>>({});
   const [cardioDraftsById, setCardioDraftsById] = useState<Record<string, { name: string; hours: string; minutes: string }>>({});
   const [deletingCardioId, setDeletingCardioId] = useState<string | null>(null);
+  const [duplicatingWorkout, setDuplicatingWorkout] = useState(false);
   const latestNameMutationRef = useRef<string | null>(null);
   const latestSetMutationByExerciseRef = useRef<Record<string, string>>({});
   const latestReorderMutationRef = useRef<string | null>(null);
@@ -598,11 +603,35 @@ export function WorkoutEditorClient({
     showToast(t("Workouts.toastCardioRemoved"));
   }
 
+  async function handleSaveAsVariant() {
+    if (duplicatingWorkout || savingName) {
+      return;
+    }
+
+    if (workoutName.trim() !== originalName) {
+      await handleSaveName();
+    }
+
+    setDuplicatingWorkout(true);
+    const result = await duplicateWorkoutAction(initialWorkout.id);
+    setDuplicatingWorkout(false);
+
+    if (!result.ok || !result.data) {
+      showToast(result.message ?? "Unable to duplicate workout", "error");
+      return;
+    }
+
+    showToast(t("Workouts.toastDuplicated", { name: result.data.name }));
+    router.push(`/workouts/${result.data.id}`);
+  }
+
   return (
-    <div className="px-4 pt-6 pb-8">
-      <button
+    <PageShell>
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => router.push("/workouts")}
-        className="flex items-center gap-1 text-sm text-zinc-600 dark:text-zinc-400 hover:text-white transition-colors mb-4"
+        className="mb-4"
       >
         <svg
           className="w-4 h-4"
@@ -610,6 +639,7 @@ export function WorkoutEditorClient({
           viewBox="0 0 24 24"
           strokeWidth={2}
           stroke="currentColor"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"
@@ -618,19 +648,43 @@ export function WorkoutEditorClient({
           />
         </svg>
         {t("Workouts.back")}
-      </button>
+      </Button>
 
-      <div className="flex items-center gap-2 mb-6">
-        <input
-          type="text"
-          value={workoutName}
-          onChange={(event) => setWorkoutName(event.target.value)}
-          onBlur={handleSaveName}
-          disabled={savingName}
-          className="text-2xl font-bold text-zinc-900 dark:text-white bg-transparent border-b-2 border-transparent
-            focus:border-violet-600 focus:outline-none transition-colors flex-1 py-1 disabled:opacity-70 disabled:cursor-not-allowed"
+      <Surface className="mb-6 p-5">
+        <PageHeader
+          eyebrow={t("Workouts.editorEyebrow")}
+          title={originalName}
+          description={t("Workouts.editorDescription")}
+          actions={(
+            <>
+              <StatusPill>{workoutExercises.length} {t("Workouts.itemsCount")}</StatusPill>
+              <Button
+                variant="secondary"
+                size="lg"
+                disabled={duplicatingWorkout || savingName}
+                onClick={handleSaveAsVariant}
+                className="w-full lg:w-auto"
+              >
+                {duplicatingWorkout
+                  ? t("Workouts.duplicating")
+                  : t("Workouts.saveAsVariant")}
+              </Button>
+            </>
+          )}
         />
-      </div>
+        <div className="mt-5 max-w-2xl">
+          <FieldLabel htmlFor="workout-editor-name">{t("Workouts.editorNameLabel")}</FieldLabel>
+          <Input
+            id="workout-editor-name"
+            type="text"
+            value={workoutName}
+            onChange={(event) => setWorkoutName(event.target.value)}
+            onBlur={handleSaveName}
+            disabled={savingName}
+            className="text-lg font-bold"
+          />
+        </div>
+      </Surface>
 
       <WorkoutsSectionNav />
 
@@ -644,11 +698,11 @@ export function WorkoutEditorClient({
       </div>
 
       {workoutExercises.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 border-dashed rounded-2xl p-8 text-center mb-4">
-          <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-3">
-            {t("Workouts.noExercises")}
-          </p>
-        </div>
+        <EmptyState
+          className="mb-4"
+          title={t("Workouts.noExercises")}
+          description={t("Workouts.addExercise")}
+        />
       ) : (
         <div className="space-y-3 mb-4">
           {workoutExercises.map((workoutExercise, index) =>
@@ -658,9 +712,9 @@ export function WorkoutEditorClient({
                 checkingLogsForId === workoutExercise.exercises?.id;
 
               return (
-                <div
+                <Surface
                   key={workoutExercise.id}
-                  className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/50 rounded-2xl p-4"
+                  className="p-4"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -743,6 +797,7 @@ export function WorkoutEditorClient({
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-1">
                         <button
+                          aria-label={t("Workouts.moveExerciseUp", { name: workoutExercise.exercises?.display_name ?? t("Workouts.exerciseNoExtraMeta") })}
                           onClick={() => handleReorder(index, "up")}
                           disabled={index === 0 || reordering}
                           className="p-1.5 text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 hover:text-white disabled:opacity-20 disabled:hover:text-zinc-600 transition-colors"
@@ -762,6 +817,7 @@ export function WorkoutEditorClient({
                           </svg>
                         </button>
                         <button
+                          aria-label={t("Workouts.moveExerciseDown", { name: workoutExercise.exercises?.display_name ?? t("Workouts.exerciseNoExtraMeta") })}
                           onClick={() => handleReorder(index, "down")}
                           disabled={
                             index === workoutExercises.length - 1 || reordering
@@ -783,6 +839,7 @@ export function WorkoutEditorClient({
                           </svg>
                         </button>
                         <button
+                          aria-label={t("Workouts.removeExerciseAction", { name: workoutExercise.exercises?.display_name ?? t("Workouts.exerciseNoExtraMeta") })}
                           disabled={
                             removingExercise ||
                             archivingExercise ||
@@ -832,7 +889,7 @@ export function WorkoutEditorClient({
                       </div>
                     </div>
                   </div>
-                </div>
+                </Surface>
               );
             })(),
           )}
@@ -1135,8 +1192,13 @@ export function WorkoutEditorClient({
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={handleCloseDeleteDialog}
           />
-          <div className="relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-sm p-6 animate-[slideUp_0.2s_ease-out] shadow-2xl">
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
+          <Surface
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="workout-archive-exercise-title"
+            className="relative w-full max-w-sm animate-[slideUp_0.2s_ease-out] p-6"
+          >
+            <h3 id="workout-archive-exercise-title" className="text-lg font-semibold text-zinc-900 dark:text-white">
               {t("Workouts.archiveExerciseTitle")}
             </h3>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2">
@@ -1146,31 +1208,34 @@ export function WorkoutEditorClient({
               )}
             </p>
             <div className="flex flex-col gap-2 mt-6">
-              <button
+              <Button
+                variant="secondary"
                 onClick={handleArchiveAndRemoveExercise}
                 disabled={archivingExercise || removingExercise}
-                className="w-full py-3 bg-amber-500 text-zinc-900 font-medium rounded-xl hover:bg-amber-400 transition-colors active:scale-[0.98] disabled:opacity-50"
+                className="w-full border-amber-500/30 bg-amber-500/12 text-amber-700 hover:bg-amber-500/18 dark:text-amber-200"
               >
-                📦 {t("Workouts.archiveAndRemove")}
-              </button>
-              <button
+                {t("Workouts.archiveAndRemove")}
+              </Button>
+              <Button
+                variant="danger"
                 onClick={handleRemoveExercise}
                 disabled={archivingExercise || removingExercise}
-                className="w-full py-3 bg-red-600 text-white font-medium rounded-xl hover:bg-red-500 transition-colors active:scale-[0.98] disabled:opacity-50"
+                className="w-full"
               >
                 {t("Workouts.removeOnly")}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="secondary"
                 onClick={handleCloseDeleteDialog}
                 disabled={archivingExercise || removingExercise}
-                className="w-full py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors active:scale-[0.98] disabled:opacity-50"
+                className="w-full"
               >
                 {t("Common.cancel")}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Surface>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

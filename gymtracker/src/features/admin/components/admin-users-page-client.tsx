@@ -14,6 +14,7 @@ import type {
 interface AdminUsersPageClientProps {
     initialUsers: AdminUserListItem[]
     initialQuery: AdminUserListQuery
+    todayISO: string
 }
 
 const emptyDraft: AdminCreateUserInput = {
@@ -41,6 +42,7 @@ function formatDate(value: string | null) {
 export function AdminUsersPageClient({
     initialUsers,
     initialQuery,
+    todayISO,
 }: AdminUsersPageClientProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -52,26 +54,23 @@ export function AdminUsersPageClient({
     const [draft, setDraft] = useState<AdminCreateUserInput>(emptyDraft)
     const [creating, setCreating] = useState(false)
 
-    const todayISO = new Date().toISOString().slice(0, 10)
-
     const stats = useMemo(() => {
+        const isActiveUser = (user: AdminUserListItem) =>
+            user.role === 'admin' ||
+            (user.accessStatus === 'active' &&
+                (user.memberAccessMode === 'internal' ||
+                    (user.memberAccessMode === 'billable' &&
+                        user.paidUntil != null &&
+                        user.paidUntil >= todayISO) ||
+                    (user.memberAccessMode === 'trial' &&
+                        user.trialEndsAt != null &&
+                        user.trialEndsAt >= todayISO)))
+
         return {
             total: initialUsers.length,
             admins: initialUsers.filter((user) => user.role === 'admin').length,
-            active: initialUsers.filter(
-                (user) =>
-                    user.role === 'admin' ||
-                    (user.accessStatus === 'active' &&
-                        user.paidUntil != null &&
-                        user.paidUntil >= todayISO),
-            ).length,
-            blocked: initialUsers.filter(
-                (user) =>
-                    user.role === 'member' &&
-                    (user.accessStatus === 'blocked' ||
-                        user.paidUntil == null ||
-                        user.paidUntil < todayISO),
-            ).length,
+            active: initialUsers.filter(isActiveUser).length,
+            blocked: initialUsers.filter((user) => !isActiveUser(user)).length,
         }
     }, [initialUsers, todayISO])
 

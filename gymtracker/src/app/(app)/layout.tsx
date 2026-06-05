@@ -40,8 +40,8 @@ export default async function AppLayout({
 
     return (
         <ToastProvider>
-            <div className="min-h-dvh pb-20">
-                <main>{children}</main>
+            <div className="min-h-dvh pb-24 pt-safe">
+                <main className="mx-auto w-full max-w-7xl">{children}</main>
                 <BottomNav />
             </div>
         </ToastProvider>

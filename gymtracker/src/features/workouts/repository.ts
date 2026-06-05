@@ -510,6 +510,135 @@ export async function createWorkoutRepository(
   return data;
 }
 
+function buildWorkoutVariantName(workoutName: string, existingNames: string[]) {
+  const normalizedNames = new Set(existingNames);
+  const baseVariantName = `${workoutName} • Variante`;
+
+  if (!normalizedNames.has(baseVariantName)) {
+    return baseVariantName;
+  }
+
+  let index = 2;
+
+  while (normalizedNames.has(`${baseVariantName} ${index}`)) {
+    index += 1;
+  }
+
+  return `${baseVariantName} ${index}`;
+}
+
+export async function duplicateWorkoutRepository(
+  workoutId: string,
+  nextName?: string | null,
+): Promise<WorkoutListItem> {
+  const { supabase, user } = await getAuthenticatedServerContext();
+  await requireOwnedWorkout(supabase, user.id, workoutId);
+
+  const [sourceWorkoutResult, sourceExercisesResult, sourceCardioBlocksResult, existingWorkoutsResult] =
+    await Promise.all([
+      supabase
+        .from("workouts")
+        .select("id, name")
+        .eq("id", workoutId)
+        .eq("user_id", user.id)
+        .single(),
+      supabase
+        .from("workout_exercises")
+        .select("exercise_id, target_sets, display_order")
+        .eq("workout_id", workoutId)
+        .order("display_order"),
+      supabase
+        .from("workout_cardio_blocks")
+        .select("name, target_duration_minutes, display_order")
+        .eq("workout_id", workoutId)
+        .order("display_order"),
+      supabase.from("workouts").select("name").eq("user_id", user.id),
+    ]);
+
+  if (sourceWorkoutResult.error) {
+    throw new Error(sourceWorkoutResult.error.message);
+  }
+
+  if (sourceExercisesResult.error) {
+    throw new Error(sourceExercisesResult.error.message);
+  }
+
+  if (sourceCardioBlocksResult.error) {
+    throw new Error(sourceCardioBlocksResult.error.message);
+  }
+
+  if (existingWorkoutsResult.error) {
+    throw new Error(existingWorkoutsResult.error.message);
+  }
+
+  const duplicateWorkoutName =
+    nextName?.trim() ||
+    buildWorkoutVariantName(
+      sourceWorkoutResult.data.name,
+      (existingWorkoutsResult.data ?? []).map((workout) => workout.name),
+    );
+
+  const { data: duplicatedWorkout, error: duplicatedWorkoutError } = await supabase
+    .from("workouts")
+    .insert({
+      user_id: user.id,
+      name: duplicateWorkoutName,
+    })
+    .select("*")
+    .single();
+
+  if (duplicatedWorkoutError) {
+    throw new Error(duplicatedWorkoutError.message);
+  }
+
+  const sourceExercises =
+    (sourceExercisesResult.data as Pick<
+      WorkoutExercise,
+      "exercise_id" | "target_sets" | "display_order"
+    >[] | null) ?? [];
+  const sourceCardioBlocks =
+    (sourceCardioBlocksResult.data as Pick<
+      WorkoutCardioBlock,
+      "name" | "target_duration_minutes" | "display_order"
+    >[] | null) ?? [];
+
+  if (sourceExercises.length > 0) {
+    const { error: duplicatedExercisesError } = await supabase
+      .from("workout_exercises")
+      .insert(
+        sourceExercises.map((exercise) => ({
+          workout_id: duplicatedWorkout.id,
+          exercise_id: exercise.exercise_id,
+          target_sets: exercise.target_sets,
+          display_order: exercise.display_order,
+        })),
+      );
+
+    if (duplicatedExercisesError) {
+      throw new Error(duplicatedExercisesError.message);
+    }
+  }
+
+  if (sourceCardioBlocks.length > 0) {
+    const { error: duplicatedCardioBlocksError } = await supabase
+      .from("workout_cardio_blocks")
+      .insert(
+        sourceCardioBlocks.map((cardioBlock) => ({
+          workout_id: duplicatedWorkout.id,
+          name: cardioBlock.name,
+          target_duration_minutes: cardioBlock.target_duration_minutes,
+          display_order: cardioBlock.display_order,
+        })),
+      );
+
+    if (duplicatedCardioBlocksError) {
+      throw new Error(duplicatedCardioBlocksError.message);
+    }
+  }
+
+  return duplicatedWorkout;
+}
+
 export async function deleteWorkoutRepository(
   workoutId: string,
 ): Promise<void> {

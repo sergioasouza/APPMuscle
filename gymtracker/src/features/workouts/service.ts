@@ -9,6 +9,7 @@ import {
   createExerciseRepository,
   createWorkoutCardioBlockRepository,
   createWorkoutRepository,
+  duplicateWorkoutRepository,
   deleteWorkoutExerciseRepository,
   deleteWorkoutRepository,
   getExerciseDetailRepository,
@@ -35,6 +36,7 @@ import type {
   ExerciseLibrarySourceFilter,
   WorkoutCardioDraftInput,
 } from "@/features/workouts/types";
+import { assertIntegerInRange } from "@/lib/validation";
 
 export const EXERCISE_LIBRARY_PAGE_SIZE_OPTIONS = [10, 20, 30] as const;
 export const DEFAULT_EXERCISE_LIBRARY_PAGE_SIZE =
@@ -185,6 +187,16 @@ export async function createWorkout(name: string) {
   return createWorkoutRepository(normalizedName);
 }
 
+export async function duplicateWorkout(workoutId: string, nextName?: string) {
+  const normalizedName = nextName?.trim();
+
+  if (!workoutId) {
+    throw new Error("Workout id is required");
+  }
+
+  return duplicateWorkoutRepository(workoutId, normalizedName);
+}
+
 export async function createExercise(name: string) {
   return createExerciseFromInput({ name });
 }
@@ -286,9 +298,7 @@ export async function updateWorkoutExerciseTargetSets(
     throw new Error("Workout exercise id is required");
   }
 
-  if (targetSets < 1 || targetSets > 20) {
-    throw new Error("Target sets must be between 1 and 20");
-  }
+  assertIntegerInRange(targetSets, "Target sets", 1, 20);
 
   await updateWorkoutExerciseTargetSetsRepository(
     workoutExerciseId,
@@ -376,11 +386,14 @@ export async function createWorkoutCardioBlock(
   }
 
   if (
-    normalizedInput.targetDurationMinutes != null &&
-    (normalizedInput.targetDurationMinutes < 1 ||
-      normalizedInput.targetDurationMinutes > 1440)
+    normalizedInput.targetDurationMinutes != null
   ) {
-    throw new Error("Cardio target duration must be between 1 and 1440 minutes");
+    assertIntegerInRange(
+      normalizedInput.targetDurationMinutes,
+      "Cardio target duration",
+      1,
+      1440,
+    );
   }
 
   return createWorkoutCardioBlockRepository(workoutId, normalizedInput);
@@ -401,11 +414,14 @@ export async function updateWorkoutCardioBlock(
   }
 
   if (
-    normalizedInput.targetDurationMinutes != null &&
-    (normalizedInput.targetDurationMinutes < 1 ||
-      normalizedInput.targetDurationMinutes > 1440)
+    normalizedInput.targetDurationMinutes != null
   ) {
-    throw new Error("Cardio target duration must be between 1 and 1440 minutes");
+    assertIntegerInRange(
+      normalizedInput.targetDurationMinutes,
+      "Cardio target duration",
+      1,
+      1440,
+    );
   }
 
   return updateWorkoutCardioBlockRepository(

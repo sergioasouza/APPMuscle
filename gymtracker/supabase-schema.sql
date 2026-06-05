@@ -10,21 +10,25 @@ CREATE TABLE public.profiles (
   rotation_anchor_date DATE,
   role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('member', 'admin')),
   access_status TEXT NOT NULL DEFAULT 'active' CHECK (access_status IN ('active', 'blocked')),
+  member_access_mode TEXT NOT NULL DEFAULT 'internal' CHECK (member_access_mode IN ('internal', 'billable', 'trial')),
+  billing_day_of_month INTEGER CHECK (billing_day_of_month IS NULL OR billing_day_of_month BETWEEN 1 AND 31),
+  billing_grace_business_days INTEGER NOT NULL DEFAULT 0 CHECK (billing_grace_business_days BETWEEN 0 AND 10),
   paid_until DATE,
+  trial_ends_at DATE,
   must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
   created_by_admin_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT profiles_trial_configuration_check CHECK (
+    (member_access_mode = 'trial' AND trial_ends_at IS NOT NULL)
+    OR member_access_mode <> 'trial'
+  )
 );
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view own profile"
   ON public.profiles FOR SELECT
-  USING (auth.uid() = id);
-
-CREATE POLICY "Users can update own profile"
-  ON public.profiles FOR UPDATE
   USING (auth.uid() = id);
 
 CREATE POLICY "Users can insert own profile"
@@ -35,11 +39,37 @@ CREATE POLICY "Users can insert own profile"
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, display_name)
+  INSERT INTO public.profiles (
+    id,
+    display_name,
+    role,
+    access_status,
+    paid_until,
+    must_change_password,
+    created_by_admin_id,
+    updated_at
+  )
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(NEW.email, '@', 1))
-  );
+    COALESCE(NULLIF(NEW.raw_user_meta_data->>'display_name', ''), split_part(NEW.email, '@', 1), 'User'),
+    CASE
+      WHEN lower(COALESCE(NULLIF(NEW.raw_user_meta_data->>'role', ''), 'member')) = 'admin' THEN 'admin'
+      ELSE 'member'
+    END,
+    CASE
+      WHEN lower(COALESCE(NULLIF(NEW.raw_user_meta_data->>'access_status', ''), 'active')) = 'blocked' THEN 'blocked'
+      ELSE 'active'
+    END,
+    CURRENT_DATE + INTERVAL '365 days',
+    FALSE,
+    NULL,
+    NOW()
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET
+    display_name = EXCLUDED.display_name,
+    updated_at = NOW();
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -57,17 +87,20 @@ CREATE TABLE public.manual_billing_events (
   recorded_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT manual_billing_events_user_month_key UNIQUE (user_id, reference_month)
+  CONSTRAINT manual_billing_events_user_month_key UNIQUE (user_id, reference_month),
+  CONSTRAINT manual_billing_events_reference_month_check CHECK (
+    reference_month = date_trunc('month', reference_month::timestamp)::date
+  )
 );
 
 ALTER TABLE public.manual_billing_events ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE public.admin_audit_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  actor_user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
+  actor_user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   target_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   entity_type TEXT NOT NULL CHECK (entity_type IN ('user', 'exercise', 'billing', 'access', 'auth', 'system')),
-  entity_id TEXT,
+  entity_id UUID,
   action TEXT NOT NULL,
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -320,7 +353,8 @@ CREATE TABLE public.workout_sessions (
   workout_id UUID NOT NULL REFERENCES public.workouts(id) ON DELETE CASCADE,
   performed_at DATE NOT NULL DEFAULT CURRENT_DATE,
   notes TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT workout_sessions_user_workout_date_key UNIQUE (user_id, workout_id, performed_at)
 );
 
 ALTER TABLE public.workout_sessions ENABLE ROW LEVEL SECURITY;
@@ -456,7 +490,48 @@ CREATE POLICY "Users can delete own session exercise skips"
     session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
   );
 
--- 10. Session Exercise Targets
+-- 10. Session Exercise Substitutions
+CREATE TABLE public.session_exercise_substitutions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES public.workout_sessions(id) ON DELETE CASCADE,
+  original_exercise_id UUID NOT NULL REFERENCES public.exercises(id) ON DELETE RESTRICT,
+  replacement_exercise_id UUID NOT NULL REFERENCES public.exercises(id) ON DELETE RESTRICT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (session_id, original_exercise_id),
+  CHECK (original_exercise_id <> replacement_exercise_id)
+);
+
+ALTER TABLE public.session_exercise_substitutions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own session exercise substitutions"
+  ON public.session_exercise_substitutions FOR SELECT
+  USING (
+    session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can insert own session exercise substitutions"
+  ON public.session_exercise_substitutions FOR INSERT
+  WITH CHECK (
+    session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can update own session exercise substitutions"
+  ON public.session_exercise_substitutions FOR UPDATE
+  USING (
+    session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
+  )
+  WITH CHECK (
+    session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can delete own session exercise substitutions"
+  ON public.session_exercise_substitutions FOR DELETE
+  USING (
+    session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
+  );
+
+-- 11. Session Exercise Targets
 CREATE TABLE public.session_exercise_targets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES public.workout_sessions(id) ON DELETE CASCADE,
@@ -496,7 +571,7 @@ CREATE POLICY "Users can delete own session exercise targets"
     session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
   );
 
--- 11. Session Cardio Logs
+-- 12. Session Cardio Logs
 CREATE TABLE public.session_cardio_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id UUID NOT NULL REFERENCES public.workout_sessions(id) ON DELETE CASCADE,
@@ -541,7 +616,7 @@ CREATE POLICY "Users can delete own session cardio logs"
     session_id IN (SELECT id FROM public.workout_sessions WHERE user_id = auth.uid())
   );
 
--- 12. Session Cardio Intervals
+-- 13. Session Cardio Intervals
 CREATE TABLE public.session_cardio_intervals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cardio_log_id UUID NOT NULL REFERENCES public.session_cardio_logs(id) ON DELETE CASCADE,
@@ -602,7 +677,7 @@ CREATE POLICY "Users can delete own session cardio intervals"
     )
   );
 
--- 13. Body Measurements
+-- 14. Body Measurements
 CREATE TABLE public.body_measurements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -642,11 +717,41 @@ CREATE POLICY "Users can delete own body measurements"
   ON public.body_measurements FOR DELETE
   USING (auth.uid() = user_id);
 
+-- Updated-at trigger helper
+CREATE OR REPLACE FUNCTION public.touch_updated_at()
+RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_profiles_updated_at
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+CREATE TRIGGER set_manual_billing_events_updated_at
+  BEFORE UPDATE ON public.manual_billing_events
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
+CREATE TRIGGER set_exercise_overrides_updated_at
+  BEFORE UPDATE ON public.exercise_overrides
+  FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
+
 
 -- ============================================================
 -- Indexes for performance
 -- ============================================================
 CREATE INDEX idx_exercises_user ON public.exercises(user_id);
+CREATE INDEX idx_profiles_role_access ON public.profiles(role, access_status);
+CREATE INDEX idx_profiles_paid_until ON public.profiles(paid_until);
+CREATE INDEX idx_profiles_member_access_mode ON public.profiles(member_access_mode, access_status);
+CREATE INDEX idx_profiles_trial_ends_at ON public.profiles(trial_ends_at)
+WHERE member_access_mode = 'trial';
+CREATE INDEX idx_manual_billing_events_user_month ON public.manual_billing_events(user_id, reference_month DESC);
+CREATE INDEX idx_manual_billing_events_recorded_by ON public.manual_billing_events(recorded_by, created_at DESC);
+CREATE INDEX idx_admin_audit_log_actor ON public.admin_audit_log(actor_user_id, created_at DESC);
+CREATE INDEX idx_admin_audit_log_target ON public.admin_audit_log(target_user_id, created_at DESC);
 CREATE INDEX idx_workouts_user ON public.workouts(user_id);
 CREATE INDEX idx_schedule_user ON public.schedule(user_id);
 CREATE INDEX idx_schedule_rotations_user_day ON public.schedule_rotations(user_id, day_of_week, rotation_index);
@@ -660,6 +765,9 @@ CREATE INDEX idx_set_logs_exercise ON public.set_logs(exercise_id);
 CREATE INDEX idx_set_logs_session_exercise ON public.set_logs(session_id, exercise_id, set_number);
 CREATE INDEX idx_session_exercise_skips_session ON public.session_exercise_skips(session_id);
 CREATE INDEX idx_session_exercise_skips_exercise ON public.session_exercise_skips(exercise_id);
+CREATE INDEX idx_session_exercise_substitutions_session ON public.session_exercise_substitutions(session_id);
+CREATE INDEX idx_session_exercise_substitutions_original ON public.session_exercise_substitutions(original_exercise_id);
+CREATE INDEX idx_session_exercise_substitutions_replacement ON public.session_exercise_substitutions(replacement_exercise_id);
 CREATE INDEX idx_session_exercise_targets_session ON public.session_exercise_targets(session_id);
 CREATE INDEX idx_session_exercise_targets_exercise ON public.session_exercise_targets(exercise_id);
 CREATE INDEX idx_session_cardio_logs_session ON public.session_cardio_logs(session_id);

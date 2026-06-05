@@ -25,10 +25,10 @@ export function WorkoutsSectionNav() {
     },
   ];
 
-  return (
+    return (
     <nav
       aria-label={t("sectionNavLabel")}
-      className="mb-6 rounded-2xl bg-zinc-100 p-1 dark:bg-zinc-900"
+      className="app-panel mb-6 p-1.5"
     >
       <div className="grid grid-cols-2 gap-1">
         {items.map((item) => (
@@ -36,9 +36,9 @@ export function WorkoutsSectionNav() {
             key={item.href}
             href={item.href}
             aria-current={item.active ? "page" : undefined}
-            className={`rounded-xl px-4 py-2.5 text-center text-sm font-medium transition-colors ${
+            className={`rounded-2xl px-4 py-2.5 text-center text-sm font-semibold transition-colors ${
               item.active
-                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white"
+                ? "bg-gradient-to-r from-violet-600 to-indigo-500 text-white shadow-[0_12px_28px_rgba(109,40,217,0.28)]"
                 : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
             }`}
           >

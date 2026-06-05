@@ -136,37 +136,3 @@ export async function signOutAction(): Promise<ActionResult<null>> {
         return errorResult(error)
     }
 }
-
-export async function sendTemporaryPasswordResetAction(
-    userId: string,
-    temporaryPassword: string,
-): Promise<ActionResult<null>> {
-    try {
-        if (!temporaryPassword || temporaryPassword.length < 8) {
-            throw new Error('Temporary password must be at least 8 characters long')
-        }
-
-        const serviceRole = getServiceRoleClient()
-        const { error: authError } = await serviceRole.auth.admin.updateUserById(
-            userId,
-            { password: temporaryPassword, email_confirm: true },
-        )
-
-        if (authError) {
-            throw new Error(authError.message)
-        }
-
-        const { error: profileError } = await serviceRole
-            .from('profiles')
-            .update({ must_change_password: true })
-            .eq('id', userId)
-
-        if (profileError) {
-            throw new Error(profileError.message)
-        }
-
-        return okResult(null)
-    } catch (error) {
-        return errorResult(error)
-    }
-}

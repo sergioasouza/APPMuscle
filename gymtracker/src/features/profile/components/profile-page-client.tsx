@@ -1,176 +1,346 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
-import { useTheme } from 'next-themes'
-import { useToast } from '@/components/ui/toast'
-import { signOutAction } from '@/features/auth/actions'
-import { BodyMetricsSection } from '@/features/body-metrics/components/body-metrics-section'
-import type { ProfilePageData } from '@/features/profile/types'
-import type { AppLocale } from '@/i18n/config'
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/fields";
+import {
+  MetricCard,
+  PageHeader,
+  PageShell,
+  StatusPill,
+  Surface,
+} from "@/components/ui/surface";
+import { useToast } from "@/components/ui/toast";
+import { ANALYTICS_PALETTES } from "@/features/appearance/analytics-palettes";
+import { useAnalyticsPalettePreference } from "@/features/appearance/use-analytics-palette-preference";
+import { signOutAction } from "@/features/auth/actions";
+import { BodyMetricsSection } from "@/features/body-metrics/components/body-metrics-section";
+import type { ProfilePageData } from "@/features/profile/types";
+import type { AppLocale } from "@/i18n/config";
+import { cn } from "@/lib/utils";
 
 interface ProfilePageClientProps {
-    initialData: ProfilePageData
+  initialData: ProfilePageData;
+}
+
+function formatDate(value: string | null, locale: string) {
+  if (!value) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat(locale === "pt" ? "pt-BR" : "en-US", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${value}T00:00:00`));
 }
 
 export function ProfilePageClient({ initialData }: ProfilePageClientProps) {
-    const router = useRouter()
-    const { theme, setTheme } = useTheme()
-    const t = useTranslations()
-    const locale = useLocale() as AppLocale
-    const { showToast } = useToast()
+  const router = useRouter();
+  const { theme, setTheme } = useTheme();
+  const { paletteId, setPaletteId } = useAnalyticsPalettePreference();
+  const t = useTranslations();
+  const locale = useLocale() as AppLocale;
+  const { showToast } = useToast();
 
-    const [updatingLocale, setUpdatingLocale] = useState(false)
-    const [mounted, setMounted] = useState(false)
+  const [updatingLocale, setUpdatingLocale] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-    useEffect(() => {
-        setMounted(true)
-    }, [])
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-    const handleSignOut = async () => {
-        const result = await signOutAction()
-        if (!result.ok) {
-            showToast(result.message ?? 'Unable to sign out', 'error')
-            return
-        }
-
-        router.replace('/login')
-        router.refresh()
+  const handleSignOut = async () => {
+    const result = await signOutAction();
+    if (!result.ok) {
+      showToast(result.message ?? t("Profile.signOutError"), "error");
+      return;
     }
 
-    const handleLanguageChange = async (nextLocale: AppLocale) => {
-        if (nextLocale === locale) {
-            return
-        }
+    router.replace("/login");
+    router.refresh();
+  };
 
-        try {
-            setUpdatingLocale(true)
+  const handleLanguageChange = async (nextLocale: AppLocale) => {
+    if (nextLocale === locale) {
+      return;
+    }
 
-            const response = await fetch('/api/locale', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ locale: nextLocale }),
+    try {
+      setUpdatingLocale(true);
+
+      const response = await fetch("/api/locale", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ locale: nextLocale }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to update locale");
+      }
+
+      router.refresh();
+    } catch {
+      showToast(t("Profile.languageUpdateError"), "error");
+    } finally {
+      setUpdatingLocale(false);
+    }
+  };
+
+  const avatarLetter =
+    initialData.displayName?.charAt(0).toUpperCase() ||
+    initialData.email?.charAt(0).toUpperCase() ||
+    "?";
+  const displayName = initialData.displayName || t("Profile.fallbackName");
+  const accessStatusLabel =
+    initialData.accessStatus === "blocked"
+      ? t("Profile.accessBlocked")
+      : t("Profile.accessActive");
+  const accessModeLabel =
+    initialData.role === "admin"
+      ? t("Profile.roleAdmin")
+      : initialData.memberAccessMode === "trial"
+        ? t("Profile.modeTrial")
+        : initialData.memberAccessMode === "internal"
+          ? t("Profile.modeInternal")
+          : t("Profile.modeBillable");
+  const accountDateLabel =
+    initialData.memberAccessMode === "trial"
+      ? t("Profile.trialEndsAt")
+      : initialData.memberAccessMode === "billable"
+        ? t("Profile.paidUntil")
+        : t("Profile.billingDay");
+  const accountDateValue =
+    initialData.memberAccessMode === "trial"
+      ? formatDate(initialData.trialEndsAt, locale) ?? t("Profile.notAvailable")
+      : initialData.memberAccessMode === "billable"
+        ? formatDate(initialData.paidUntil, locale) ?? t("Profile.notAvailable")
+        : initialData.billingDayOfMonth != null
+          ? t("Profile.billingDayValue", {
+              day: initialData.billingDayOfMonth,
             })
+          : t("Profile.notAvailable");
+  const memberSinceValue =
+    formatDate(initialData.createdAt, locale) ?? t("Profile.notAvailable");
 
-            if (!response.ok) {
-                throw new Error('Unable to update locale')
-            }
+  return (
+    <PageShell>
+      <PageHeader
+        eyebrow={t("Profile.accountPanelTitle")}
+        title={t("Profile.title")}
+        description={t("Profile.accountPanelDescription")}
+      />
 
-            router.refresh()
-        } catch {
-            showToast(t('Profile.languageUpdateError'), 'error')
-        } finally {
-            setUpdatingLocale(false)
-        }
-    }
-
-    const avatarLetter = initialData.displayName?.charAt(0).toUpperCase() || initialData.email?.charAt(0).toUpperCase() || '?'
-    const displayName = initialData.displayName || 'Athlete'
-
-    return (
-        <div className="px-4 pt-6 pb-24 max-w-lg mx-auto">
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6">{t('Profile.title')}</h1>
-
-            <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/50 p-6 rounded-2xl flex items-center gap-4 mb-8">
-                <div className="w-16 h-16 rounded-full bg-violet-600/20 text-violet-400 flex items-center justify-center text-2xl font-bold border border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.15)]">
-                    {avatarLetter}
+      <Surface tone="accent" className="mt-6 overflow-hidden p-0">
+        <div className="grid gap-0 lg:grid-cols-[0.95fr_1.05fr]">
+          <div className="border-b border-white/10 p-6 sm:p-8 lg:border-b-0 lg:border-r">
+            <div className="flex items-center gap-4">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full border border-violet-400/30 bg-violet-500/15 text-3xl font-black text-white shadow-[0_18px_40px_rgba(109,40,217,0.32)]">
+                {avatarLetter}
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusPill className="border-emerald-400/20 bg-emerald-400/12 text-emerald-200">
+                    {accessStatusLabel}
+                  </StatusPill>
+                  <StatusPill>{accessModeLabel}</StatusPill>
                 </div>
-                <div>
-                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">{displayName}</h2>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">{initialData.email}</p>
-                </div>
+                <h2 className="mt-4 truncate text-3xl font-black tracking-tight text-white">
+                  {displayName}
+                </h2>
+                <p className="mt-2 text-sm text-zinc-300">{initialData.email}</p>
+              </div>
             </div>
 
-            <div className="mb-8">
-                <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3 px-1">{t('Profile.settings')}</h3>
-                <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/50 rounded-2xl overflow-hidden divide-y divide-zinc-800/50">
-                    <div className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-400">
-                                {mounted && theme === 'dark' ? (
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                                    </svg>
-                                ) : (
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                                    </svg>
-                                )}
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-zinc-900 dark:text-white">{t('Profile.appTheme')}</p>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('Profile.appThemeDesc')}</p>
-                            </div>
-                        </div>
-                        {mounted && (
-                            <select
-                                value={theme}
-                                onChange={(event) => setTheme(event.target.value)}
-                                className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm text-zinc-900 dark:text-white rounded-lg py-1.5 px-3 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                            >
-                                <option value="system">{t('Profile.themeSystem')}</option>
-                                <option value="dark">{t('Profile.themeDark')}</option>
-                                <option value="light">{t('Profile.themeLight')}</option>
-                            </select>
-                        )}
-                    </div>
+            <p className="mt-6 max-w-xl text-sm leading-7 text-violet-100/80">
+              {t("Profile.accountHeroDescription")}
+            </p>
+          </div>
 
-                    <div className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-400">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-                                </svg>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-zinc-900 dark:text-white">{t('Profile.language')}</p>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('Profile.languageDesc')}</p>
-                            </div>
-                        </div>
-                        <select
-                            className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-sm text-zinc-900 dark:text-white rounded-lg py-1.5 px-3 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                            value={locale}
-                            onChange={(event) => handleLanguageChange(event.target.value as AppLocale)}
-                            disabled={updatingLocale}
-                        >
-                            <option value="en">{t('Profile.languageEnglish')}</option>
-                            <option value="pt">{t('Profile.languagePortuguese')}</option>
-                        </select>
-                    </div>
-
-                    <div className="p-4 flex items-center gap-3">
-                        <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-400">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-                            </svg>
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-sm font-medium text-zinc-900 dark:text-white">{t('Profile.version')}</p>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400">GymTracker v1.0.0</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <BodyMetricsSection initialData={initialData.bodyMetrics} />
-
-            <div>
-                <h3 className="text-xs font-semibold text-red-500/80 uppercase tracking-wider mb-3 px-1">{t('Profile.account')}</h3>
-                <div className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/50 rounded-2xl overflow-hidden p-2">
-                    <button
-                        onClick={handleSignOut}
-                        className="w-full flex justify-between items-center px-4 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-semibold rounded-xl transition-colors"
-                    >
-                        <span>{t('Profile.signOut')}</span>
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
+          <div className="grid gap-4 p-6 sm:grid-cols-2 sm:p-8">
+            <MetricCard
+              label={t("Profile.accountStatus")}
+              value={accessStatusLabel}
+              helper={
+                initialData.accessStatus === "blocked"
+                  ? t("Profile.accessBlockedHelper")
+                  : t("Profile.accessActiveHelper")
+              }
+            />
+            <MetricCard
+              label={t("Profile.accessMode")}
+              value={accessModeLabel}
+              helper={
+                initialData.role === "admin"
+                  ? t("Profile.roleAdminHelper")
+                  : t("Profile.roleMember")
+              }
+            />
+            <MetricCard
+              label={accountDateLabel}
+              value={accountDateValue}
+              helper={t("Profile.billingVisibilityHelper")}
+            />
+            <MetricCard
+              label={t("Profile.memberSince")}
+              value={memberSinceValue}
+              helper={t("Profile.memberSinceHelper")}
+            />
+          </div>
         </div>
-    )
+      </Surface>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <Surface className="p-6 sm:p-7">
+          <div className="mb-6">
+            <p className="app-kicker">{t("Profile.settingsPanelTitle")}</p>
+            <h3 className="mt-2 text-2xl font-bold text-zinc-950 dark:text-white">
+              {t("Profile.settings")}
+            </h3>
+            <p className="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+              {t("Profile.settingsPanelDescription")}
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="rounded-3xl border border-zinc-200/70 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-950 dark:text-white">
+                    {t("Profile.appTheme")}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    {t("Profile.appThemeDesc")}
+                  </p>
+                </div>
+                <StatusPill className="text-zinc-300">
+                  {mounted ? theme ?? "system" : "system"}
+                </StatusPill>
+              </div>
+              {mounted ? (
+                <Select
+                  value={theme ?? "system"}
+                  onChange={(event) => setTheme(event.target.value)}
+                >
+                  <option value="system">{t("Profile.themeSystem")}</option>
+                  <option value="dark">{t("Profile.themeDark")}</option>
+                  <option value="light">{t("Profile.themeLight")}</option>
+                </Select>
+              ) : null}
+            </div>
+
+            <div className="rounded-3xl border border-zinc-200/70 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-950 dark:text-white">
+                    {t("Profile.language")}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    {t("Profile.languageDesc")}
+                  </p>
+                </div>
+                <StatusPill className="text-zinc-300">{locale.toUpperCase()}</StatusPill>
+              </div>
+              <Select
+                value={locale}
+                onChange={(event) =>
+                  handleLanguageChange(event.target.value as AppLocale)
+                }
+                disabled={updatingLocale}
+              >
+                <option value="pt">{t("Profile.languagePortuguese")}</option>
+                <option value="en">{t("Profile.languageEnglish")}</option>
+              </Select>
+            </div>
+
+            <div className="rounded-3xl border border-zinc-200/70 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-950 dark:text-white">
+                    {t("Profile.analyticsPalette")}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    {t("Profile.analyticsPaletteDesc")}
+                  </p>
+                </div>
+                <StatusPill className="text-zinc-700 dark:text-zinc-200">
+                  {t(`Profile.analyticsPaletteOptions.${paletteId}`)}
+                </StatusPill>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {ANALYTICS_PALETTES.map((palette) => {
+                  const isSelected = palette.id === paletteId;
+
+                  return (
+                    <button
+                      key={palette.id}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => setPaletteId(palette.id)}
+                      className={cn(
+                        "rounded-2xl border p-3 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-300",
+                        isSelected
+                          ? "border-violet-400 bg-violet-500/10 shadow-[0_14px_34px_rgba(124,58,237,0.22)]"
+                          : "border-zinc-200/80 bg-white/70 hover:border-violet-300 dark:border-white/10 dark:bg-white/5 dark:hover:border-violet-400/50",
+                      )}
+                    >
+                      <span className="flex items-center gap-2">
+                        {[palette.primary, palette.secondary, palette.benchmark].map(
+                          (color) => (
+                            <span
+                              key={color}
+                              className="h-5 w-5 rounded-full border border-white/20 shadow-sm"
+                              style={{ backgroundColor: color }}
+                            />
+                          ),
+                        )}
+                      </span>
+                      <span className="mt-3 block text-sm font-semibold text-zinc-950 dark:text-white">
+                        {t(`Profile.analyticsPaletteOptions.${palette.id}`)}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                        {t("Profile.analyticsPalettePreview")}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-zinc-200/70 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
+              <p className="text-sm font-semibold text-zinc-950 dark:text-white">
+                {t("Profile.version")}
+              </p>
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+                GymTracker v1.0.0
+              </p>
+            </div>
+          </div>
+        </Surface>
+
+        <BodyMetricsSection initialData={initialData.bodyMetrics} />
+      </div>
+
+      <Surface className="mt-6 flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="app-kicker text-red-400">{t("Profile.account")}</p>
+          <h3 className="mt-2 text-xl font-bold text-zinc-950 dark:text-white">
+            {t("Profile.accountDangerTitle")}
+          </h3>
+          <p className="mt-2 text-sm leading-7 text-zinc-600 dark:text-zinc-300">
+            {t("Profile.accountDangerDescription")}
+          </p>
+        </div>
+        <Button variant="danger" size="lg" onClick={handleSignOut}>
+          {t("Profile.signOut")}
+        </Button>
+      </Surface>
+    </PageShell>
+  );
 }

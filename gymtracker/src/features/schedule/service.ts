@@ -11,8 +11,8 @@ import {
     upsertScheduleRotationRepository,
 } from '@/features/schedule/repository'
 
-export async function getSchedulePageData() {
-    return getSchedulePageDataRepository()
+export async function getSchedulePageData(previewDateISO?: string) {
+    return getSchedulePageDataRepository(previewDateISO)
 }
 
 export async function assignWorkoutToDay(dayOfWeek: number, workoutId: string) {

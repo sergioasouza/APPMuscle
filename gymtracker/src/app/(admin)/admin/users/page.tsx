@@ -1,6 +1,7 @@
 import { AdminUsersPageClient } from '@/features/admin/components/admin-users-page-client'
 import { listAdminUsers } from '@/features/admin/service'
 import type { AdminUserListQuery } from '@/features/admin/types'
+import { getAdminTodayISODate } from '@/features/admin/utils'
 
 interface AdminUsersPageProps {
     searchParams?: Promise<Record<string, string | string[] | undefined>>
@@ -33,11 +34,13 @@ export default async function AdminUsersPage({
     const resolvedSearchParams = await searchParams
     const query = parseQuery(resolvedSearchParams)
     const users = await listAdminUsers(query)
+    const todayISO = getAdminTodayISODate()
 
     return (
         <AdminUsersPageClient
             initialUsers={users}
             initialQuery={query}
+            todayISO={todayISO}
         />
     )
 }

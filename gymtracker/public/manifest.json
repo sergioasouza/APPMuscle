@@ -1,13 +1,13 @@
 {
     "name": "GymTracker",
     "short_name": "GymTracker",
-    "description": "Track your workouts, log your sets, see your progress.",
-    "start_url": "/today",
+    "description": "Organize seus treinos, registre séries e acompanhe sua evolução com uma experiência mobile premium.",
+    "start_url": "/",
     "scope": "/",
     "display": "standalone",
     "background_color": "#09090b",
     "theme_color": "#09090b",
-    "lang": "en",
+    "lang": "pt-BR",
     "categories": ["health", "fitness", "productivity"],
     "icons": [
         {

@@ -34,10 +34,10 @@ export function AdminNav({ displayName, email }: AdminNavProps) {
     }
 
     return (
-        <header className="border-b border-zinc-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90">
-            <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <header className="px-4 pt-4 sm:px-6">
+            <div className="app-panel mx-auto flex max-w-7xl flex-col gap-4 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-violet-500">
+                    <p className="app-kicker text-violet-400">
                         GymTracker Admin
                     </p>
                     <h1 className="mt-2 truncate text-xl font-black tracking-tight text-zinc-900 dark:text-white">
@@ -62,8 +62,8 @@ export function AdminNav({ displayName, email }: AdminNavProps) {
                                     key={link.href}
                                     href={link.href}
                                     className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${isActive
-                                            ? 'bg-violet-600 text-white'
-                                            : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                                            ? 'bg-gradient-to-r from-violet-600 to-indigo-500 text-white shadow-[0_12px_28px_rgba(109,40,217,0.28)]'
+                                            : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-300 dark:hover:bg-white/10'
                                         }`}
                                 >
                                     {link.label}
@@ -75,7 +75,7 @@ export function AdminNav({ displayName, email }: AdminNavProps) {
                     <button
                         type="button"
                         onClick={handleSignOut}
-                        className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                        className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/8"
                     >
                         Sair
                     </button>

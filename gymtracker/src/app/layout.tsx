@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
-import { getLocale, getMessages } from 'next-intl/server'
+import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
@@ -13,48 +13,52 @@ const inter = Inter({
   variable: '--font-sans',
 })
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: {
-    default: 'GymTracker',
-    template: '%s • GymTracker',
-  },
-  description: 'Track your workouts, log your sets, see your progress.',
-  applicationName: 'GymTracker',
-  keywords: ['gym tracker', 'workout log', 'fitness', 'strength training', 'progressive overload'],
-  category: 'fitness',
-  manifest: '/manifest.json',
-  icons: {
-    icon: '/icon.svg',
-    apple: '/apple-icon.svg',
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'black-translucent',
-    title: 'GymTracker',
-  },
-  openGraph: {
-    type: 'website',
-    url: siteUrl,
-    title: 'GymTracker',
-    description: 'Track your workouts, log your sets, and monitor your progress with a mobile-first training app.',
-    siteName: 'GymTracker',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'GymTracker',
-    description: 'Track your workouts, log your sets, and monitor your progress with a mobile-first training app.',
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale()
+  const t = await getTranslations({ locale, namespace: 'Meta' })
+
+  return {
+    metadataBase: new URL(siteUrl),
+    title: {
+      default: 'GymTracker',
+      template: '%s • GymTracker',
+    },
+    description: t('description'),
+    applicationName: 'GymTracker',
+    keywords: ['gym tracker', 'workout log', 'fitness', 'strength training', 'progressive overload'],
+    category: 'fitness',
+    manifest: '/manifest.json',
+    icons: {
+      icon: '/icon.svg',
+      apple: '/apple-icon.svg',
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'black-translucent',
+      title: 'GymTracker',
+    },
+    openGraph: {
+      type: 'website',
+      url: siteUrl,
+      title: t('ogTitle'),
+      description: t('ogDescription'),
+      siteName: 'GymTracker',
+      locale: locale === 'pt' ? 'pt_BR' : 'en_US',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: t('ogTitle'),
+      description: t('ogDescription'),
+    },
+  }
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fafafa' },
-    { media: '(prefers-color-scheme: dark)', color: '#09090b' },
+    { media: '(prefers-color-scheme: light)', color: '#f5f7fb' },
+    { media: '(prefers-color-scheme: dark)', color: '#070a12' },
   ],
 }
 
@@ -74,7 +78,7 @@ export default async function RootLayout({
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ThemeProvider
             attribute="class"
-            defaultTheme="system"
+            defaultTheme="dark"
             enableSystem
             disableTransitionOnChange
           >

@@ -17,8 +17,33 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
+  :root {
+    color-scheme: light;
+    --app-bg-rgb: 246 247 251;
+    --app-text: #18181b;
+    --app-text-muted: #5f6673;
+    --app-border: rgba(24, 24, 27, 0.08);
+    --app-border-strong: rgba(24, 24, 27, 0.14);
+    --app-surface: rgba(255, 255, 255, 0.82);
+    --app-surface-muted: rgba(255, 255, 255, 0.68);
+    --app-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+  }
+
+  .dark {
+    color-scheme: dark;
+    --app-bg-rgb: 7 10 18;
+    --app-text: #f4f4f5;
+    --app-text-muted: #9ca3af;
+    --app-border: rgba(255, 255, 255, 0.09);
+    --app-border-strong: rgba(255, 255, 255, 0.16);
+    --app-surface: rgba(16, 18, 28, 0.78);
+    --app-surface-muted: rgba(255, 255, 255, 0.05);
+    --app-shadow: 0 30px 90px rgba(2, 6, 23, 0.42);
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
+    background-color: rgb(var(--app-bg-rgb));
   }
 
   nextjs-portal {
@@ -26,13 +51,46 @@
   }
 
   body {
-    @apply bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-white antialiased transition-colors duration-200;
+    @apply antialiased transition-colors duration-200;
+    min-height: 100dvh;
+    color: var(--app-text);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background:
+      radial-gradient(circle at top, rgba(124, 58, 237, 0.22), transparent 32%),
+      radial-gradient(circle at 85% 12%, rgba(16, 185, 129, 0.12), transparent 24%),
+      linear-gradient(180deg, rgba(var(--app-bg-rgb), 1) 0%, rgba(var(--app-bg-rgb), 0.98) 100%);
   }
 
-  /* Prevent zoom on input focus (iOS) */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.45;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.4), transparent 82%);
+  }
+
+  * {
+    border-color: var(--app-border);
+  }
+
+  :where(a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 3px solid rgba(139, 92, 246, 0.55);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: rgba(139, 92, 246, 0.28);
+    color: white;
+  }
+
   input[type="text"],
   input[type="email"],
   input[type="password"],
@@ -44,14 +102,53 @@
 }
 
 @layer utilities {
-
-  /* Safe area padding for notched devices */
   .pb-safe {
     padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
   }
 
   .pt-safe {
     padding-top: max(env(safe-area-inset-top, 0px), 0.5rem);
+  }
+}
+
+@layer components {
+  .app-shell {
+    position: relative;
+  }
+
+  .app-panel {
+    border: 1px solid var(--app-border);
+    background: var(--app-surface);
+    backdrop-filter: blur(18px);
+    box-shadow: var(--app-shadow);
+    border-radius: 1.5rem;
+  }
+
+  .app-panel-muted {
+    background: var(--app-surface-muted);
+  }
+
+  .app-panel-accent {
+    background:
+      linear-gradient(180deg, rgba(139, 92, 246, 0.16), rgba(139, 92, 246, 0.05)),
+      var(--app-surface);
+    border-color: rgba(139, 92, 246, 0.2);
+  }
+
+  .app-kicker {
+    color: rgb(196 181 253);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+  }
+
+  .app-focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/30;
+  }
+
+  .app-icon-button {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-zinc-200/80 bg-white/80 text-zinc-600 transition-all hover:border-violet-300 hover:text-violet-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:border-violet-500/40 dark:hover:text-white;
   }
 }
 

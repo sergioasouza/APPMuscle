@@ -2,6 +2,9 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { Button } from '@/components/ui/button'
+import { FieldLabel, Input, Select } from '@/components/ui/fields'
+import { EmptyState, PageHeader, PageShell, StatusPill, Surface } from '@/components/ui/surface'
 import { useToast } from '@/components/ui/toast'
 import {
     assignWorkoutToDayAction,
@@ -281,11 +284,15 @@ export function SchedulePageClient({
     const today = useMemo(() => getDayOfWeekFromIsoDate(todayIso), [todayIso])
 
     return (
-        <div className="px-4 pt-6 pb-8">
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-1">{t('Schedule.title')}</h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">{t('Schedule.subtitle')}</p>
+        <PageShell>
+            <PageHeader
+                eyebrow={t('Schedule.eyebrow')}
+                title={t('Schedule.title')}
+                description={t('Schedule.subtitle')}
+                actions={<StatusPill>{t('Schedule.previewDate', { date: todayIso })}</StatusPill>}
+            />
 
-            <div className="mb-6 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800/50 dark:bg-zinc-900">
+            <Surface className="my-6 p-5">
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                         <div>
@@ -296,21 +303,20 @@ export function SchedulePageClient({
                         </div>
                         {rotationSupportEnabled && (
                             <div className="flex flex-col gap-2 sm:items-end">
-                                <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{t('Schedule.rotationStart')}</label>
+                                <FieldLabel htmlFor="schedule-rotation-start" className="mb-0">{t('Schedule.rotationStart')}</FieldLabel>
                                 <div className="flex gap-2">
-                                    <input
+                                    <Input
+                                        id="schedule-rotation-start"
                                         type="date"
                                         value={rotationAnchorDate}
                                         onChange={(event) => setRotationAnchorDate(event.target.value)}
-                                        className="rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                                     />
-                                    <button
+                                    <Button
                                         onClick={handleSaveAnchorDate}
                                         disabled={savingAnchorDate}
-                                        className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-60"
                                     >
                                         {t('Common.save')}
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         )}
@@ -327,33 +333,34 @@ export function SchedulePageClient({
                                         {t('Schedule.cycleWeeksDescription')}
                                     </p>
                                 </div>
-                                <div className="flex gap-2">
-                                    <button
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
                                         onClick={handleRemoveLastWeek}
                                         disabled={updatingCycle || rotationWeekCount <= 1}
-                                        className="rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700"
                                     >
                                         {t('Schedule.removeWeek')}
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
+                                        size="sm"
                                         onClick={handleAddWeek}
                                         disabled={updatingCycle || rotationWeekCount >= 12}
-                                        className="rounded-xl bg-zinc-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
                                     >
                                         {t('Schedule.addWeek')}
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         </div>
                     )}
                 </div>
-            </div>
+            </Surface>
 
             {workouts.length === 0 ? (
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-8 text-center">
-                    <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-1">{t('Schedule.noWorkouts')}</p>
-                    <p className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 text-xs">{t('Schedule.goToWorkouts')}</p>
-                </div>
+                <EmptyState
+                    title={t('Schedule.noWorkouts')}
+                    description={t('Schedule.goToWorkouts')}
+                />
             ) : (
                 <div className="space-y-3">
                     {dayNames.map((dayName, dayIndex) => {
@@ -457,11 +464,10 @@ export function SchedulePageClient({
                                                             )}
                                                         </div>
 
-                                                        <select
+                                                        <Select
                                                             disabled={isPending || !canEditWeek}
                                                             value={currentWorkoutId}
                                                             onChange={(event) => event.target.value && handleAssignWeek(dayIndex, weekNumber, event.target.value)}
-                                                            className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-900 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                                                         >
                                                             <option value="" disabled>
                                                                 {weekNumber === 1 ? t('Schedule.selectWorkout') : t('Schedule.selectWeekWorkout')}
@@ -471,7 +477,7 @@ export function SchedulePageClient({
                                                                     {workout.name}
                                                                 </option>
                                                             ))}
-                                                        </select>
+                                                        </Select>
 
                                                         {!canEditWeek && (
                                                             <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
@@ -489,6 +495,6 @@ export function SchedulePageClient({
                     })}
                 </div>
             )}
-        </div>
+        </PageShell>
     )
 }

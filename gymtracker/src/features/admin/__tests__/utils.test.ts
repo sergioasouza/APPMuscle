@@ -13,6 +13,12 @@ describe('admin utils', () => {
         expect(getReferenceMonthFromInput('2026-04-18')).toBe('2026-04-01')
     })
 
+    it('rejects impossible reference dates', () => {
+        expect(() => getReferenceMonthFromInput('2026-02-31')).toThrow(
+            'Reference month must be a valid ISO date',
+        )
+    })
+
     it('resolves end-of-month helpers', () => {
         expect(getEndOfMonthISO('2026-02-01')).toBe('2026-02-28')
         expect(getEndOfPreviousMonthISO('2026-04-01')).toBe('2026-03-31')
@@ -20,6 +26,15 @@ describe('admin utils', () => {
 
     it('returns the current month reference in YYYY-MM-01 format', () => {
         expect(getCurrentReferenceMonth()).toMatch(/^\d{4}-\d{2}-01$/)
+    })
+
+    it('resolves the admin reference month in the configured timezone', () => {
+        expect(
+            getCurrentReferenceMonth(
+                new Date('2026-05-01T01:30:00.000Z'),
+                'America/Sao_Paulo',
+            ),
+        ).toBe('2026-04-01')
     })
 
     it('gets the greatest date ignoring nulls', () => {

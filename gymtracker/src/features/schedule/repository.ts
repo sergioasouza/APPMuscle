@@ -10,7 +10,7 @@ import {
 } from '@/lib/supabase/schema-compat'
 import { getTodayInTimezone } from '@/lib/utils'
 
-export async function getSchedulePageDataRepository() {
+export async function getSchedulePageDataRepository(previewDateISO?: string) {
     const { supabase, user } = await getAuthenticatedServerContext()
 
     const [workoutsRes, scheduleRes, rotationsRes, profileRes] = await Promise.all([
@@ -58,7 +58,7 @@ export async function getSchedulePageDataRepository() {
     const rotationAnchorDate = rotationAnchorColumnAvailable ? profileRes.data?.rotation_anchor_date ?? null : null
     const rotationCycleLength = getRotationCycleLength(rotations)
     const appTimezone = process.env.APP_TIMEZONE ?? 'America/Sao_Paulo'
-    const todayISO = getTodayInTimezone(appTimezone).dateISO
+    const todayISO = previewDateISO ?? getTodayInTimezone(appTimezone).dateISO
 
     return {
         workouts: workoutsRes.data ?? [],

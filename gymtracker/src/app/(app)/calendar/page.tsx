@@ -17,11 +17,29 @@ import { getTodayInTimezone } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 const APP_TIMEZONE = process.env.APP_TIMEZONE ?? "America/Sao_Paulo";
 
-export default async function CalendarPage() {
+interface CalendarPageProps {
+  searchParams?: Promise<{ month?: string }>;
+}
+
+function resolveInitialCalendarDate(monthParam?: string) {
+  if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+    const [yearStr, monthStr] = monthParam.split("-");
+    const month = Number.parseInt(monthStr, 10);
+
+    if (month >= 1 && month <= 12) {
+      return `${yearStr}-${monthStr}-01`;
+    }
+  }
+
+  return getTodayInTimezone(APP_TIMEZONE).dateISO;
+}
+
+export default async function CalendarPage({ searchParams }: CalendarPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   // Resolve the current calendar date in the app's target timezone so that
   // the highlighted "today" cell and the initially-displayed month are both
   // correct for users in UTC-3 regardless of the server's system clock.
-  const { dateISO: initialDate } = getTodayInTimezone(APP_TIMEZONE);
+  const initialDate = resolveInitialCalendarDate(resolvedSearchParams?.month);
 
   // Extract year and 0-indexed month from the resolved ISO date string.
   // We parse from the string directly instead of constructing a Date object

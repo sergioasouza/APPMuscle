@@ -25,12 +25,26 @@ export function assertOptionalUuid(
 }
 
 export function assertIsoDate(value: string, fieldName: string) {
-  if (
-    !isoDatePattern.test(value) ||
-    Number.isNaN(Date.parse(`${value}T00:00:00Z`))
-  ) {
+  if (!isoDatePattern.test(value)) {
     throw new Error(`${fieldName} must be a valid ISO date (YYYY-MM-DD)`)
   }
+
+  const parsed = new Date(`${value}T00:00:00.000Z`)
+
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+    throw new Error(`${fieldName} must be a valid ISO date (YYYY-MM-DD)`)
+  }
+}
+
+export function assertOptionalIsoDate(
+  value: string | null | undefined,
+  fieldName: string,
+) {
+  if (value == null || value === '') {
+    return
+  }
+
+  assertIsoDate(value, fieldName)
 }
 
 export function assertIntegerInRange(
@@ -67,6 +81,17 @@ export function assertFiniteNumber(
 
   if (min != null && value < min) {
     throw new Error(`${fieldName} must be greater than or equal to ${min}`)
+  }
+}
+
+export function assertFiniteNumberInRange(
+  value: number,
+  fieldName: string,
+  min: number,
+  max: number,
+) {
+  if (!Number.isFinite(value) || value < min || value > max) {
+    throw new Error(`${fieldName} must be a finite number between ${min} and ${max}`)
   }
 }
 

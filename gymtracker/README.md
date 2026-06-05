@@ -44,8 +44,11 @@ cp .env.local.example .env.local
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `NEXT_PUBLIC_SITE_URL`
+- `APP_TIMEZONE`
 - `NEXT_PUBLIC_CONTACT_WHATSAPP_URL`
 - `NEXT_PUBLIC_CONTACT_EMAIL`
+- `NEXT_PUBLIC_SENTRY_DSN` (optional)
+- `SENTRY_CSP_REPORT_URI` (optional)
 
 4. Run the app:
 
@@ -64,8 +67,17 @@ npm run dev:stable
 ```bash
 npm run typecheck
 npm test
+npm run test:coverage
 npm run lint -- .
 npm run build
+npm run test:e2e:public
+```
+
+Authenticated E2E flows also require `E2E_MEMBER_EMAIL`, `E2E_MEMBER_PASSWORD`,
+`E2E_ADMIN_EMAIL`, and `E2E_ADMIN_PASSWORD`, then run:
+
+```bash
+npm run test:e2e:auth
 ```
 
 ## Database
@@ -75,10 +87,18 @@ The current required migration baseline for production is:
 - [supabase/migrations/20260306_phase1_preserve_existing_data.sql](supabase/migrations/20260306_phase1_preserve_existing_data.sql)
 - [supabase/migrations/20260307_fix_missing_profiles_and_auth_trigger.sql](supabase/migrations/20260307_fix_missing_profiles_and_auth_trigger.sql)
 - [supabase/migrations/20260315_add_archived_at_to_exercises.sql](supabase/migrations/20260315_add_archived_at_to_exercises.sql)
+- [supabase/migrations/20260315_unique_session_per_day.sql](supabase/migrations/20260315_unique_session_per_day.sql)
 - [supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql](supabase/migrations/20260402_add_body_metrics_and_schedule_rotations.sql)
 - [supabase/migrations/20260405_add_system_exercises_and_overrides.sql](supabase/migrations/20260405_add_system_exercises_and_overrides.sql)
 - [supabase/migrations/20260406_seed_system_exercises_catalog.sql](supabase/migrations/20260406_seed_system_exercises_catalog.sql)
+- [supabase/migrations/20260407_repair_legacy_system_catalog_aliases.sql](supabase/migrations/20260407_repair_legacy_system_catalog_aliases.sql)
+- [supabase/migrations/20260408_reconcile_remaining_legacy_system_exercises.sql](supabase/migrations/20260408_reconcile_remaining_legacy_system_exercises.sql)
+- [supabase/migrations/20260409_add_cardio_and_session_exercise_skips.sql](supabase/migrations/20260409_add_cardio_and_session_exercise_skips.sql)
 - [supabase/migrations/20260410_add_admin_access_manual_billing.sql](supabase/migrations/20260410_add_admin_access_manual_billing.sql)
+- [supabase/migrations/20260411_repair_profile_defaults_and_auth_trigger.sql](supabase/migrations/20260411_repair_profile_defaults_and_auth_trigger.sql)
+- [supabase/migrations/20260412_add_member_access_modes_and_trial_support.sql](supabase/migrations/20260412_add_member_access_modes_and_trial_support.sql)
+- [supabase/migrations/20260413_add_session_exercise_substitutions.sql](supabase/migrations/20260413_add_session_exercise_substitutions.sql)
+- [supabase/migrations/20260419_add_session_exercise_targets.sql](supabase/migrations/20260419_add_session_exercise_targets.sql)
 
 Reference docs:
 
@@ -89,7 +109,11 @@ Required schema for the current app version includes:
 - `profiles.rotation_anchor_date`
 - `profiles.role`
 - `profiles.access_status`
+- `profiles.member_access_mode`
+- `profiles.billing_day_of_month`
+- `profiles.billing_grace_business_days`
 - `profiles.paid_until`
+- `profiles.trial_ends_at`
 - `profiles.must_change_password`
 - `exercises.archived_at`
 - `exercises.is_system`
@@ -100,6 +124,12 @@ Required schema for the current app version includes:
 - `body_measurements`
 - `manual_billing_events`
 - `admin_audit_log`
+- `workout_cardio_blocks`
+- `session_cardio_logs`
+- `session_cardio_intervals`
+- `session_exercise_skips`
+- `session_exercise_substitutions`
+- `session_exercise_targets`
 
 ## Admin bootstrap
 
@@ -124,8 +154,10 @@ Use this when you want the fastest and safest production path for this Next.js a
 	- create a new Vercel project from the same repository (good for staging first).
 2. Add the environment variables from `.env.local.example`.
 3. Set `NEXT_PUBLIC_SITE_URL` to the final production domain of that Vercel project.
-4. In Supabase Auth URL settings, add the same production URL to allowed redirect URLs.
-5. Deploy.
+4. Set `APP_TIMEZONE` to the production timezone used for access checks, usually `America/Sao_Paulo`.
+5. In Supabase Auth URL settings, add `${NEXT_PUBLIC_SITE_URL}/auth/callback` to allowed redirect URLs.
+6. Apply every migration in the baseline order above to the production Supabase project.
+7. Deploy.
 
 Practical rollout suggestion:
 

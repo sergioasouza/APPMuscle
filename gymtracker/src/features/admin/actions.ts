@@ -20,6 +20,7 @@ import type {
   AdminSystemExerciseInput,
   AdminUpdateUserInput,
 } from "@/features/admin/types";
+import { assertUuid } from "@/lib/validation";
 
 function revalidateAdminSurfaces(userId?: string) {
   revalidatePath("/admin");
@@ -48,6 +49,7 @@ export async function updateAdminUserAction(
   input: AdminUpdateUserInput,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(userId, "User id");
     await updateAdminUser(userId, input);
     revalidateAdminSurfaces(userId);
     return okResult(null);
@@ -61,6 +63,7 @@ export async function recordManualBillingEventAction(
   input: AdminBillingInput,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(userId, "User id");
     await recordManualBillingEvent(userId, input);
     revalidateAdminSurfaces(userId);
     return okResult(null);
@@ -74,6 +77,7 @@ export async function resetAdminUserTemporaryPasswordAction(
   temporaryPassword: string,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(userId, "User id");
     await resetAdminUserTemporaryPassword(userId, temporaryPassword);
     revalidateAdminSurfaces(userId);
     return okResult(null);
@@ -86,6 +90,7 @@ export async function deleteAdminUserAction(
   userId: string,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(userId, "User id");
     await deleteAdminUser(userId);
     revalidateAdminSurfaces();
     return okResult(null);
@@ -111,6 +116,7 @@ export async function updateAdminSystemExerciseAction(
   input: AdminSystemExerciseInput,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(exerciseId, "Exercise id");
     await updateAdminSystemExercise(exerciseId, input);
     revalidateAdminSurfaces();
     return okResult(null);
@@ -123,6 +129,7 @@ export async function archiveAdminSystemExerciseAction(
   exerciseId: string,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(exerciseId, "Exercise id");
     await archiveAdminSystemExercise(exerciseId);
     revalidateAdminSurfaces();
     return okResult(null);
@@ -135,6 +142,7 @@ export async function unarchiveAdminSystemExerciseAction(
   exerciseId: string,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(exerciseId, "Exercise id");
     await unarchiveAdminSystemExercise(exerciseId);
     revalidateAdminSurfaces();
     return okResult(null);

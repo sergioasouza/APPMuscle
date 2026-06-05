@@ -36,12 +36,12 @@ export default async function AdminLayout({
 
     return (
         <ToastProvider>
-            <div className="min-h-dvh bg-zinc-50 dark:bg-zinc-950">
+            <div className="min-h-dvh pt-safe">
                 <AdminNav
                     displayName={context.profile.display_name}
                     email={context.user.email ?? null}
                 />
-                <main className="mx-auto w-full max-w-7xl px-4 py-6">
+                <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
                     {children}
                 </main>
             </div>

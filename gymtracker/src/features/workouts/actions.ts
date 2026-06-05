@@ -9,6 +9,7 @@ import {
   createExerciseFromInput,
   createWorkoutCardioBlock,
   createWorkout,
+  duplicateWorkout,
   deleteWorkoutCardioBlock,
   deleteExercise,
   deleteWorkout,
@@ -36,6 +37,18 @@ import {
   revalidateWorkoutSurfaces,
 } from "@/lib/revalidate-app-routes";
 import type { ResolvedExercise } from "@/lib/types";
+import { assertIntegerInRange, assertStringArray, assertUuid } from "@/lib/validation";
+
+function assertWorkoutCardioDraftInput(input: WorkoutCardioDraftInput) {
+  if (input.targetDurationMinutes != null) {
+    assertIntegerInRange(
+      input.targetDurationMinutes,
+      "Cardio target duration",
+      1,
+      1440,
+    );
+  }
+}
 
 export async function createWorkoutAction(
   name: string,
@@ -54,10 +67,28 @@ export async function deleteWorkoutAction(
   workoutId: string,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(workoutId, "Workout id");
     await deleteWorkout(workoutId);
     revalidateWorkoutSurfaces();
 
     return okResult(null);
+  } catch (error) {
+    return errorResult(error);
+  }
+}
+
+export async function duplicateWorkoutAction(
+  workoutId: string,
+  nextName?: string,
+): Promise<ActionResult<WorkoutListItem>> {
+  try {
+    assertUuid(workoutId, "Workout id");
+    const workout = await duplicateWorkout(workoutId, nextName);
+    revalidateWorkoutSurfaces();
+    revalidatePath(`/workouts/${workoutId}`);
+    revalidatePath(`/workouts/${workout.id}`);
+
+    return okResult(workout);
   } catch (error) {
     return errorResult(error);
   }
@@ -68,6 +99,7 @@ export async function updateWorkoutNameAction(
   name: string,
 ): Promise<ActionResult<WorkoutListItem>> {
   try {
+    assertUuid(workoutId, "Workout id");
     const workout = await updateWorkoutName(workoutId, name);
     revalidateWorkoutSurfaces();
     revalidatePath(`/workouts/${workoutId}`);
@@ -82,6 +114,7 @@ export async function listAvailableExercisesAction(
   workoutId: string,
 ): Promise<ActionResult<ResolvedExercise[]>> {
   try {
+    assertUuid(workoutId, "Workout id");
     const exercises = await listAvailableExercises(workoutId);
     return okResult(exercises);
   } catch (error) {
@@ -94,6 +127,8 @@ export async function addExistingExerciseToWorkoutAction(
   exerciseId: string,
 ): Promise<ActionResult<WorkoutEditorExercise>> {
   try {
+    assertUuid(workoutId, "Workout id");
+    assertUuid(exerciseId, "Exercise id");
     const workoutExercise = await addExistingExerciseToWorkout(
       workoutId,
       exerciseId,
@@ -112,6 +147,7 @@ export async function createExerciseAndAddToWorkoutAction(
   exerciseInput: string | ExerciseDraftInput,
 ): Promise<ActionResult<WorkoutEditorExercise>> {
   try {
+    assertUuid(workoutId, "Workout id");
     const { exercise, workoutExercise } = await createExerciseAndAddToWorkout(
       workoutId,
       exerciseInput,
@@ -131,6 +167,9 @@ export async function updateWorkoutExerciseTargetSetsAction(
   targetSets: number,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(workoutId, "Workout id");
+    assertUuid(workoutExerciseId, "Workout exercise id");
+    assertIntegerInRange(targetSets, "Target sets", 1, 20);
     await updateWorkoutExerciseTargetSets(workoutExerciseId, targetSets);
     revalidateWorkoutSurfaces();
     revalidatePath(`/workouts/${workoutId}`);
@@ -146,6 +185,8 @@ export async function deleteWorkoutExerciseAction(
   workoutExerciseId: string,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(workoutId, "Workout id");
+    assertUuid(workoutExerciseId, "Workout exercise id");
     await deleteWorkoutExercise(workoutExerciseId);
     revalidateWorkoutSurfaces();
     revalidatePath(`/workouts/${workoutId}`);
@@ -161,6 +202,11 @@ export async function reorderWorkoutExercisesAction(
   orderedWorkoutExerciseIds: string[],
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(workoutId, "Workout id");
+    assertStringArray(orderedWorkoutExerciseIds, "Ordered workout exercise ids");
+    for (const workoutExerciseId of orderedWorkoutExerciseIds) {
+      assertUuid(workoutExerciseId, "Workout exercise id");
+    }
     await reorderWorkoutExercises(workoutId, orderedWorkoutExerciseIds);
     revalidateWorkoutSurfaces();
     revalidatePath(`/workouts/${workoutId}`);
@@ -180,6 +226,7 @@ export async function checkExerciseHasLogsAction(
   exerciseId: string,
 ): Promise<ActionResult<boolean>> {
   try {
+    assertUuid(exerciseId, "Exercise id");
     const hasLogs = await checkExerciseHasLogs(exerciseId);
     return okResult(hasLogs);
   } catch (error) {
@@ -195,6 +242,7 @@ export async function archiveExerciseAction(
   exerciseId: string,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(exerciseId, "Exercise id");
     await archiveExercise(exerciseId);
     revalidateExerciseLibrarySurfaces(exerciseId);
 
@@ -222,6 +270,7 @@ export async function updateExerciseAction(
   input: ExerciseDraftInput,
 ): Promise<ActionResult<ResolvedExercise>> {
   try {
+    assertUuid(exerciseId, "Exercise id");
     const exercise = await updateExercise(exerciseId, input);
     revalidateExerciseLibrarySurfaces(exerciseId);
 
@@ -235,6 +284,7 @@ export async function unarchiveExerciseAction(
   exerciseId: string,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(exerciseId, "Exercise id");
     await unarchiveExercise(exerciseId);
     revalidateExerciseLibrarySurfaces(exerciseId);
 
@@ -248,6 +298,7 @@ export async function deleteExerciseAction(
   exerciseId: string,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(exerciseId, "Exercise id");
     await deleteExercise(exerciseId);
     revalidateExerciseLibrarySurfaces();
 
@@ -262,6 +313,8 @@ export async function createWorkoutCardioBlockAction(
   input: WorkoutCardioDraftInput,
 ): Promise<ActionResult<WorkoutEditorCardioBlock>> {
   try {
+    assertUuid(workoutId, "Workout id");
+    assertWorkoutCardioDraftInput(input);
     const cardioBlock = await createWorkoutCardioBlock(workoutId, input);
     revalidateWorkoutSurfaces();
     revalidatePath(`/workouts/${workoutId}`);
@@ -278,6 +331,9 @@ export async function updateWorkoutCardioBlockAction(
   input: WorkoutCardioDraftInput,
 ): Promise<ActionResult<WorkoutEditorCardioBlock>> {
   try {
+    assertUuid(workoutId, "Workout id");
+    assertUuid(workoutCardioBlockId, "Workout cardio block id");
+    assertWorkoutCardioDraftInput(input);
     const cardioBlock = await updateWorkoutCardioBlock(workoutCardioBlockId, input);
     revalidateWorkoutSurfaces();
     revalidatePath(`/workouts/${workoutId}`);
@@ -293,6 +349,8 @@ export async function deleteWorkoutCardioBlockAction(
   workoutCardioBlockId: string,
 ): Promise<ActionResult<null>> {
   try {
+    assertUuid(workoutId, "Workout id");
+    assertUuid(workoutCardioBlockId, "Workout cardio block id");
     await deleteWorkoutCardioBlock(workoutCardioBlockId);
     revalidateWorkoutSurfaces();
     revalidatePath(`/workouts/${workoutId}`);

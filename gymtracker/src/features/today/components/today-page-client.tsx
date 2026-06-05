@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useOptimistic, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { Button } from '@/components/ui/button'
+import { FieldLabel, Input, Textarea } from '@/components/ui/fields'
+import { EmptyState, PageHeader, PageShell, StatusPill, Surface } from '@/components/ui/surface'
 import { useToast } from '@/components/ui/toast'
 import { getLocalizedWeekdayNames } from '@/lib/utils'
 import { buildWorkoutSessionNotesWithStatus, parseWorkoutSessionStatus } from '@/lib/workout-session-status'
@@ -197,6 +200,60 @@ function createClientMutationId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
+interface SyncStatusBarProps {
+    isOnline: boolean
+    pendingCount: number
+    syncing: boolean
+    onRetry: () => void
+    labels: {
+        online: string
+        offline: string
+        pending: string
+        syncing: string
+        retry: string
+    }
+}
+
+function SyncStatusBar({ isOnline, pendingCount, syncing, onRetry, labels }: SyncStatusBarProps) {
+    const hasPending = pendingCount > 0
+    const toneClassName = !isOnline
+        ? 'border-amber-500/25 bg-amber-500/12 text-amber-700 dark:text-amber-200'
+        : hasPending
+            ? 'border-violet-500/25 bg-violet-500/12 text-violet-700 dark:text-violet-200'
+            : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
+
+    return (
+        <div
+            role="status"
+            aria-live="polite"
+            className={`sticky top-2 z-30 mb-5 flex flex-col gap-3 rounded-2xl border px-4 py-3 text-sm shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between ${toneClassName}`}
+        >
+            <div className="flex items-center gap-3">
+                <span className={`h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                <span className="font-semibold">
+                    {syncing ? labels.syncing : isOnline ? labels.online : labels.offline}
+                </span>
+                {hasPending ? (
+                    <span className="rounded-full bg-white/50 px-2 py-1 text-[11px] font-semibold dark:bg-white/10">
+                        {labels.pending}
+                    </span>
+                ) : null}
+            </div>
+            {hasPending ? (
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={onRetry}
+                    disabled={!isOnline || syncing}
+                    className="w-full bg-white/70 dark:bg-white/10 sm:w-auto"
+                >
+                    {labels.retry}
+                </Button>
+            ) : null}
+        </div>
+    )
+}
+
 function isOfflineLikeError(message?: string) {
     if (!message) {
         return false
@@ -295,6 +352,8 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
     const [session, setSession] = useState<WorkoutSession | null>(initialData.session)
     const [rotation, setRotation] = useState(initialData.rotation)
     const [pendingQueue, setPendingQueue] = useState<PendingSetQueueItem[]>(() => readPendingQueue())
+    const [isOnline, setIsOnline] = useState(true)
+    const [syncingPendingQueue, setSyncingPendingQueue] = useState(false)
     const [exerciseLogs, setExerciseLogs] = useState<ExerciseLogState[]>(() => applyPendingStateToLogsForSession(
         initialData.exerciseLogs,
         readPendingQueue(),
@@ -350,66 +409,71 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             return
         }
 
+        setSyncingPendingQueue(true)
         let nextQueue = [...queue]
         let syncedCount = 0
 
-        for (const item of queue) {
-            const result = await saveSetAction({
-                sessionId: item.sessionId,
-                exerciseId: item.exerciseId,
-                originalExerciseId: item.originalExerciseId,
-                setNumber: item.setNumber,
-                weight: item.weight,
-                reps: item.reps,
-                setLogId: item.setLogId,
-            })
+        try {
+            for (const item of queue) {
+                const result = await saveSetAction({
+                    sessionId: item.sessionId,
+                    exerciseId: item.exerciseId,
+                    originalExerciseId: item.originalExerciseId,
+                    setNumber: item.setNumber,
+                    weight: item.weight,
+                    reps: item.reps,
+                    setLogId: item.setLogId,
+                })
 
-            if (!result.ok || !result.data) {
-                continue
+                if (!result.ok || !result.data) {
+                    continue
+                }
+
+                syncedCount += 1
+                nextQueue = removeQueueItem(nextQueue, item)
+
+                const mutationKey = setMutationKey(item.exerciseId, item.setNumber)
+                const latestMutationId = latestMutationRef.current[mutationKey]
+                if (latestMutationId && latestMutationId !== item.clientMutationId) {
+                    continue
+                }
+
+                if (session?.id === item.sessionId && item.dateISO === dateISO) {
+                    setExerciseLogs((prev) => prev.map((log) => {
+                        if (log.exerciseId !== item.exerciseId) return log
+
+                        return {
+                            ...log,
+                            sets: log.sets.map((set, index) => {
+                                if (index !== item.setNumber - 1) return set
+
+                                return {
+                                    ...set,
+                                    id: result.data!.id,
+                                    weight: String(item.weight),
+                                    reps: String(item.reps),
+                                    saved: true,
+                                    saving: false,
+                                    pendingSync: false,
+                                }
+                            }),
+                        }
+                    }))
+                }
             }
 
-            syncedCount += 1
-            nextQueue = removeQueueItem(nextQueue, item)
+            writePendingQueue(nextQueue)
+            setPendingQueue(nextQueue)
 
-            const mutationKey = setMutationKey(item.exerciseId, item.setNumber)
-            const latestMutationId = latestMutationRef.current[mutationKey]
-            if (latestMutationId && latestMutationId !== item.clientMutationId) {
-                continue
+            if (syncedCount > 0 && shouldNotifyOnSuccess) {
+                showToast(t('Today.toastQueuedSetsSynced'))
             }
 
-            if (session?.id === item.sessionId && item.dateISO === dateISO) {
-                setExerciseLogs((prev) => prev.map((log) => {
-                    if (log.exerciseId !== item.exerciseId) return log
-
-                    return {
-                        ...log,
-                        sets: log.sets.map((set, index) => {
-                            if (index !== item.setNumber - 1) return set
-
-                            return {
-                                ...set,
-                                id: result.data!.id,
-                                weight: String(item.weight),
-                                reps: String(item.reps),
-                                saved: true,
-                                saving: false,
-                                pendingSync: false,
-                            }
-                        }),
-                    }
-                }))
+            if (nextQueue.length > 0 && shouldNotifyOnSuccess) {
+                showToast(t('Today.toastQueuedSetsSyncFailed'), 'error')
             }
-        }
-
-        writePendingQueue(nextQueue)
-        setPendingQueue(nextQueue)
-
-        if (syncedCount > 0 && shouldNotifyOnSuccess) {
-            showToast(t('Today.toastQueuedSetsSynced'))
-        }
-
-        if (nextQueue.length > 0 && shouldNotifyOnSuccess) {
-            showToast(t('Today.toastQueuedSetsSyncFailed'), 'error')
+        } finally {
+            setSyncingPendingQueue(false)
         }
     }, [dateISO, session?.id, showToast, t])
 
@@ -418,11 +482,18 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             return
         }
 
+        setIsOnline(navigator.onLine)
+
         const handleOnline = () => {
+            setIsOnline(true)
             void processPendingQueue(true)
+        }
+        const handleOffline = () => {
+            setIsOnline(false)
         }
 
         window.addEventListener('online', handleOnline)
+        window.addEventListener('offline', handleOffline)
 
         let syncTimeout: number | null = null
 
@@ -437,8 +508,13 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                 window.clearTimeout(syncTimeout)
             }
             window.removeEventListener('online', handleOnline)
+            window.removeEventListener('offline', handleOffline)
         }
     }, [pendingQueue.length, processPendingQueue])
+
+    function handleRetryPendingSync() {
+        void processPendingQueue(true)
+    }
 
     async function refreshTodayView() {
         setLoading(true)
@@ -1019,54 +1095,75 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         })
     }, [exerciseOptions, optimisticExerciseLogs, substitutionSearch, substitutionTarget])
 
+    const syncStatusBar = (
+        <SyncStatusBar
+            isOnline={isOnline}
+            pendingCount={pendingQueue.length}
+            syncing={syncingPendingQueue}
+            onRetry={handleRetryPendingSync}
+            labels={{
+                online: t('Today.syncOnline'),
+                offline: t('Today.syncOffline'),
+                pending: t('Today.pendingSetCount', { count: pendingQueue.length }),
+                syncing: t('Today.syncingPendingSets'),
+                retry: t('Today.retrySync'),
+            }}
+        />
+    )
+
     if (loading) {
         return (
-            <div className="px-4 pt-6">
+            <PageShell>
                 <div className="h-8 w-40 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse mb-2" />
                 <div className="h-4 w-24 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse mb-6" />
                 <div className="space-y-4">
                     {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-40 bg-white dark:bg-zinc-900 rounded-2xl animate-pulse" />
+                        <Surface key={i} className="h-40 animate-pulse" />
                     ))}
                 </div>
-            </div>
+            </PageShell>
         )
     }
 
     if (!workout) {
         return (
-            <div className="px-4 pt-6">
+            <PageShell>
+                {syncStatusBar}
                 {isHistorical && (
                     <div className="mb-4 text-xs font-semibold text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
                         {t('Today.historicalView')}
                     </div>
                 )}
-                <div className="flex items-center justify-between mb-1">
-                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">{dayNames[dayOfWeek]}</h1>
-                </div>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">{isHistorical ? t('Today.historical') : t('Today.today')} • {dateISO}</p>
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className="w-20 h-20 rounded-full bg-white dark:bg-zinc-900 flex items-center justify-center mb-4">
-                        <span className="text-3xl">😴</span>
-                    </div>
-                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">{t('Today.restDay')}</h2>
-                    <p className="text-zinc-500 dark:text-zinc-400 text-sm max-w-[250px] mb-6">{t('Today.noWorkout')}</p>
-                    <button
-                        onClick={async () => {
-                            await loadAllWorkouts()
-                            setShowOverrideModal(true)
-                        }}
-                        className="px-6 py-3 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white font-semibold rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-800 transition-colors"
-                    >
-                        {t('Today.startAnyway')}
-                    </button>
-                    <p className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 mt-4">{t('Today.changeSchedule')}</p>
-                </div>
+                <PageHeader
+                    eyebrow={isHistorical ? t('Today.historical') : t('Today.today')}
+                    title={dayNames[dayOfWeek]}
+                    description={dateISO}
+                />
+                <EmptyState
+                    className="mt-8"
+                    icon={<span className="font-black">Zz</span>}
+                    title={t('Today.restDay')}
+                    description={t('Today.noWorkout')}
+                    action={(
+                        <div className="flex flex-col items-center gap-3">
+                            <Button
+                                variant="secondary"
+                                onClick={async () => {
+                                    await loadAllWorkouts()
+                                    setShowOverrideModal(true)
+                                }}
+                            >
+                                {t('Today.startAnyway')}
+                            </Button>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('Today.changeSchedule')}</p>
+                        </div>
+                    )}
+                />
 
                 {showOverrideModal && (
                     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
-                        <div className="w-full max-w-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 animate-[slideUp_0.3s_ease-out]">
-                            <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">{t('Today.selectWorkout')}</h3>
+                        <div role="dialog" aria-modal="true" aria-labelledby="today-select-workout-title" className="w-full max-w-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 animate-[slideUp_0.3s_ease-out]">
+                            <h3 id="today-select-workout-title" className="text-lg font-bold text-zinc-900 dark:text-white mb-2">{t('Today.selectWorkout')}</h3>
                             <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-6">{t('Today.chooseWorkout')}</p>
                             <div className="space-y-2 mb-6 max-h-60 overflow-y-auto">
                                 {allWorkouts.map((item) => (
@@ -1091,36 +1188,32 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                         </div>
                     </div>
                 )}
-            </div>
+            </PageShell>
         )
     }
 
     if (isSkipped) {
         return (
-            <div className="px-4 pt-6">
+            <PageShell>
+                {syncStatusBar}
                 {isHistorical && (
                     <div className="mb-4 text-xs font-semibold text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
                         {t('Today.historicalView')}
                     </div>
                 )}
-                <div className="flex items-center justify-between mb-1">
-                    <h1 className="text-2xl font-bold text-zinc-500 dark:text-zinc-400 opacity-50 line-through">{workout.name}</h1>
-                </div>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">{isHistorical ? t('Today.historical') : t('Today.today')} • {dateISO}</p>
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className="w-20 h-20 rounded-full bg-white dark:bg-zinc-900 flex items-center justify-center mb-4 border border-zinc-200 dark:border-zinc-800">
-                        <span className="text-3xl opacity-50">🛋️</span>
-                    </div>
-                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">{t('Today.workoutSkipped')}</h2>
-                    <p className="text-zinc-500 dark:text-zinc-400 text-sm max-w-[250px] mb-6">{t('Today.youChoseToRest')}</p>
-                    <button
-                        onClick={handleUndoSkip}
-                        className="px-6 py-3 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white font-semibold rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-800 transition-colors"
-                    >
-                        {t('Today.undoSkip')}
-                    </button>
-                </div>
-            </div>
+                <PageHeader
+                    eyebrow={`${isHistorical ? t('Today.historical') : t('Today.today')} • ${dateISO}`}
+                    title={workout.name}
+                    description={t('Today.youChoseToRest')}
+                />
+                <EmptyState
+                    className="mt-8"
+                    icon={<span className="font-black">--</span>}
+                    title={t('Today.workoutSkipped')}
+                    description={t('Today.youChoseToRest')}
+                    action={<Button variant="secondary" onClick={handleUndoSkip}>{t('Today.undoSkip')}</Button>}
+                />
+            </PageShell>
         )
     }
 
@@ -1129,82 +1222,77 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         const destinationDate = sessionStatus.dateISO
 
         return (
-            <div className="px-4 pt-6">
+            <PageShell>
+                {syncStatusBar}
                 {isHistorical && (
                     <div className="mb-4 text-xs font-semibold text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
                         {t('Today.historicalView')}
                     </div>
                 )}
-                <div className="flex items-center justify-between mb-1">
-                    <h1 className="text-2xl font-bold text-zinc-600 dark:text-zinc-300">{workout.name}</h1>
-                </div>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">{isHistorical ? t('Today.historical') : t('Today.today')} • {dateISO}</p>
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className="w-20 h-20 rounded-full bg-white dark:bg-zinc-900 flex items-center justify-center mb-4 border border-zinc-200 dark:border-zinc-800">
-                        <span className="text-3xl opacity-60">📅</span>
-                    </div>
-                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">{t('Today.workoutRescheduled')}</h2>
-                    <p className="text-zinc-500 dark:text-zinc-400 text-sm max-w-[260px] mb-2">
-                        {t('Today.rescheduledToDay', { day: destinationLabel })}
-                    </p>
-                    {destinationDate && (
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-6">
-                            {t('Today.rescheduledTargetDate', { date: destinationDate })}
-                        </p>
+                <PageHeader
+                    eyebrow={`${isHistorical ? t('Today.historical') : t('Today.today')} • ${dateISO}`}
+                    title={workout.name}
+                    description={t('Today.rescheduledToDay', { day: destinationLabel })}
+                />
+                <EmptyState
+                    className="mt-8"
+                    icon={<span className="font-black">↗</span>}
+                    title={t('Today.workoutRescheduled')}
+                    description={destinationDate ? t('Today.rescheduledTargetDate', { date: destinationDate }) : t('Today.rescheduledToDay', { day: destinationLabel })}
+                    action={(
+                        <Button
+                            variant="secondary"
+                            onClick={async () => {
+                                await loadAllWorkouts()
+                                setShowOverrideModal(true)
+                            }}
+                        >
+                            {t('Today.startAnyway')}
+                        </Button>
                     )}
-                    <button
-                        onClick={async () => {
-                            await loadAllWorkouts()
-                            setShowOverrideModal(true)
-                        }}
-                        className="px-6 py-3 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white font-semibold rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-800 transition-colors"
-                    >
-                        {t('Today.startAnyway')}
-                    </button>
-                </div>
-            </div>
+                />
+            </PageShell>
         )
     }
 
     return (
-        <div className="px-4 pt-6 pb-8">
+        <PageShell>
+            {syncStatusBar}
             {isHistorical && (
                 <div className="mb-4 text-xs font-semibold text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
                     {t('Today.historicalView')}
                 </div>
             )}
-            <div className="flex items-start justify-between mb-0.5">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">{workout.name}</h1>
+            <PageHeader
+                eyebrow={`${dayNames[dayOfWeek]} • ${dateISO}`}
+                title={workout.name}
+                description={isHistorical ? t('Today.historicalView') : undefined}
+                actions={(
+                    <>
                         {rotation.totalVariants > 1 && rotation.activeRotationIndex && (
-                            <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-[11px] font-semibold uppercase text-emerald-600 dark:text-emerald-300">
+                            <StatusPill className="border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200">
                                 {t('Today.rotationBadge', { rotation: rotation.activeRotationIndex, total: rotation.totalVariants })}
-                            </span>
+                            </StatusPill>
                         )}
                         {isRescheduledTarget && (
-                            <span className="rounded-md bg-violet-600/10 px-2 py-1 text-[11px] font-semibold text-violet-600 dark:text-violet-300">
+                            <StatusPill className="border-violet-500/20 bg-violet-500/10 text-violet-700 dark:text-violet-200">
                                 {t('Today.rescheduledFromLabel', { day: sessionStatus.label ?? dayNames[dayOfWeek] })}
-                            </span>
+                            </StatusPill>
                         )}
-                    </div>
-                </div>
-                <button
-                    onClick={async () => {
-                        await loadAllWorkouts()
-                        setShowOverrideModal(true)
-                    }}
-                    className="p-2 text-zinc-600 dark:text-zinc-400 hover:text-white bg-white dark:bg-zinc-900 rounded-full transition-colors"
-                    title={t('Today.switchWorkout')}
-                >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                    </svg>
-                </button>
-            </div>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">{dayNames[dayOfWeek]} • {dateISO}</p>
+                        <Button
+                            variant="secondary"
+                            onClick={async () => {
+                                await loadAllWorkouts()
+                                setShowOverrideModal(true)
+                            }}
+                        >
+                            {t('Today.switchWorkout')}
+                        </Button>
+                    </>
+                )}
+            />
 
-            <div className="mb-6">
+            <Surface className="my-6 p-5">
                 <div className="flex items-center justify-between mb-1.5">
                     <span className="text-xs text-zinc-500 dark:text-zinc-400">{t('Today.progress')}</span>
                     <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">{completedProgressUnits}/{totalProgressUnits} {t('Today.progressUnits')}</span>
@@ -1218,7 +1306,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                         {pendingSyncCount} • {t('Today.pendingSync')}
                     </p>
                 )}
-            </div>
+            </Surface>
 
             <div className="space-y-4">
                 {optimisticExerciseLogs.map((exerciseLog, exerciseIndex) => {
@@ -1549,24 +1637,24 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             )}
 
             {session && (
-                <div className="mt-6 mb-8">
-                    <label className="block text-sm font-semibold text-zinc-600 dark:text-zinc-400 mb-2">{t('Today.sessionNotes')}</label>
-                    <textarea
+                <Surface className="mt-6 mb-8 p-5">
+                    <FieldLabel htmlFor="today-session-notes">{t('Today.sessionNotes')}</FieldLabel>
+                    <Textarea
+                        id="today-session-notes"
                         value={notes}
                         onChange={(event) => setNotes(event.target.value)}
                         onBlur={handleSaveNotes}
                         placeholder={t('Today.sessionNotesPlaceholder')}
                         rows={3}
-                        className="w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-transparent text-sm resize-none"
                     />
-                    <p className="text-[10px] text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 mt-1">{t('Today.autoSaves')}</p>
-                </div>
+                    <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">{t('Today.autoSaves')}</p>
+                </Surface>
             )}
 
             {showOverrideModal && (
                 <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
-                    <div className="w-full max-w-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 animate-[slideUp_0.3s_ease-out]">
-                        <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">{t('Today.switchWorkout')}</h3>
+                    <div role="dialog" aria-modal="true" aria-labelledby="today-switch-workout-title" className="w-full max-w-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 animate-[slideUp_0.3s_ease-out]">
+                        <h3 id="today-switch-workout-title" className="text-lg font-bold text-zinc-900 dark:text-white mb-2">{t('Today.switchWorkout')}</h3>
                         <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-6">{t('Today.doingSomethingElse')}</p>
 
                         <div className="space-y-2 mb-6 max-h-60 overflow-y-auto">
@@ -1605,16 +1693,16 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
 
             {substitutionTarget && (
                 <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
-                    <div className="w-full max-w-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 animate-[slideUp_0.3s_ease-out]">
-                        <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">{t('Today.substituteToday')}</h3>
+                    <div role="dialog" aria-modal="true" aria-labelledby="today-substitute-title" className="w-full max-w-md bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 animate-[slideUp_0.3s_ease-out]">
+                        <h3 id="today-substitute-title" className="text-lg font-bold text-zinc-900 dark:text-white mb-2">{t('Today.substituteToday')}</h3>
                         <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
                             {t('Today.substituteExerciseDescription', { exercise: substitutionTarget.originalExerciseName })}
                         </p>
-                        <input
+                        <Input
                             value={substitutionSearch}
                             onChange={(event) => setSubstitutionSearch(event.target.value)}
                             placeholder={t('Today.substituteExerciseSearch')}
-                            className="mb-4 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                            className="mb-4"
                         />
                         <div className="mb-6 max-h-80 space-y-2 overflow-y-auto">
                             {loadingExerciseOptions && (
@@ -1648,8 +1736,8 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
 
             {showRescheduleModal && (
                 <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
-                    <div className="w-full max-w-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 animate-[slideUp_0.3s_ease-out]">
-                        <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">{t('Today.rescheduleWorkout')}</h3>
+                    <div role="dialog" aria-modal="true" aria-labelledby="today-reschedule-title" className="w-full max-w-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 animate-[slideUp_0.3s_ease-out]">
+                        <h3 id="today-reschedule-title" className="text-lg font-bold text-zinc-900 dark:text-white mb-2">{t('Today.rescheduleWorkout')}</h3>
                         <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-6">{t('Today.rescheduleDesc')}</p>
 
                         <div className="grid grid-cols-2 gap-2 mb-6">
@@ -1673,6 +1761,6 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                     </div>
                 </div>
             )}
-        </div>
+        </PageShell>
     )
 }

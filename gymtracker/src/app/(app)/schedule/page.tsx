@@ -1,8 +1,19 @@
 import { SchedulePageClient } from '@/features/schedule/components/schedule-page-client'
 import { getSchedulePageData } from '@/features/schedule/service'
 
-export default async function SchedulePage() {
-    const data = await getSchedulePageData()
+interface SchedulePageProps {
+    searchParams?: Promise<{ previewDate?: string }>
+}
+
+function resolvePreviewDate(dateParam?: string) {
+    return dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
+        ? dateParam
+        : undefined
+}
+
+export default async function SchedulePage({ searchParams }: SchedulePageProps) {
+    const resolvedSearchParams = searchParams ? await searchParams : undefined
+    const data = await getSchedulePageData(resolvePreviewDate(resolvedSearchParams?.previewDate))
 
     return (
         <SchedulePageClient

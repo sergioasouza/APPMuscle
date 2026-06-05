@@ -31,7 +31,6 @@ import {
   getEndOfMonthISO,
   getEndOfPreviousMonthISO,
   getReferenceMonthFromInput,
-  getTodayISODate,
   maxDateISO,
   normalizeAdminSearch,
   normalizeAdminText,
@@ -98,58 +97,12 @@ async function getAdminOperationContext(): Promise<AdminOperationContext> {
   const context = await getAdminServerContext();
   const serviceRole = getServiceRoleClient();
 
-  await purgeExpiredTrialUsers(serviceRole, context.user.id);
-
   return {
     serviceRole,
     actorId: context.user.id,
     actorName: context.profile.display_name,
     todayISO: context.todayISO,
   };
-}
-
-async function purgeExpiredTrialUsers(
-  serviceRole: ReturnType<typeof getServiceRoleClient>,
-  actorId: string,
-) {
-  const todayISO = getTodayISODate();
-  const { data, error } = await serviceRole
-    .from("profiles")
-    .select("id, display_name")
-    .eq("role", "member")
-    .eq("member_access_mode", "trial")
-    .lt("trial_ends_at", todayISO);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const expiredProfiles = data ?? [];
-
-  for (const profile of expiredProfiles) {
-    const { error: auditError } = await serviceRole.from("admin_audit_log").insert({
-      actor_user_id: actorId,
-      target_user_id: profile.id,
-      entity_type: "user",
-      entity_id: profile.id,
-      action: "user.trial_auto_deleted",
-      metadata: {
-        displayName: profile.display_name,
-        deletedAt: todayISO,
-        reason: "trial_expired",
-      },
-    });
-
-    if (auditError) {
-      throw new Error(auditError.message);
-    }
-
-    const deleteResult = await serviceRole.auth.admin.deleteUser(profile.id);
-
-    if (deleteResult.error) {
-      throw new Error(deleteResult.error.message);
-    }
-  }
 }
 
 async function listAllAuthUsers(

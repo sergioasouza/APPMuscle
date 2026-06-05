@@ -26,6 +26,7 @@ import type { ActionResult } from '@/lib/action-result'
 import type { SessionCardioLog, SetLog, Workout } from '@/lib/types'
 import {
     assertFiniteNumber,
+    assertFiniteNumberInRange,
     assertIntegerInRange,
     assertIsoDate,
     assertOptionalUuid,
@@ -136,7 +137,7 @@ export async function saveSetAction(input: {
         assertOptionalUuid(input.setLogId, 'Set log id')
         assertPositiveInteger(input.setNumber, 'Set number')
         assertFiniteNumber(input.weight, 'Weight', 0)
-        assertFiniteNumber(input.reps, 'Reps', 1)
+        assertPositiveInteger(input.reps, 'Reps')
         const data = await saveSet(
             input.sessionId,
             input.exerciseId,
@@ -242,11 +243,11 @@ function assertSaveCardioLogInput(input: SaveCardioLogInput) {
     assertUuid(input.cardioBlockId, 'Cardio block id')
 
     if (input.totalDurationMinutes != null) {
-        assertPositiveInteger(input.totalDurationMinutes, 'Total duration minutes')
+        assertIntegerInRange(input.totalDurationMinutes, 'Total duration minutes', 1, 1440)
     }
 
     if (input.totalDistanceKm != null) {
-        assertFiniteNumber(input.totalDistanceKm, 'Total distance km', 0)
+        assertFiniteNumberInRange(input.totalDistanceKm, 'Total distance km', 0, 9999.99)
     }
 
     if (!Array.isArray(input.intervals)) {
@@ -254,11 +255,11 @@ function assertSaveCardioLogInput(input: SaveCardioLogInput) {
     }
 
     for (const interval of input.intervals) {
-        assertPositiveInteger(interval.durationMinutes, 'Interval duration minutes')
-        assertPositiveInteger(interval.repeatCount, 'Interval repeat count')
+        assertIntegerInRange(interval.durationMinutes, 'Interval duration minutes', 1, 1440)
+        assertIntegerInRange(interval.repeatCount, 'Interval repeat count', 1, 100)
 
         if (interval.speedKmh != null) {
-            assertFiniteNumber(interval.speedKmh, 'Interval speed km/h', 0)
+            assertFiniteNumberInRange(interval.speedKmh, 'Interval speed km/h', 0, 999.99)
         }
 
         if (interval.id) {
