@@ -8,6 +8,10 @@ on:
       - master
       - 'codex/**'
 
+defaults:
+  run:
+    working-directory: gymtracker
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -18,6 +22,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: gymtracker/package-lock.json
 
       - name: Install dependencies
         run: npm ci

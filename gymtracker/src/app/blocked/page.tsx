@@ -5,12 +5,7 @@ import {
     resolveBlockedReason,
     resolvePostAuthDestination,
 } from '@/lib/access-control'
-
-const whatsappUrl =
-    process.env.NEXT_PUBLIC_CONTACT_WHATSAPP_URL ??
-    'https://wa.me/5500000000000?text=Preciso%20regularizar%20meu%20acesso%20ao%20GymTracker'
-const contactEmail =
-    process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? 'contato@gymtracker.app'
+import { getBlockedPublicContact } from '@/lib/public-contact'
 
 export const metadata = {
     robots: {
@@ -58,6 +53,7 @@ function getBlockedCopy(reason: ReturnType<typeof resolveBlockedReason>) {
 
 export default async function BlockedPage() {
     const context = await getOptionalAuthenticatedAppContext()
+    const { whatsappUrl, contactEmail } = getBlockedPublicContact()
 
     if (!context.profile) {
         redirect('/login')

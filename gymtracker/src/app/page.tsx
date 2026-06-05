@@ -5,18 +5,14 @@ import {
   getOptionalAuthenticatedAppContext,
   resolvePostAuthDestination,
 } from '@/lib/access-control'
-
-const whatsappUrl =
-  process.env.NEXT_PUBLIC_CONTACT_WHATSAPP_URL ??
-  'https://wa.me/5500000000000?text=Quero%20conhecer%20o%20GymTracker'
-const contactEmail =
-  process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? 'contato@gymtracker.app'
+import { getLandingPublicContact } from '@/lib/public-contact'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Home() {
   const t = await getTranslations('Landing')
   const context = await getOptionalAuthenticatedAppContext()
+  const { whatsappUrl, contactEmail } = getLandingPublicContact()
 
   if (context.profile) {
     redirect(resolvePostAuthDestination(context.profile, context.todayISO))
