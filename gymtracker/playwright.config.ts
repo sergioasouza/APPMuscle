@@ -1,4 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
+import { loadLocalEnvFiles } from './scripts/lib/supabase-script-support'
+
+loadLocalEnvFiles()
 
 export default defineConfig({
     testDir: './tests/e2e',

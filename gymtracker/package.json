@@ -16,6 +16,7 @@
     "test:e2e:public": "playwright test --no-deps --grep public --project=desktop-chrome --project=mobile-chrome",
     "test:e2e:auth": "playwright test --grep-invert public --project=desktop-chrome --project=mobile-chrome",
     "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
+    "bootstrap:e2e-users": "tsx scripts/bootstrap-e2e-users.ts",
     "reconcile:exercise-history": "tsx scripts/reconcile-custom-exercise-history.ts",
     "cleanup:custom-exercises": "tsx scripts/cleanup-custom-exercises-without-history.ts"
   },

@@ -80,6 +80,22 @@ Authenticated E2E flows also require `E2E_MEMBER_EMAIL`, `E2E_MEMBER_PASSWORD`,
 npm run test:e2e:auth
 ```
 
+To recreate the local E2E users from the current `.env.local` values, run:
+
+```bash
+npm run bootstrap:e2e-users
+```
+
+Current local test accounts:
+
+```bash
+E2E_ADMIN_EMAIL=e2e.admin@gymtracker.app
+E2E_ADMIN_PASSWORD=GymTrackerAdmin!2026
+E2E_MEMBER_EMAIL=e2e.member@gymtracker.app
+E2E_MEMBER_PASSWORD=GymTrackerMember!2026
+E2E_TARGET_MEMBER_EMAIL=e2e.member@gymtracker.app
+```
+
 ## Database
 
 The current required migration baseline for production is:

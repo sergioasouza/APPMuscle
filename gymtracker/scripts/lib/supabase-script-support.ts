@@ -31,7 +31,7 @@ export function loadLocalEnvFiles() {
       const key = line.slice(0, separatorIndex).trim();
       const value = line.slice(separatorIndex + 1).trim();
 
-      if (!process.env[key]) {
+      if (process.env[key] == null || process.env[key] === "") {
         process.env[key] = value;
       }
     }
