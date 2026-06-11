@@ -31,11 +31,17 @@ function formatDate(value: string | null, locale: string) {
     return null;
   }
 
+  const parsed = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
   return new Intl.DateTimeFormat(locale === "pt" ? "pt-BR" : "en-US", {
     day: "2-digit",
     month: "short",
     year: "numeric",
-  }).format(new Date(`${value}T00:00:00`));
+  }).format(parsed);
 }
 
 export function ProfilePageClient({ initialData }: ProfilePageClientProps) {
@@ -148,7 +154,9 @@ export function ProfilePageClient({ initialData }: ProfilePageClientProps) {
                   <StatusPill className="border-emerald-400/20 bg-emerald-400/12 text-emerald-200">
                     {accessStatusLabel}
                   </StatusPill>
-                  <StatusPill>{accessModeLabel}</StatusPill>
+                  <StatusPill className="border-white/10 bg-white/8 text-zinc-100">
+                    {accessModeLabel}
+                  </StatusPill>
                 </div>
                 <h2 className="mt-4 truncate text-3xl font-black tracking-tight text-white">
                   {displayName}

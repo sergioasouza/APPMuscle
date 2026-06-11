@@ -136,11 +136,24 @@
   }
 
   .app-kicker {
-    color: rgb(196 181 253);
+    color: rgb(109 40 217);
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.32em;
     text-transform: uppercase;
+  }
+
+  .dark .app-kicker {
+    color: rgb(196 181 253);
+  }
+
+  .login-hero {
+    background:
+      radial-gradient(circle at 85% 15%, rgba(129, 140, 248, 0.35), transparent 30%),
+      radial-gradient(circle at 15% 85%, rgba(16, 185, 129, 0.18), transparent 28%),
+      linear-gradient(145deg, #241346 0%, #312e81 50%, #172554 100%);
+    border-color: rgba(167, 139, 250, 0.4);
+    box-shadow: 0 30px 80px rgba(49, 46, 129, 0.28);
   }
 
   .app-focus-ring {
