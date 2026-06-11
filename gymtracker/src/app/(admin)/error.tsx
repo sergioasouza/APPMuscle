@@ -26,7 +26,7 @@ export default function AdminError({
                 <button
                     type="button"
                     onClick={reset}
-                    className="mt-6 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500"
+                    className="mt-6 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500"
                 >
                     Tentar novamente
                 </button>

@@ -149,7 +149,7 @@ export function AdminExercisesPageClient({
                                     name: event.target.value,
                                 }))
                             }
-                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                             required
                         />
                     </label>
@@ -166,7 +166,7 @@ export function AdminExercisesPageClient({
                                     modality: event.target.value,
                                 }))
                             }
-                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                         />
                     </label>
                     <label className="block">
@@ -182,14 +182,14 @@ export function AdminExercisesPageClient({
                                     muscleGroup: event.target.value,
                                 }))
                             }
-                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                         />
                     </label>
                 </div>
                 <button
                     type="submit"
                     disabled={creating}
-                    className="mt-4 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="mt-4 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {creating ? 'Criando...' : 'Criar exercício base'}
                 </button>
@@ -206,7 +206,7 @@ export function AdminExercisesPageClient({
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder="Nome, system key, modalidade ou grupo muscular"
-                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                         />
                     </label>
                     <label className="block">
@@ -216,7 +216,7 @@ export function AdminExercisesPageClient({
                         <select
                             value={statusFilter}
                             onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                         >
                             <option value="all">Todos</option>
                             <option value="active">Ativos</option>
@@ -280,7 +280,7 @@ export function AdminExercisesPageClient({
                                             type="button"
                                             onClick={() => handleSaveExercise(exercise.id)}
                                             disabled={savingId === exercise.id}
-                                            className="rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+                                            className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             {savingId === exercise.id ? 'Salvando...' : 'Salvar'}
                                         </button>
@@ -304,7 +304,7 @@ export function AdminExercisesPageClient({
                                                     },
                                                 }))
                                             }
-                                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                                         />
                                     </label>
                                     <label className="block">
@@ -323,7 +323,7 @@ export function AdminExercisesPageClient({
                                                     },
                                                 }))
                                             }
-                                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                                         />
                                     </label>
                                     <label className="block">
@@ -342,7 +342,7 @@ export function AdminExercisesPageClient({
                                                     },
                                                 }))
                                             }
-                                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                                            className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                                         />
                                     </label>
                                 </div>

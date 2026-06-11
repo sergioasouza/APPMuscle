@@ -17,11 +17,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClassNames: Record<ButtonVariant, string> = {
   primary:
-    "bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-500 text-white shadow-[0_18px_48px_rgba(109,40,217,0.35)] hover:from-violet-500 hover:via-fuchsia-500 hover:to-indigo-400 focus:ring-violet-500/25",
+    "border border-sky-300/20 bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 text-white shadow-[0_18px_48px_rgba(2,132,199,0.32)] hover:from-blue-600 hover:via-sky-500 hover:to-cyan-400 focus:ring-sky-500/30",
   secondary:
-    "border border-zinc-200/80 bg-white/90 text-zinc-900 shadow-sm hover:border-violet-300 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:border-violet-500/40 dark:hover:bg-white/10 focus:ring-violet-500/20",
+    "border border-slate-200/80 bg-white/90 text-slate-950 shadow-sm hover:border-sky-300 hover:bg-sky-50 dark:border-sky-300/10 dark:bg-sky-400/5 dark:text-white dark:hover:border-sky-400/40 dark:hover:bg-sky-400/10 focus:ring-sky-500/20",
   ghost:
-    "bg-transparent text-zinc-600 hover:bg-zinc-950/5 hover:text-zinc-950 dark:text-zinc-300 dark:hover:bg-white/8 dark:hover:text-white focus:ring-violet-500/20",
+    "bg-transparent text-slate-600 hover:bg-sky-950/5 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-sky-400/10 dark:hover:text-white focus:ring-sky-500/20",
   danger:
     "bg-red-500/12 text-red-600 hover:bg-red-500/18 dark:text-red-300 dark:hover:bg-red-500/22 focus:ring-red-500/20",
   success:

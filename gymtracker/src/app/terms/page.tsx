@@ -6,7 +6,7 @@ export default function TermsPage() {
   return (
     <main className="min-h-dvh bg-zinc-50 px-4 py-10 text-zinc-900 dark:bg-zinc-950 dark:text-white">
       <div className="mx-auto max-w-3xl rounded-[2rem] border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <p className="text-sm uppercase tracking-[0.25em] text-violet-500">
+        <p className="text-sm uppercase tracking-[0.25em] text-blue-500">
           GymTracker
         </p>
         <h1 className="mt-4 text-4xl font-black tracking-tight">

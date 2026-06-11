@@ -146,7 +146,7 @@ export function ProfilePageClient({ initialData }: ProfilePageClientProps) {
         <div className="grid gap-0 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="border-b border-white/10 p-6 sm:p-8 lg:border-b-0 lg:border-r">
             <div className="flex items-center gap-4">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full border border-violet-400/30 bg-violet-500/15 text-3xl font-black text-white shadow-[0_18px_40px_rgba(109,40,217,0.32)]">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full border border-cyan-300/30 bg-blue-500/15 text-3xl font-black text-white shadow-[0_18px_40px_rgba(2,132,199,0.32)]">
                 {avatarLetter}
               </div>
               <div className="min-w-0">
@@ -165,7 +165,7 @@ export function ProfilePageClient({ initialData }: ProfilePageClientProps) {
               </div>
             </div>
 
-            <p className="mt-6 max-w-xl text-sm leading-7 text-violet-100/80">
+            <p className="mt-6 max-w-xl text-sm leading-7 text-blue-100/80">
               {t("Profile.accountHeroDescription")}
             </p>
           </div>
@@ -292,10 +292,10 @@ export function ProfilePageClient({ initialData }: ProfilePageClientProps) {
                       aria-pressed={isSelected}
                       onClick={() => setPaletteId(palette.id)}
                       className={cn(
-                        "rounded-2xl border p-3 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-300",
+                        "rounded-2xl border p-3 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-300",
                         isSelected
-                          ? "border-violet-400 bg-violet-500/10 shadow-[0_14px_34px_rgba(124,58,237,0.22)]"
-                          : "border-zinc-200/80 bg-white/70 hover:border-violet-300 dark:border-white/10 dark:bg-white/5 dark:hover:border-violet-400/50",
+                          ? "border-sky-400 bg-sky-500/10 shadow-[0_14px_34px_rgba(2,132,199,0.22)]"
+                          : "border-zinc-200/80 bg-white/70 hover:border-blue-300 dark:border-white/10 dark:bg-white/5 dark:hover:border-blue-400/50",
                       )}
                     >
                       <span className="flex items-center gap-2">

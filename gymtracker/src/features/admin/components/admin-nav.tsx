@@ -37,7 +37,7 @@ export function AdminNav({ displayName, email }: AdminNavProps) {
         <header className="px-4 pt-4 sm:px-6">
             <div className="app-panel mx-auto flex max-w-7xl flex-col gap-4 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0">
-                    <p className="app-kicker text-violet-400">
+                    <p className="app-kicker text-blue-400">
                         GymTracker Admin
                     </p>
                     <h1 className="mt-2 truncate text-xl font-black tracking-tight text-zinc-900 dark:text-white">
@@ -62,7 +62,7 @@ export function AdminNav({ displayName, email }: AdminNavProps) {
                                     key={link.href}
                                     href={link.href}
                                     className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${isActive
-                                            ? 'bg-gradient-to-r from-violet-600 to-indigo-500 text-white shadow-[0_12px_28px_rgba(109,40,217,0.28)]'
+                                            ? 'bg-gradient-to-r from-blue-700 to-cyan-500 text-white shadow-[0_12px_28px_rgba(2,132,199,0.3)]'
                                             : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-300 dark:hover:bg-white/10'
                                         }`}
                                 >

@@ -231,7 +231,7 @@ export function ExerciseLibraryPageClient({
           type="button"
           disabled={creating}
           onClick={() => setShowCreateForm(true)}
-          className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           + {t("exerciseNewButton")}
         </button>
@@ -300,7 +300,7 @@ export function ExerciseLibraryPageClient({
                 }
                 placeholder={t("newExercisePlaceholder")}
                 autoFocus
-                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
               />
             </label>
             <label className="block">
@@ -317,7 +317,7 @@ export function ExerciseLibraryPageClient({
                   }))
                 }
                 placeholder={t("exerciseFieldModalityPlaceholder")}
-                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
               />
             </label>
             <label className="block">
@@ -334,7 +334,7 @@ export function ExerciseLibraryPageClient({
                   }))
                 }
                 placeholder={t("exerciseFieldMuscleGroupPlaceholder")}
-                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
               />
             </label>
           </div>
@@ -353,7 +353,7 @@ export function ExerciseLibraryPageClient({
             <button
               type="submit"
               disabled={creating || !draft.name?.trim()}
-              className="flex-1 rounded-xl bg-violet-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {creating ? t("exerciseCreating") : t("exerciseCreateSubmit")}
             </button>
@@ -370,7 +370,7 @@ export function ExerciseLibraryPageClient({
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t("exerciseSearchPlaceholder")}
-          className="mb-4 w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+          className="mb-4 w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
         />
         <div className="grid grid-cols-3 gap-2">
           {([
@@ -394,7 +394,7 @@ export function ExerciseLibraryPageClient({
               disabled={isPending}
               className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
                 statusFilter === value
-                  ? "bg-violet-600 text-white"
+                  ? "bg-blue-600 text-white"
                   : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
               }`}
             >
@@ -462,7 +462,7 @@ export function ExerciseLibraryPageClient({
                 pageSize: Number(event.target.value),
               })
             }
-            className="rounded-xl border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+            className="rounded-xl border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm text-zinc-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
           >
             {pageSizeOptions.map((value) => (
               <option key={value} value={value}>
@@ -500,7 +500,7 @@ export function ExerciseLibraryPageClient({
               <Link
                 key={item.id}
                 href={`/workouts/exercises/${item.id}`}
-                className="block rounded-2xl border border-zinc-200 bg-white p-4 transition-colors hover:border-violet-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-violet-700"
+                className="block rounded-2xl border border-zinc-200 bg-white p-4 transition-colors hover:border-blue-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-blue-700"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
@@ -531,7 +531,7 @@ export function ExerciseLibraryPageClient({
                           : t("exerciseSourceCustom")}
                       </span>
                       {item.isCustomized && (
-                        <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                        <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300">
                           {t("exerciseCustomizedBadge")}
                         </span>
                       )}
@@ -629,7 +629,7 @@ export function ExerciseLibraryPageClient({
                     aria-current={value === pagination.page ? "page" : undefined}
                     className={`min-w-10 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
                       value === pagination.page
-                        ? "bg-violet-600 text-white"
+                        ? "bg-blue-600 text-white"
                         : "border border-zinc-300 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                     }`}
                   >

@@ -235,7 +235,7 @@ export function ExerciseDetailPageClient({
             </span>
             {initialData.exercise.source === "system" &&
               initialData.exercise.is_customized && (
-                <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-300">
                   {t("exerciseCustomizedBadge")}
                 </span>
               )}
@@ -299,7 +299,7 @@ export function ExerciseDetailPageClient({
                   }))
                 }
                 disabled={savingExercise}
-                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 disabled:cursor-not-allowed disabled:opacity-70 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-70 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
               />
             </label>
             <label className="block">
@@ -317,7 +317,7 @@ export function ExerciseDetailPageClient({
                 }
                 disabled={savingExercise}
                 placeholder={t("exerciseFieldModalityPlaceholder")}
-                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 disabled:cursor-not-allowed disabled:opacity-70 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-70 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
               />
             </label>
             <label className="block">
@@ -335,7 +335,7 @@ export function ExerciseDetailPageClient({
                 }
                 disabled={savingExercise}
                 placeholder={t("exerciseFieldMuscleGroupPlaceholder")}
-                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-violet-600 disabled:cursor-not-allowed disabled:opacity-70 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                className="w-full rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-base text-zinc-900 placeholder-zinc-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-70 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
               />
             </label>
           </div>
@@ -353,7 +353,7 @@ export function ExerciseDetailPageClient({
               type="button"
               disabled={savingExercise || !formState.name.trim() || !hasUnsavedChanges}
               onClick={handleSaveExercise}
-              className="flex-1 rounded-xl bg-violet-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {savingExercise ? t("exerciseSaving") : t("exerciseSaveAction")}
             </button>
@@ -455,12 +455,12 @@ export function ExerciseDetailPageClient({
                     <Line
                       type="monotone"
                       dataKey="weight"
-                      stroke="#8b5cf6"
+                      stroke="#0ea5e9"
                       strokeWidth={2.5}
-                      dot={{ r: 4, fill: "#8b5cf6", strokeWidth: 0 }}
+                      dot={{ r: 4, fill: "#0ea5e9", strokeWidth: 0 }}
                       activeDot={{
                         r: 6,
-                        fill: "#8b5cf6",
+                        fill: "#0ea5e9",
                         strokeWidth: 2,
                         stroke: "white",
                       }}
@@ -484,7 +484,7 @@ export function ExerciseDetailPageClient({
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-5 text-xs text-zinc-500 dark:text-zinc-400">
                 <span className="flex items-center gap-1.5">
-                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-violet-500" />
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-500" />
                   {t("exerciseChartWeight")}
                 </span>
                 <span className="flex items-center gap-1.5">
@@ -631,7 +631,7 @@ export function ExerciseDetailPageClient({
               <Link
                 key={workout.id}
                 href={`/workouts/${workout.id}`}
-                className="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:border-violet-400 hover:text-violet-600 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-violet-700 dark:hover:text-violet-300"
+                className="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:border-blue-400 hover:text-blue-600 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-blue-700 dark:hover:text-blue-300"
               >
                 {workout.name}
               </Link>

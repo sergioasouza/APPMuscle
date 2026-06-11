@@ -70,7 +70,7 @@ export function LoginPageClient({ initialError = null }: LoginPageClientProps) {
             <div className="mx-auto grid min-h-[calc(100dvh-5rem)] w-full max-w-6xl gap-8 lg:grid-cols-[1.05fr_0.95fr]">
                 <Surface tone="accent" className="login-hero hidden overflow-hidden p-8 lg:flex lg:flex-col lg:justify-between">
                     <div>
-                        <StatusPill className="bg-emerald-500/12 text-emerald-200">GymTracker Access</StatusPill>
+                        <StatusPill className="border-sky-300/20 bg-sky-400/10 text-cyan-100">GymTracker Access</StatusPill>
                         <h1 className="mt-6 max-w-lg text-4xl font-black tracking-tight text-white">
                             {t('title')}
                         </h1>
@@ -96,7 +96,7 @@ export function LoginPageClient({ initialError = null }: LoginPageClientProps) {
                 <div className="flex items-center justify-center">
                     <Surface className="w-full max-w-md border-zinc-200 bg-white/95 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.16)] dark:border-white/10 dark:bg-zinc-950/90 sm:p-8">
                         <div className="mb-8 text-center">
-                            <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-[1.6rem] bg-gradient-to-br from-violet-600 to-indigo-500 shadow-[0_20px_50px_rgba(109,40,217,0.35)]">
+                            <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-[1.6rem] border border-cyan-300/20 bg-gradient-to-br from-blue-700 via-blue-600 to-cyan-500 shadow-[0_20px_50px_rgba(2,132,199,0.35)]">
                                 <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
                                 </svg>
@@ -130,7 +130,7 @@ export function LoginPageClient({ initialError = null }: LoginPageClientProps) {
                                         type="button"
                                         onClick={handlePasswordReset}
                                         disabled={resetting}
-                                        className="rounded-lg px-1 text-xs font-semibold uppercase tracking-[0.16em] text-violet-700 transition-colors hover:text-violet-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-500 disabled:opacity-60 dark:text-violet-300 dark:hover:text-violet-200"
+                                        className="rounded-lg px-1 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700 transition-colors hover:text-blue-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-500 disabled:opacity-60 dark:text-blue-300 dark:hover:text-blue-200"
                                     >
                                         {resetting ? t('resetting') : t('forgotPassword')}
                                     </button>

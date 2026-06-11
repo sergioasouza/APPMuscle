@@ -71,7 +71,7 @@ export default async function BlockedPage() {
     return (
         <main className="min-h-dvh bg-zinc-50 px-4 py-10 dark:bg-zinc-950">
             <div className="mx-auto max-w-xl rounded-[2rem] border border-zinc-200 bg-white p-8 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
-                <p className="text-sm font-semibold uppercase tracking-[0.25em] text-violet-500">
+                <p className="text-sm font-semibold uppercase tracking-[0.25em] text-blue-500">
                     GymTracker
                 </p>
                 <h1 className="mt-4 text-4xl font-black tracking-tight text-zinc-900 dark:text-white">
@@ -100,7 +100,7 @@ export default async function BlockedPage() {
                     {copy.cta ? (
                         <Link
                             href={copy.cta.href}
-                            className="rounded-xl bg-violet-600 px-4 py-3 text-center font-semibold text-white transition hover:bg-violet-500"
+                            className="rounded-xl bg-blue-600 px-4 py-3 text-center font-semibold text-white transition hover:bg-blue-500"
                         >
                             {copy.cta.label}
                         </Link>

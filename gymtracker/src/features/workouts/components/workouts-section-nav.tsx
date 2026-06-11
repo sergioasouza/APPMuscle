@@ -38,7 +38,7 @@ export function WorkoutsSectionNav() {
             aria-current={item.active ? "page" : undefined}
             className={`rounded-2xl px-4 py-2.5 text-center text-sm font-semibold transition-colors ${
               item.active
-                ? "bg-gradient-to-r from-violet-600 to-indigo-500 text-white shadow-[0_12px_28px_rgba(109,40,217,0.28)]"
+                ? "bg-gradient-to-r from-blue-700 to-cyan-500 text-white shadow-[0_12px_28px_rgba(2,132,199,0.3)]"
                 : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
             }`}
           >

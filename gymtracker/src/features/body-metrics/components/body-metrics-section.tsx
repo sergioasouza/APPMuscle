@@ -547,7 +547,7 @@ export function BodyMetricsSection({ initialData }: BodyMetricsSectionProps) {
                                             backgroundColor: 'rgba(24,24,27,0.94)',
                                         }}
                                     />
-                                    <Line yAxisId="left" type="monotone" dataKey="weight" name={t('BodyMetrics.fields.weight')} stroke="#8b5cf6" strokeWidth={3} connectNulls />
+                                    <Line yAxisId="left" type="monotone" dataKey="weight" name={t('BodyMetrics.fields.weight')} stroke="#0ea5e9" strokeWidth={3} connectNulls />
                                     <Line yAxisId="left" type="monotone" dataKey="leanMass" name={t('BodyMetrics.latestLeanMass')} stroke="#10b981" strokeWidth={2} connectNulls />
                                     <Line yAxisId="right" type="monotone" dataKey="bodyFat" name={t('BodyMetrics.fields.bodyFat')} stroke="#f59e0b" strokeWidth={2} connectNulls />
                                 </LineChart>
@@ -707,7 +707,7 @@ export function BodyMetricsSection({ initialData }: BodyMetricsSectionProps) {
                                                         backgroundColor: 'rgba(24,24,27,0.94)',
                                                     }}
                                                 />
-                                                <Scatter data={correlationScatterData} fill="#8b5cf6" />
+                                                <Scatter data={correlationScatterData} fill="#0ea5e9" />
                                             </ScatterChart>
                                         </ResponsiveContainer>
                                     </div>
@@ -751,7 +751,7 @@ export function BodyMetricsSection({ initialData }: BodyMetricsSectionProps) {
                                 type="date"
                                 value={form.measuredAt}
                                 onChange={(event) => setForm((prev) => ({ ...prev, measuredAt: event.target.value }))}
-                                className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                             />
                         </div>
 
@@ -768,7 +768,7 @@ export function BodyMetricsSection({ initialData }: BodyMetricsSectionProps) {
                                             step={field.step}
                                             value={form[field.key]}
                                             onChange={(event) => setForm((prev) => ({ ...prev, [field.key]: event.target.value }))}
-                                            className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2.5 pr-12 text-sm text-zinc-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                            className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2.5 pr-12 text-sm text-zinc-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                                         />
                                         <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-zinc-500 dark:text-zinc-400">
                                             {field.unit}
@@ -787,14 +787,14 @@ export function BodyMetricsSection({ initialData }: BodyMetricsSectionProps) {
                                 onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))}
                                 rows={3}
                                 placeholder={t('BodyMetrics.notesPlaceholder')}
-                                className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                             />
                         </div>
 
                         <button
                             type="submit"
                             disabled={saving}
-                            className="rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:opacity-60"
+                            className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-60"
                         >
                             {saving ? t('Common.loading') : t('BodyMetrics.saveEntry')}
                         </button>

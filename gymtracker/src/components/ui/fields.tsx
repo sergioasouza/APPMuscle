@@ -7,7 +7,7 @@ import type {
 import { cn } from "@/lib/utils";
 
 export const fieldClassName =
-  "w-full rounded-2xl border border-zinc-200/80 bg-white/92 px-4 py-3 text-sm text-zinc-950 shadow-sm transition-all duration-200 placeholder:text-zinc-500 focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-zinc-500 [&>option]:bg-white [&>option]:text-zinc-950 dark:[&>option]:bg-zinc-950 dark:[&>option]:text-white";
+  "w-full rounded-2xl border border-slate-200/80 bg-white/92 px-4 py-3 text-sm text-slate-950 shadow-sm transition-all duration-200 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-300/10 dark:bg-sky-400/5 dark:text-white dark:placeholder:text-slate-500 [&>option]:bg-white [&>option]:text-slate-950 dark:[&>option]:bg-slate-950 dark:[&>option]:text-white";
 
 export function FieldLabel({
   className,
@@ -16,7 +16,7 @@ export function FieldLabel({
   return (
     <label
       className={cn(
-        "mb-2 block text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400",
+        "mb-2 block text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400",
         className,
       )}
       {...props}

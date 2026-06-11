@@ -2,16 +2,25 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-brand-50: oklch(0.97 0.02 275);
-  --color-brand-100: oklch(0.93 0.04 275);
-  --color-brand-200: oklch(0.87 0.07 275);
-  --color-brand-300: oklch(0.78 0.12 275);
-  --color-brand-400: oklch(0.68 0.17 275);
-  --color-brand-500: oklch(0.58 0.22 275);
-  --color-brand-600: oklch(0.50 0.22 275);
-  --color-brand-700: oklch(0.43 0.20 275);
-  --color-brand-800: oklch(0.37 0.16 275);
-  --color-brand-900: oklch(0.30 0.12 275);
+  --color-brand-50: oklch(0.97 0.02 240);
+  --color-brand-100: oklch(0.93 0.04 240);
+  --color-brand-200: oklch(0.87 0.08 240);
+  --color-brand-300: oklch(0.79 0.13 240);
+  --color-brand-400: oklch(0.70 0.17 240);
+  --color-brand-500: oklch(0.61 0.20 247);
+  --color-brand-600: oklch(0.53 0.21 253);
+  --color-brand-700: oklch(0.46 0.19 256);
+  --color-brand-800: oklch(0.39 0.16 258);
+  --color-brand-900: oklch(0.32 0.12 260);
+  --color-violet-100: oklch(0.93 0.04 240);
+  --color-violet-200: oklch(0.87 0.08 240);
+  --color-violet-300: oklch(0.79 0.13 240);
+  --color-violet-400: oklch(0.70 0.17 240);
+  --color-violet-500: oklch(0.61 0.20 247);
+  --color-violet-600: oklch(0.53 0.21 253);
+  --color-violet-700: oklch(0.46 0.19 256);
+  --color-violet-950: oklch(0.20 0.08 260);
+  --color-indigo-500: oklch(0.68 0.15 225);
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -19,26 +28,26 @@
 @layer base {
   :root {
     color-scheme: light;
-    --app-bg-rgb: 246 247 251;
-    --app-text: #18181b;
-    --app-text-muted: #5f6673;
-    --app-border: rgba(24, 24, 27, 0.08);
-    --app-border-strong: rgba(24, 24, 27, 0.14);
-    --app-surface: rgba(255, 255, 255, 0.82);
-    --app-surface-muted: rgba(255, 255, 255, 0.68);
-    --app-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+    --app-bg-rgb: 237 244 252;
+    --app-text: #07111f;
+    --app-text-muted: #475569;
+    --app-border: rgba(15, 50, 88, 0.11);
+    --app-border-strong: rgba(15, 50, 88, 0.2);
+    --app-surface: rgba(255, 255, 255, 0.84);
+    --app-surface-muted: rgba(241, 247, 255, 0.76);
+    --app-shadow: 0 24px 70px rgba(3, 20, 40, 0.14);
   }
 
   .dark {
     color-scheme: dark;
-    --app-bg-rgb: 7 10 18;
-    --app-text: #f4f4f5;
-    --app-text-muted: #9ca3af;
-    --app-border: rgba(255, 255, 255, 0.09);
-    --app-border-strong: rgba(255, 255, 255, 0.16);
-    --app-surface: rgba(16, 18, 28, 0.78);
-    --app-surface-muted: rgba(255, 255, 255, 0.05);
-    --app-shadow: 0 30px 90px rgba(2, 6, 23, 0.42);
+    --app-bg-rgb: 2 7 14;
+    --app-text: #eaf6ff;
+    --app-text-muted: #8ea5bb;
+    --app-border: rgba(125, 211, 252, 0.1);
+    --app-border-strong: rgba(125, 211, 252, 0.2);
+    --app-surface: rgba(5, 15, 27, 0.84);
+    --app-surface-muted: rgba(14, 36, 58, 0.48);
+    --app-shadow: 0 30px 90px rgba(0, 3, 10, 0.58);
   }
 
   html {
@@ -58,8 +67,9 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background:
-      radial-gradient(circle at top, rgba(124, 58, 237, 0.22), transparent 32%),
-      radial-gradient(circle at 85% 12%, rgba(16, 185, 129, 0.12), transparent 24%),
+      radial-gradient(circle at 50% -8%, rgba(37, 99, 235, 0.3), transparent 36%),
+      radial-gradient(circle at 88% 10%, rgba(34, 211, 238, 0.15), transparent 26%),
+      radial-gradient(circle at 8% 48%, rgba(14, 116, 144, 0.1), transparent 28%),
       linear-gradient(180deg, rgba(var(--app-bg-rgb), 1) 0%, rgba(var(--app-bg-rgb), 0.98) 100%);
   }
 
@@ -69,12 +79,12 @@
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    opacity: 0.45;
+    opacity: 0.5;
     background-image:
-      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      linear-gradient(rgba(56, 189, 248, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 189, 248, 0.035) 1px, transparent 1px);
     background-size: 32px 32px;
-    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.4), transparent 82%);
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent 88%);
   }
 
   * {
@@ -82,12 +92,12 @@
   }
 
   :where(a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
-    outline: 3px solid rgba(139, 92, 246, 0.55);
+    outline: 3px solid rgba(14, 165, 233, 0.55);
     outline-offset: 3px;
   }
 
   ::selection {
-    background: rgba(139, 92, 246, 0.28);
+    background: rgba(14, 165, 233, 0.32);
     color: white;
   }
 
@@ -130,13 +140,13 @@
 
   .app-panel-accent {
     background:
-      linear-gradient(180deg, rgba(139, 92, 246, 0.16), rgba(139, 92, 246, 0.05)),
+      linear-gradient(145deg, rgba(37, 99, 235, 0.18), rgba(6, 182, 212, 0.07)),
       var(--app-surface);
-    border-color: rgba(139, 92, 246, 0.2);
+    border-color: rgba(14, 165, 233, 0.24);
   }
 
   .app-kicker {
-    color: rgb(109 40 217);
+    color: rgb(3 105 161);
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.32em;
@@ -144,24 +154,27 @@
   }
 
   .dark .app-kicker {
-    color: rgb(196 181 253);
+    color: rgb(125 211 252);
   }
 
   .login-hero {
     background:
-      radial-gradient(circle at 85% 15%, rgba(129, 140, 248, 0.35), transparent 30%),
-      radial-gradient(circle at 15% 85%, rgba(16, 185, 129, 0.18), transparent 28%),
-      linear-gradient(145deg, #241346 0%, #312e81 50%, #172554 100%);
-    border-color: rgba(167, 139, 250, 0.4);
-    box-shadow: 0 30px 80px rgba(49, 46, 129, 0.28);
+      linear-gradient(rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+      radial-gradient(circle at 82% 16%, rgba(37, 99, 235, 0.48), transparent 30%),
+      radial-gradient(circle at 16% 84%, rgba(6, 182, 212, 0.2), transparent 30%),
+      linear-gradient(145deg, #02060d 0%, #061427 48%, #082f49 100%);
+    background-size: 30px 30px, 30px 30px, auto, auto, auto;
+    border-color: rgba(56, 189, 248, 0.36);
+    box-shadow: 0 30px 90px rgba(2, 14, 30, 0.42);
   }
 
   .app-focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/30;
+    @apply focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-500/30;
   }
 
   .app-icon-button {
-    @apply inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-zinc-200/80 bg-white/80 text-zinc-600 transition-all hover:border-violet-300 hover:text-violet-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:border-violet-500/40 dark:hover:text-white;
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200/80 bg-white/80 text-slate-600 transition-all hover:border-sky-300 hover:text-sky-700 dark:border-sky-300/10 dark:bg-sky-400/5 dark:text-slate-300 dark:hover:border-sky-400/40 dark:hover:text-white;
   }
 }
 

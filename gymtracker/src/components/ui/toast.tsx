@@ -46,7 +46,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               animate-[slideDown_0.3s_ease-out]
               ${toast.type === 'success' ? 'border-emerald-500/25 bg-emerald-500/14 text-emerald-700 dark:text-emerald-300' : ''}
               ${toast.type === 'error' ? 'border-red-500/25 bg-red-500/14 text-red-700 dark:text-red-300' : ''}
-              ${toast.type === 'info' ? 'border-violet-500/20 bg-violet-500/12 text-violet-700 dark:text-violet-300' : ''}
+              ${toast.type === 'info' ? 'border-sky-500/20 bg-sky-500/12 text-sky-700 dark:text-sky-300' : ''}
             `}
                     >
                         {toast.message}

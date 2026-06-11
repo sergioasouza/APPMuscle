@@ -23,10 +23,10 @@ export function BottomNav() {
                             href={tab.href}
                             aria-current={isActive ? 'page' : undefined}
                             className={cn(
-                                'flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 pb-2 pt-3 text-center transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/25 sm:px-3',
+                                'flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 pb-2 pt-3 text-center transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-500/25 sm:px-3',
                                 isActive
-                                    ? 'text-violet-400'
-                                    : 'text-zinc-500 dark:text-zinc-400 active:text-zinc-300'
+                                    ? 'text-sky-600 drop-shadow-[0_0_14px_rgba(14,165,233,0.35)] dark:text-cyan-300'
+                                    : 'text-slate-500 dark:text-slate-400 active:text-slate-300'
                             )}
                         >
                             <Icon className="h-5 w-5 shrink-0" strokeWidth={2} />
