@@ -254,6 +254,7 @@ CREATE TABLE public.workout_exercises (
   workout_id UUID NOT NULL REFERENCES public.workouts(id) ON DELETE CASCADE,
   exercise_id UUID NOT NULL REFERENCES public.exercises(id) ON DELETE RESTRICT,
   target_sets INT NOT NULL DEFAULT 3 CHECK (target_sets BETWEEN 1 AND 20),
+  set_prescriptions JSONB NOT NULL DEFAULT '[]'::jsonb,
   display_order INT NOT NULL DEFAULT 0
 );
 
@@ -261,7 +262,90 @@ ALTER TABLE public.workout_exercises
   ADD CONSTRAINT workout_exercises_workout_id_exercise_id_key
   UNIQUE (workout_id, exercise_id);
 
+ALTER TABLE public.workout_exercises
+  ADD CONSTRAINT workout_exercises_set_prescriptions_array_check
+  CHECK (
+    jsonb_typeof(set_prescriptions) = 'array'
+    AND jsonb_array_length(set_prescriptions) BETWEEN 1 AND 20
+  );
+
 ALTER TABLE public.workout_exercises ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.sync_workout_exercise_set_prescriptions()
+RETURNS trigger AS $$
+DECLARE
+  current_count INT;
+BEGIN
+  current_count := CASE
+    WHEN NEW.set_prescriptions IS NOT NULL
+      AND jsonb_typeof(NEW.set_prescriptions) = 'array'
+      THEN jsonb_array_length(NEW.set_prescriptions)
+    ELSE 0
+  END;
+
+  IF TG_OP = 'UPDATE'
+    AND NEW.target_sets IS DISTINCT FROM OLD.target_sets
+    AND NEW.set_prescriptions IS NOT DISTINCT FROM OLD.set_prescriptions
+    AND current_count > 0 THEN
+    IF NEW.target_sets < current_count THEN
+      SELECT jsonb_agg(item.value ORDER BY item.ordinal)
+      INTO NEW.set_prescriptions
+      FROM jsonb_array_elements(NEW.set_prescriptions)
+        WITH ORDINALITY AS item(value, ordinal)
+      WHERE item.ordinal <= GREATEST(1, NEW.target_sets);
+    ELSIF NEW.target_sets > current_count THEN
+      SELECT NEW.set_prescriptions || COALESCE(
+        jsonb_agg(
+          jsonb_build_object(
+            'id', gen_random_uuid(),
+            'position', set_position,
+            'method', 'straight',
+            'config', jsonb_build_object(
+              'targetReps', NULL,
+              'restSeconds', NULL,
+              'targetWeightKg', NULL,
+              'targetRir', NULL
+            )
+          )
+          ORDER BY set_position
+        ),
+        '[]'::jsonb
+      )
+      INTO NEW.set_prescriptions
+      FROM generate_series(current_count + 1, NEW.target_sets) AS set_position;
+    END IF;
+  END IF;
+
+  IF NEW.set_prescriptions IS NULL
+    OR jsonb_typeof(NEW.set_prescriptions) <> 'array'
+    OR jsonb_array_length(NEW.set_prescriptions) = 0 THEN
+    SELECT jsonb_agg(
+      jsonb_build_object(
+        'id', gen_random_uuid(),
+        'position', set_position,
+        'method', 'straight',
+        'config', jsonb_build_object(
+          'targetReps', NULL,
+          'restSeconds', NULL,
+          'targetWeightKg', NULL,
+          'targetRir', NULL
+        )
+      )
+      ORDER BY set_position
+    )
+    INTO NEW.set_prescriptions
+    FROM generate_series(1, GREATEST(1, NEW.target_sets)) AS set_position;
+  END IF;
+
+  NEW.target_sets := jsonb_array_length(NEW.set_prescriptions);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER sync_workout_exercise_set_prescriptions
+  BEFORE INSERT OR UPDATE OF target_sets, set_prescriptions
+  ON public.workout_exercises
+  FOR EACH ROW EXECUTE FUNCTION public.sync_workout_exercise_set_prescriptions();
 
 CREATE POLICY "Users can view own workout_exercises"
   ON public.workout_exercises FOR SELECT
@@ -384,12 +468,26 @@ CREATE TABLE public.set_logs (
   set_number INT NOT NULL CHECK (set_number > 0),
   weight_kg DECIMAL(5,1) NOT NULL CHECK (weight_kg >= 0),
   reps INT NOT NULL CHECK (reps > 0),
+  prescription_id UUID NOT NULL,
+  set_method TEXT NOT NULL DEFAULT 'straight'
+    CHECK (set_method IN ('straight', 'cluster', 'myo_reps', 'drop_set', 'rest_pause', 'amrap')),
+  prescription_snapshot JSONB NOT NULL,
+  segments JSONB NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(segments) = 'array' AND jsonb_array_length(segments) >= 1),
+  actual_rir NUMERIC(3,1) CHECK (actual_rir IS NULL OR actual_rir BETWEEN 0 AND 10),
+  state TEXT NOT NULL DEFAULT 'completed'
+    CHECK (state IN ('in_progress', 'completed', 'stopped')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 ALTER TABLE public.set_logs
   ADD CONSTRAINT set_logs_session_id_exercise_id_set_number_key
   UNIQUE (session_id, exercise_id, set_number);
+
+CREATE UNIQUE INDEX idx_set_logs_session_exercise_prescription
+ON public.set_logs (session_id, exercise_id, prescription_id);
+
+CREATE INDEX idx_set_logs_prescription_id
+ON public.set_logs (prescription_id);
 
 ALTER TABLE public.set_logs ENABLE ROW LEVEL SECURITY;
 
