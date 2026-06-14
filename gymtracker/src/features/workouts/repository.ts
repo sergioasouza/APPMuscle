@@ -45,6 +45,15 @@ import {
   filterResolvedExercisesForLibrary,
   sortResolvedExercisesForLibrary,
 } from "@/features/workouts/library";
+import {
+  createDefaultSetPrescription,
+  duplicateSetPrescription,
+  getSetLogVolume,
+  isConceptualSetCompleted,
+  normalizeSetPrescriptions,
+  type SetPrescription,
+} from "@/lib/set-methods";
+import type { Json } from "@/lib/types";
 
 type WorkoutLinkQueryRow = {
   exercise_id: string;
@@ -56,6 +65,8 @@ type ExerciseLogQueryRow = {
   session_id: string;
   weight_kg: number;
   reps: number;
+  segments: Json;
+  state: "in_progress" | "completed" | "stopped";
   workout_sessions: { performed_at: string } | null;
 };
 
@@ -132,7 +143,14 @@ async function resolveWorkoutExerciseRowsForUser(
       return [];
     }
 
-    return [{ ...row, exercises: resolvedExercise }];
+    return [{
+      ...row,
+      set_prescriptions: normalizeSetPrescriptions(
+        row.set_prescriptions,
+        row.target_sets,
+      ),
+      exercises: resolvedExercise,
+    }];
   });
 }
 
@@ -351,7 +369,7 @@ export async function listExerciseLibraryRepository(input: {
     supabase
       .from("set_logs")
       .select(
-        "exercise_id, session_id, weight_kg, reps, workout_sessions!inner(performed_at, user_id)",
+        "exercise_id, session_id, weight_kg, reps, segments, state, workout_sessions!inner(performed_at, user_id)",
       )
       .eq("workout_sessions.user_id", user.id)
       .in("exercise_id", pageExerciseIds),
@@ -381,7 +399,7 @@ export async function listExerciseLibraryRepository(input: {
 
   const logRows = ((logsResult.data as ExerciseLogQueryRow[] | null) ?? []).flatMap(
     (row) =>
-      row.workout_sessions == null
+      row.workout_sessions == null || !isConceptualSetCompleted(row)
         ? []
         : [
             {
@@ -390,6 +408,7 @@ export async function listExerciseLibraryRepository(input: {
               performedAt: row.workout_sessions.performed_at,
               weightKg: Number(row.weight_kg),
               reps: row.reps,
+              volume: getSetLogVolume(row),
             },
           ],
   );
@@ -544,7 +563,7 @@ export async function duplicateWorkoutRepository(
         .single(),
       supabase
         .from("workout_exercises")
-        .select("exercise_id, target_sets, display_order")
+        .select("exercise_id, target_sets, set_prescriptions, display_order")
         .eq("workout_id", workoutId)
         .order("display_order"),
       supabase
@@ -594,7 +613,7 @@ export async function duplicateWorkoutRepository(
   const sourceExercises =
     (sourceExercisesResult.data as Pick<
       WorkoutExercise,
-      "exercise_id" | "target_sets" | "display_order"
+      "exercise_id" | "target_sets" | "set_prescriptions" | "display_order"
     >[] | null) ?? [];
   const sourceCardioBlocks =
     (sourceCardioBlocksResult.data as Pick<
@@ -606,12 +625,22 @@ export async function duplicateWorkoutRepository(
     const { error: duplicatedExercisesError } = await supabase
       .from("workout_exercises")
       .insert(
-        sourceExercises.map((exercise) => ({
-          workout_id: duplicatedWorkout.id,
-          exercise_id: exercise.exercise_id,
-          target_sets: exercise.target_sets,
-          display_order: exercise.display_order,
-        })),
+        sourceExercises.map((exercise) => {
+          const prescriptions = normalizeSetPrescriptions(
+            exercise.set_prescriptions,
+            exercise.target_sets,
+          ).map((prescription, index) =>
+            duplicateSetPrescription(prescription, index + 1),
+          );
+
+          return {
+            workout_id: duplicatedWorkout.id,
+            exercise_id: exercise.exercise_id,
+            target_sets: prescriptions.length,
+            set_prescriptions: prescriptions as unknown as Json,
+            display_order: exercise.display_order,
+          };
+        }),
       );
 
     if (duplicatedExercisesError) {
@@ -722,6 +751,9 @@ export async function addExerciseToWorkoutRepository(
       workout_id: workoutId,
       exercise_id: exerciseId,
       target_sets: targetSets,
+      set_prescriptions: Array.from({ length: targetSets }, (_, index) =>
+        createDefaultSetPrescription("straight", index + 1),
+      ) as unknown as Json,
       display_order: count ?? 0,
     })
     .select("*, exercises(*)")
@@ -813,7 +845,7 @@ export async function getExerciseDetailRepository(
     supabase
       .from("set_logs")
       .select(
-        "exercise_id, session_id, weight_kg, reps, workout_sessions!inner(performed_at, user_id)",
+        "exercise_id, session_id, weight_kg, reps, segments, state, workout_sessions!inner(performed_at, user_id)",
       )
       .eq("exercise_id", exerciseId)
       .eq("workout_sessions.user_id", user.id),
@@ -847,7 +879,7 @@ export async function getExerciseDetailRepository(
 
   const logRows = ((logsResult.data as ExerciseLogQueryRow[] | null) ?? []).flatMap(
     (row) =>
-      row.workout_sessions == null
+      row.workout_sessions == null || !isConceptualSetCompleted(row)
         ? []
         : [
             {
@@ -856,6 +888,7 @@ export async function getExerciseDetailRepository(
               performedAt: row.workout_sessions.performed_at,
               weightKg: Number(row.weight_kg),
               reps: row.reps,
+              volume: getSetLogVolume(row),
             },
           ],
   );
@@ -924,6 +957,69 @@ export async function updateWorkoutExerciseTargetSetsRepository(
   const { error } = await supabase
     .from("workout_exercises")
     .update({ target_sets: targetSets })
+    .eq("id", workoutExerciseId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function updateWorkoutExerciseSetPrescriptionsRepository(
+  workoutExerciseId: string,
+  prescriptions: SetPrescription[],
+): Promise<void> {
+  const { supabase, user } = await getAuthenticatedServerContext();
+  const workoutExercise = await requireOwnedWorkoutExercise(
+    supabase,
+    user.id,
+    workoutExerciseId,
+  );
+  const { data: currentRow, error: currentRowError } = await supabase
+    .from("workout_exercises")
+    .select("target_sets, set_prescriptions")
+    .eq("id", workoutExerciseId)
+    .single();
+
+  if (currentRowError) {
+    throw new Error(currentRowError.message);
+  }
+
+  const currentPrescriptions = normalizeSetPrescriptions(
+    currentRow.set_prescriptions,
+    currentRow.target_sets,
+  );
+  const nextPrescriptionIds = new Set(
+    prescriptions.map((prescription) => prescription.id),
+  );
+  const removedPrescriptionIds = currentPrescriptions
+    .filter((prescription) => !nextPrescriptionIds.has(prescription.id))
+    .map((prescription) => prescription.id);
+
+  if (removedPrescriptionIds.length > 0) {
+    const { data: startedSet, error: startedSetError } = await supabase
+      .from("set_logs")
+      .select("id, workout_sessions!inner(workout_id, user_id)")
+      .in("prescription_id", removedPrescriptionIds)
+      .eq("workout_sessions.workout_id", workoutExercise.workout_id)
+      .eq("workout_sessions.user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (startedSetError) {
+      throw new Error(startedSetError.message);
+    }
+
+    if (startedSet) {
+      throw new Error("Cannot remove a set that has already been started");
+    }
+  }
+
+  const { error } = await supabase
+    .from("workout_exercises")
+    .update({
+      target_sets: prescriptions.length,
+      set_prescriptions: prescriptions as unknown as Json,
+    })
     .eq("id", workoutExerciseId);
 
   if (error) {

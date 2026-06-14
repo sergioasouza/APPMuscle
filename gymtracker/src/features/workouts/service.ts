@@ -21,7 +21,7 @@ import {
   unarchiveExerciseRepository,
   updateExerciseRepository,
   updateWorkoutCardioBlockRepository,
-  updateWorkoutExerciseTargetSetsRepository,
+  updateWorkoutExerciseSetPrescriptionsRepository,
   updateWorkoutNameRepository,
 } from "@/features/workouts/repository";
 import {
@@ -37,6 +37,12 @@ import type {
   WorkoutCardioDraftInput,
 } from "@/features/workouts/types";
 import { assertIntegerInRange } from "@/lib/validation";
+import {
+  assertSetPrescriptions,
+  createDefaultSetPrescription,
+  normalizeSetPrescriptions,
+  type SetPrescription,
+} from "@/lib/set-methods";
 
 export const EXERCISE_LIBRARY_PAGE_SIZE_OPTIONS = [10, 20, 30] as const;
 export const DEFAULT_EXERCISE_LIBRARY_PAGE_SIZE =
@@ -300,9 +306,32 @@ export async function updateWorkoutExerciseTargetSets(
 
   assertIntegerInRange(targetSets, "Target sets", 1, 20);
 
-  await updateWorkoutExerciseTargetSetsRepository(
+  const prescriptions = Array.from({ length: targetSets }, (_, index) =>
+    createDefaultSetPrescription("straight", index + 1),
+  );
+
+  await updateWorkoutExerciseSetPrescriptionsRepository(
     workoutExerciseId,
-    targetSets,
+    prescriptions,
+  );
+}
+
+export async function updateWorkoutExerciseSetPrescriptions(
+  workoutExerciseId: string,
+  prescriptions: SetPrescription[],
+) {
+  if (!workoutExerciseId) {
+    throw new Error("Workout exercise id is required");
+  }
+
+  const normalized = normalizeSetPrescriptions(
+    prescriptions,
+    prescriptions.length,
+  );
+  assertSetPrescriptions(normalized);
+  await updateWorkoutExerciseSetPrescriptionsRepository(
+    workoutExerciseId,
+    normalized,
   );
 }
 

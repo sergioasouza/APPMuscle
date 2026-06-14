@@ -19,6 +19,7 @@ const serviceMocks = vi.hoisted(() => ({
     updateExercise: vi.fn(),
     updateWorkoutCardioBlock: vi.fn(),
     updateWorkoutExerciseTargetSets: vi.fn(),
+    updateWorkoutExerciseSetPrescriptions: vi.fn(),
     updateWorkoutName: vi.fn(),
 }))
 
@@ -35,8 +36,10 @@ vi.mock('next/cache', () => ({
 
 import {
     deleteWorkoutAction,
+    updateWorkoutExerciseSetPrescriptionsAction,
     updateWorkoutExerciseTargetSetsAction,
 } from '@/features/workouts/actions'
+import { createDefaultSetPrescription } from '@/lib/set-methods'
 
 const workoutId = '11111111-1111-4111-8111-111111111111'
 const workoutExerciseId = '22222222-2222-4222-8222-222222222222'
@@ -64,5 +67,21 @@ describe('workout action validation', () => {
         expect(result.ok).toBe(false)
         expect(result.message).toContain('Target sets must be an integer between 1 and 20')
         expect(serviceMocks.updateWorkoutExerciseTargetSets).not.toHaveBeenCalled()
+    })
+
+    it('rejects duplicate prescription ids before updating workouts', async () => {
+        const prescription = createDefaultSetPrescription('straight', 1)
+        const result = await updateWorkoutExerciseSetPrescriptionsAction(
+            workoutId,
+            workoutExerciseId,
+            [
+                prescription,
+                { ...prescription, position: 2 },
+            ],
+        )
+
+        expect(result.ok).toBe(false)
+        expect(result.message).toContain('ids must be unique')
+        expect(serviceMocks.updateWorkoutExerciseSetPrescriptions).not.toHaveBeenCalled()
     })
 })

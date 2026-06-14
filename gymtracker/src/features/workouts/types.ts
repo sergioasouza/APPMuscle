@@ -1,9 +1,11 @@
 import type { ResolvedExercise, Workout, WorkoutCardioBlock, WorkoutExercise } from '@/lib/types'
 import type { ExerciseGlobalAnalyticsData } from '@/features/analytics/types'
+import type { SetPrescription } from '@/lib/set-methods'
 
 export type WorkoutListItem = Workout
 
-export type WorkoutEditorExercise = WorkoutExercise & {
+export type WorkoutEditorExercise = Omit<WorkoutExercise, 'set_prescriptions'> & {
+    set_prescriptions: SetPrescription[]
     exercises: ResolvedExercise
 }
 

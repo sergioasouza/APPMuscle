@@ -7,12 +7,15 @@ import type {
     SessionWithDetails,
 } from '@/features/calendar/types'
 import { parseWorkoutSessionStatus } from '@/lib/workout-session-status'
+import { getSetLogVolume, isConceptualSetCompleted } from '@/lib/set-methods'
 
 interface SessionSetLogSummary {
     session_id: string
     exercise_id: string
     weight_kg: number
     reps: number
+    segments?: unknown
+    state?: string | null
 }
 
 interface SessionCardioLogSummary {
@@ -54,6 +57,10 @@ export function buildCalendarSessionMetrics(
     cardioLogs: SessionCardioLogSummary[] = [],
 ): Record<string, CalendarSessionMetrics> {
     const metricsFromSets = setLogs.reduce<Record<string, CalendarSessionMetrics>>((accumulator, setLog) => {
+        if (!isConceptualSetCompleted(setLog)) {
+            return accumulator
+        }
+
         const current = accumulator[setLog.session_id] ?? {
             setCount: 0,
             totalVolume: 0,
@@ -63,7 +70,7 @@ export function buildCalendarSessionMetrics(
 
         accumulator[setLog.session_id] = {
             setCount: current.setCount + 1,
-            totalVolume: current.totalVolume + Number(setLog.weight_kg) * setLog.reps,
+            totalVolume: current.totalVolume + getSetLogVolume(setLog),
             exerciseCount: current.exerciseCount,
             cardioCount: current.cardioCount,
         }

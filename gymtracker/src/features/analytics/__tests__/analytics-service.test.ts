@@ -4,7 +4,8 @@ import {
   estimated1RM,
   findBestSet,
 } from '@/features/analytics/service'
-import type { SetLog, WorkoutSession } from '@/lib/types'
+import type { Json, SetLog, WorkoutSession } from '@/lib/types'
+import { createDefaultSetPrescription } from '@/lib/set-methods'
 
 function createSession(
   id: string,
@@ -29,6 +30,7 @@ function createSetLog(input: {
   weight: number
   reps: number
 }): SetLog {
+  const prescription = createDefaultSetPrescription('straight', input.setNumber)
   return {
     id: input.id,
     session_id: input.sessionId,
@@ -36,6 +38,21 @@ function createSetLog(input: {
     set_number: input.setNumber,
     weight_kg: input.weight,
     reps: input.reps,
+    prescription_id: prescription.id,
+    set_method: prescription.method,
+    prescription_snapshot: prescription as unknown as Json,
+    segments: [{
+      id: '33333333-3333-4333-8333-333333333333',
+      position: 1,
+      kind: 'work',
+      weightKg: input.weight,
+      reps: input.reps,
+      targetReps: null,
+      suggestedWeightKg: null,
+      completed: true,
+    }],
+    actual_rir: null,
+    state: 'completed',
     created_at: '2026-03-01T08:00:00.000Z',
   }
 }

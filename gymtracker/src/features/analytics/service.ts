@@ -12,6 +12,7 @@ import type {
 } from "@/features/analytics/types";
 import type { SetLog, WorkoutSession } from "@/lib/types";
 import { isAnalyticsExcludedWorkoutSession } from "@/lib/workout-session-status";
+import { getSetLogVolume, isConceptualSetCompleted } from "@/lib/set-methods";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure functions — exported so they can be unit-tested without Supabase.
@@ -37,6 +38,7 @@ export function findBestSet(
     (s) =>
       s.session_id === sessionId &&
       s.exercise_id === exerciseId &&
+      isConceptualSetCompleted(s) &&
       s.weight_kg > 0 &&
       s.reps > 0,
   );
@@ -148,12 +150,14 @@ export async function getWorkoutAnalytics(
 
   const enrichedSessions = validSessions.map((session) => {
     const sessionSets = setLogs.filter(
-      (setLog) => setLog.session_id === session.id,
+      (setLog) =>
+        setLog.session_id === session.id &&
+        isConceptualSetCompleted(setLog),
     );
     return {
       ...session,
       totalVolume: sessionSets.reduce(
-        (sum, setLog) => sum + setLog.weight_kg * setLog.reps,
+        (sum, setLog) => sum + getSetLogVolume(setLog),
         0,
       ),
       totalSets: sessionSets.length,

@@ -98,9 +98,10 @@ export async function getTodayDashboardSummary(input: {
       supabase
         .from("set_logs")
         .select(
-          "exercise_id, weight_kg, reps, exercises(name), workout_sessions!inner(performed_at, user_id)",
+          "exercise_id, weight_kg, reps, state, exercises(name), workout_sessions!inner(performed_at, user_id)",
         )
-        .eq("workout_sessions.user_id", user.id),
+        .eq("workout_sessions.user_id", user.id)
+        .neq("state", "in_progress"),
     ]);
 
   const rotationAnchorDateAvailable = !isMissingColumnError(

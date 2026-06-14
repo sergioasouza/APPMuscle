@@ -2,6 +2,28 @@ import { describe, expect, it } from "vitest";
 
 import { getCompletedExerciseSetCount } from "@/features/today/progress";
 import type { ExerciseLogState } from "@/features/today/types";
+import {
+  buildSetSegments,
+  createDefaultSetPrescription,
+  type SetLogState,
+} from "@/lib/set-methods";
+
+function buildSet(state: SetLogState) {
+  const prescription = createDefaultSetPrescription("straight");
+  return {
+    prescription,
+    segments: buildSetSegments(prescription).map((segment) => ({
+      ...segment,
+      weight: state === "in_progress" ? "" : "10",
+      reps: state === "in_progress" ? "" : "10",
+      completed: state !== "in_progress",
+    })),
+    actualRir: "",
+    state,
+    saved: state !== "in_progress",
+    started: state !== "in_progress",
+  };
+}
 
 function buildExerciseLog(overrides: Partial<ExerciseLogState>): ExerciseLogState {
   return {
@@ -15,9 +37,9 @@ function buildExerciseLog(overrides: Partial<ExerciseLogState>): ExerciseLogStat
     previousSets: [],
     skipped: false,
     sets: [
-      { weight: "10", reps: "12", saved: true },
-      { weight: "10", reps: "10", saved: true },
-      { weight: "", reps: "", saved: false },
+      buildSet("completed"),
+      buildSet("stopped"),
+      buildSet("in_progress"),
     ],
     ...overrides,
   };
@@ -38,9 +60,9 @@ describe("today progress", () => {
         buildExerciseLog({
           targetSets: 1,
           sets: [
-            { weight: "10", reps: "12", saved: true },
-            { weight: "10", reps: "10", saved: true },
-            { weight: "", reps: "", saved: false },
+            buildSet("completed"),
+            buildSet("completed"),
+            buildSet("in_progress"),
           ],
         }),
       ),

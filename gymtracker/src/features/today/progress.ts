@@ -7,6 +7,6 @@ export function getCompletedExerciseSetCount(exerciseLog: ExerciseLogState) {
 
   return Math.min(
     exerciseLog.targetSets,
-    exerciseLog.sets.filter((set) => set.saved).length,
+    exerciseLog.sets.filter((set) => set.state !== "in_progress").length,
   );
 }

@@ -19,6 +19,7 @@ import {
   unarchiveExercise,
   updateExercise,
   updateWorkoutCardioBlock,
+  updateWorkoutExerciseSetPrescriptions,
   updateWorkoutExerciseTargetSets,
   updateWorkoutName,
 } from "@/features/workouts/service";
@@ -38,6 +39,10 @@ import {
 } from "@/lib/revalidate-app-routes";
 import type { ResolvedExercise } from "@/lib/types";
 import { assertIntegerInRange, assertStringArray, assertUuid } from "@/lib/validation";
+import {
+  assertSetPrescriptions,
+  type SetPrescription,
+} from "@/lib/set-methods";
 
 function assertWorkoutCardioDraftInput(input: WorkoutCardioDraftInput) {
   if (input.targetDurationMinutes != null) {
@@ -171,6 +176,28 @@ export async function updateWorkoutExerciseTargetSetsAction(
     assertUuid(workoutExerciseId, "Workout exercise id");
     assertIntegerInRange(targetSets, "Target sets", 1, 20);
     await updateWorkoutExerciseTargetSets(workoutExerciseId, targetSets);
+    revalidateWorkoutSurfaces();
+    revalidatePath(`/workouts/${workoutId}`);
+
+    return okResult(null);
+  } catch (error) {
+    return errorResult(error);
+  }
+}
+
+export async function updateWorkoutExerciseSetPrescriptionsAction(
+  workoutId: string,
+  workoutExerciseId: string,
+  prescriptions: SetPrescription[],
+): Promise<ActionResult<null>> {
+  try {
+    assertUuid(workoutId, "Workout id");
+    assertUuid(workoutExerciseId, "Workout exercise id");
+    assertSetPrescriptions(prescriptions);
+    await updateWorkoutExerciseSetPrescriptions(
+      workoutExerciseId,
+      prescriptions,
+    );
     revalidateWorkoutSurfaces();
     revalidatePath(`/workouts/${workoutId}`);
 

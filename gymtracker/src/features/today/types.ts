@@ -1,4 +1,11 @@
 import type { Workout, WorkoutSession } from '@/lib/types'
+import type {
+    SetLogPayload,
+    SetLogState,
+    SetMethod,
+    SetPrescription,
+    SetSegment,
+} from '@/lib/set-methods'
 
 export interface TodayExerciseOption {
     id: string
@@ -9,17 +16,24 @@ export interface TodayExerciseOption {
 }
 
 export interface ExerciseLogSetState {
-    weight: string
-    reps: string
+    prescription: SetPrescription
+    segments: Array<Omit<SetSegment, 'weightKg' | 'reps'> & {
+        weight: string
+        reps: string
+    }>
+    actualRir: string
+    state: SetLogState
     saved: boolean
+    started: boolean
     id?: string
     saving?: boolean
     pendingSync?: boolean
 }
 
 export interface PreviousSetMark {
-    weight: number
-    reps: number
+    method: SetMethod
+    segments: SetSegment[]
+    actualRir: number | null
 }
 
 export interface ExerciseLogState {
@@ -75,13 +89,7 @@ export interface ActionResult<T> {
 }
 
 export interface SaveSetInput {
-    sessionId: string
-    exerciseId: string
-    originalExerciseId?: string
-    setNumber: number
-    weight: number
-    reps: number
-    setLogId?: string
+    payload: SetLogPayload
 }
 
 export interface SaveCardioIntervalInput {

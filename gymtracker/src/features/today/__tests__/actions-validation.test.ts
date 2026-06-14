@@ -9,6 +9,7 @@ const serviceMocks = vi.hoisted(() => ({
     saveExerciseTargetSets: vi.fn(),
     saveSessionNotes: vi.fn(),
     saveSet: vi.fn(),
+    saveSetLog: vi.fn(),
     skipCardio: vi.fn(),
     skipExercise: vi.fn(),
     skipWorkout: vi.fn(),
@@ -26,7 +27,8 @@ vi.mock('@/lib/revalidate-app-routes', () => ({
     revalidateTodaySurfaces: vi.fn(),
 }))
 
-import { saveCardioLogAction, saveSetAction } from '@/features/today/actions'
+import { saveCardioLogAction, saveSetAction, saveSetLogAction } from '@/features/today/actions'
+import { buildSetSegments, createDefaultSetPrescription } from '@/lib/set-methods'
 
 const sessionId = '11111111-1111-4111-8111-111111111111'
 const exerciseId = '22222222-2222-4222-8222-222222222222'
@@ -83,5 +85,27 @@ describe('today action validation', () => {
         expect(result.ok).toBe(false)
         expect(result.message).toContain('Interval repeat count')
         expect(serviceMocks.saveCardioLog).not.toHaveBeenCalled()
+    })
+
+    it('rejects a completed segmented set when a segment is incomplete', async () => {
+        const prescription = createDefaultSetPrescription('cluster', 1)
+        const result = await saveSetLogAction({
+            sessionId,
+            exerciseId,
+            prescriptionId: prescription.id,
+            setNumber: 1,
+            setMethod: prescription.method,
+            prescriptionSnapshot: prescription,
+            segments: buildSetSegments(prescription).map((segment) => ({
+                ...segment,
+                completed: true,
+            })),
+            actualRir: null,
+            state: 'completed',
+        })
+
+        expect(result.ok).toBe(false)
+        expect(result.message).toContain('needs weight and reps')
+        expect(serviceMocks.saveSetLog).not.toHaveBeenCalled()
     })
 })

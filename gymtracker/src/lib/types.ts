@@ -203,6 +203,7 @@ export type Database = {
                     workout_id: string
                     exercise_id: string
                     target_sets: number
+                    set_prescriptions: Json
                     display_order: number
                 }
                 Insert: {
@@ -210,6 +211,7 @@ export type Database = {
                     workout_id: string
                     exercise_id: string
                     target_sets?: number
+                    set_prescriptions?: Json
                     display_order?: number
                 }
                 Update: {
@@ -217,6 +219,7 @@ export type Database = {
                     workout_id?: string
                     exercise_id?: string
                     target_sets?: number
+                    set_prescriptions?: Json
                     display_order?: number
                 }
                 Relationships: [
@@ -399,6 +402,12 @@ export type Database = {
                     set_number: number
                     weight_kg: number
                     reps: number
+                    prescription_id: string
+                    set_method: 'straight' | 'cluster' | 'myo_reps' | 'drop_set' | 'rest_pause' | 'amrap'
+                    prescription_snapshot: Json
+                    segments: Json
+                    actual_rir: number | null
+                    state: 'in_progress' | 'completed' | 'stopped'
                     created_at: string
                 }
                 Insert: {
@@ -408,6 +417,12 @@ export type Database = {
                     set_number: number
                     weight_kg: number
                     reps: number
+                    prescription_id: string
+                    set_method?: 'straight' | 'cluster' | 'myo_reps' | 'drop_set' | 'rest_pause' | 'amrap'
+                    prescription_snapshot: Json
+                    segments: Json
+                    actual_rir?: number | null
+                    state?: 'in_progress' | 'completed' | 'stopped'
                     created_at?: string
                 }
                 Update: {
@@ -417,6 +432,12 @@ export type Database = {
                     set_number?: number
                     weight_kg?: number
                     reps?: number
+                    prescription_id?: string
+                    set_method?: 'straight' | 'cluster' | 'myo_reps' | 'drop_set' | 'rest_pause' | 'amrap'
+                    prescription_snapshot?: Json
+                    segments?: Json
+                    actual_rir?: number | null
+                    state?: 'in_progress' | 'completed' | 'stopped'
                     created_at?: string
                 }
                 Relationships: [

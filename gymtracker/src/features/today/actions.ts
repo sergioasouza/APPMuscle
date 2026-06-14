@@ -10,6 +10,7 @@ import {
     saveExerciseTargetSets,
     saveSessionNotes,
     saveSet,
+    saveSetLog,
     skipCardio,
     skipExercise,
     skipWorkout,
@@ -24,6 +25,7 @@ import type { SaveCardioLogInput, TodayExerciseOption, TodayViewData } from '@/f
 import { errorResult, okResult } from '@/lib/action-result'
 import type { ActionResult } from '@/lib/action-result'
 import type { SessionCardioLog, SetLog, Workout } from '@/lib/types'
+import { assertSetLogPayload, type SetLogPayload } from '@/lib/set-methods'
 import {
     assertFiniteNumber,
     assertFiniteNumberInRange,
@@ -147,6 +149,24 @@ export async function saveSetAction(input: {
             input.reps,
             input.setLogId
         )
+        revalidateTodaySurfaces()
+        return okResult(data)
+    } catch (error) {
+        return errorResult(error)
+    }
+}
+
+export async function saveSetLogAction(
+    payload: SetLogPayload,
+): Promise<ActionResult<SetLog>> {
+    try {
+        assertUuid(payload.sessionId, 'Session id')
+        assertUuid(payload.exerciseId, 'Exercise id')
+        assertOptionalUuid(payload.originalExerciseId, 'Original exercise id')
+        assertOptionalUuid(payload.setLogId, 'Set log id')
+        assertUuid(payload.prescriptionId, 'Prescription id')
+        assertSetLogPayload(payload)
+        const data = await saveSetLog(payload)
         revalidateTodaySurfaces()
         return okResult(data)
     } catch (error) {

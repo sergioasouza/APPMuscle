@@ -43,6 +43,7 @@ import {
 } from "@/features/today/session-resolution";
 import type {
   Exercise,
+  Json,
   ResolvedExercise,
   Schedule,
   ScheduleRotation,
@@ -57,6 +58,13 @@ import type {
   WorkoutExercise,
   WorkoutSession,
 } from "@/lib/types";
+import {
+  assertSetLogPayload,
+  assertSetLogMatchesPrescription,
+  buildSetSegments,
+  normalizeSetPrescriptions,
+  type SetLogPayload,
+} from "@/lib/set-methods";
 
 type WorkoutExerciseWithExercise = WorkoutExercise & { exercises: ResolvedExercise };
 type WorkoutCardioBlockWithSessionLog = WorkoutCardioBlock;
@@ -906,66 +914,167 @@ export async function saveSetRepository(input: {
   setLogId?: string;
 }) {
   const { supabase, user } = await getAuthenticatedServerContext();
+  const session = await requireOwnedWorkoutSession(
+    supabase,
+    user.id,
+    input.sessionId,
+  );
+  const originalExerciseId = input.originalExerciseId ?? input.exerciseId;
+  const workoutExercise = await ensureExerciseBelongsToWorkoutSession({
+    supabase,
+    workoutId: session.workout_id,
+    exerciseId: originalExerciseId,
+  });
+  const prescriptions = normalizeSetPrescriptions(
+    workoutExercise.set_prescriptions,
+    workoutExercise.target_sets,
+  );
+  const prescription = prescriptions[input.setNumber - 1];
 
-  if (input.setLogId) {
-    await requireOwnedSetLog(supabase, user.id, input.setLogId);
-
-    const { data, error } = await supabase
-      .from("set_logs")
-      .update({ weight_kg: input.weight, reps: input.reps })
-      .eq("id", input.setLogId)
-      .select("*")
-      .single();
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    const { error: clearSkipError } = await supabase
-      .from("session_exercise_skips")
-      .delete()
-      .eq("session_id", input.sessionId)
-      .eq("exercise_id", input.originalExerciseId ?? input.exerciseId);
-
-    if (clearSkipError) {
-      throw new Error(clearSkipError.message);
-    }
-
-    return data;
+  if (!prescription) {
+    throw new Error("Set prescription is not part of this workout");
   }
 
-  await Promise.all([
-    requireOwnedWorkoutSession(supabase, user.id, input.sessionId),
-    requireAccessibleExercise(supabase, user.id, input.exerciseId),
-  ]);
+  const [firstSegment] = buildSetSegments(prescription);
 
-  const { data, error } = await supabase
-    .from("set_logs")
-    .insert({
-      session_id: input.sessionId,
-      exercise_id: input.exerciseId,
-      set_number: input.setNumber,
-      weight_kg: input.weight,
+  return saveSetLogRepository({
+    sessionId: input.sessionId,
+    exerciseId: input.exerciseId,
+    originalExerciseId,
+    prescriptionId: prescription.id,
+    setNumber: input.setNumber,
+    setMethod: prescription.method,
+    prescriptionSnapshot: prescription,
+    segments: [{
+      ...firstSegment,
+      weightKg: input.weight,
       reps: input.reps,
-    })
-    .select("*")
-    .single();
+      completed: true,
+    }],
+    actualRir: null,
+    state: "completed",
+    setLogId: input.setLogId,
+  });
+}
 
-  if (error) {
-    throw new Error(error.message);
+export async function saveSetLogRepository(payload: SetLogPayload) {
+  assertSetLogPayload(payload);
+
+  const { supabase, user } = await getAuthenticatedServerContext();
+  const session = await requireOwnedWorkoutSession(
+    supabase,
+    user.id,
+    payload.sessionId,
+  );
+  const originalExerciseId =
+    payload.originalExerciseId ?? payload.exerciseId;
+  const workoutExercise = await ensureExerciseBelongsToWorkoutSession({
+    supabase,
+    workoutId: session.workout_id,
+    exerciseId: originalExerciseId,
+  });
+  const prescriptions = normalizeSetPrescriptions(
+    workoutExercise.set_prescriptions,
+    workoutExercise.target_sets,
+  );
+  const configuredPrescription = prescriptions.find(
+    (prescription) => prescription.id === payload.prescriptionId,
+  );
+
+  if (!configuredPrescription) {
+    throw new Error("Set prescription is not part of this workout");
+  }
+
+  if (configuredPrescription.method !== payload.setMethod) {
+    throw new Error("Set method does not match the workout prescription");
+  }
+
+  assertSetLogMatchesPrescription(payload, configuredPrescription);
+
+  if (payload.exerciseId !== originalExerciseId) {
+    const substitution = await getSessionExerciseSubstitution(
+      supabase,
+      payload.sessionId,
+      originalExerciseId,
+    );
+
+    if (substitution?.replacement_exercise_id !== payload.exerciseId) {
+      throw new Error("Exercise substitution is not valid for this session");
+    }
+  }
+
+  await requireAccessibleExercise(supabase, user.id, payload.exerciseId);
+
+  const primarySegment = payload.segments[0];
+
+  if (
+    !primarySegment ||
+    !primarySegment.completed ||
+    primarySegment.weightKg == null ||
+    primarySegment.reps == null
+  ) {
+    throw new Error("At least one segment must have weight and reps");
+  }
+
+  const record = {
+    session_id: payload.sessionId,
+    exercise_id: payload.exerciseId,
+    set_number: payload.setNumber,
+    weight_kg: primarySegment.weightKg,
+    reps: primarySegment.reps,
+    prescription_id: payload.prescriptionId,
+    set_method: payload.setMethod,
+    prescription_snapshot: configuredPrescription as unknown as Json,
+    segments: payload.segments as unknown as Json,
+    actual_rir: payload.actualRir,
+    state: payload.state,
+  };
+
+  if (payload.setLogId) {
+    const ownedSetLog = await requireOwnedSetLog(
+      supabase,
+      user.id,
+      payload.setLogId,
+    );
+
+    if (
+      ownedSetLog.session_id !== payload.sessionId ||
+      ownedSetLog.exercise_id !== payload.exerciseId
+    ) {
+      throw new Error("Set log does not match this session exercise");
+    }
+  }
+
+  const result = payload.setLogId
+    ? await supabase
+        .from("set_logs")
+        .update(record)
+        .eq("id", payload.setLogId)
+        .select("*")
+        .single()
+    : await supabase
+        .from("set_logs")
+        .upsert(record, {
+          onConflict: "session_id,exercise_id,prescription_id",
+        })
+        .select("*")
+        .single();
+
+  if (result.error) {
+    throw new Error(result.error.message);
   }
 
   const { error: clearSkipError } = await supabase
     .from("session_exercise_skips")
     .delete()
-    .eq("session_id", input.sessionId)
-    .eq("exercise_id", input.exerciseId);
+    .eq("session_id", payload.sessionId)
+    .eq("exercise_id", originalExerciseId);
 
   if (clearSkipError) {
     throw new Error(clearSkipError.message);
   }
 
-  return data;
+  return result.data as SetLog;
 }
 
 async function getSessionExerciseSubstitution(
@@ -1116,7 +1225,7 @@ async function ensureExerciseBelongsToWorkoutSession(input: {
 }) {
   const { data, error } = await input.supabase
     .from("workout_exercises")
-    .select("id, target_sets")
+    .select("id, target_sets, set_prescriptions")
     .eq("workout_id", input.workoutId)
     .eq("exercise_id", input.exerciseId)
     .maybeSingle();

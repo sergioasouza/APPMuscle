@@ -28,6 +28,7 @@ import {
     removeSkippedWorkoutSessionNote,
 } from '@/lib/workout-session-status'
 import { formatMonthYear, getLocalizedWeekdayNames } from '@/lib/utils'
+import { normalizeSetLogSegments } from '@/lib/set-methods'
 
 interface CalendarPageClientProps {
     initialDate: string
@@ -40,7 +41,6 @@ interface CalendarPageClientProps {
     initialSessionMetricsById: Record<string, CalendarSessionMetrics>
     initialTodayISO: string
 }
-
 const EMPTY_SESSION_METRICS: CalendarSessionMetrics = {
     setCount: 0,
     totalVolume: 0,
@@ -612,15 +612,27 @@ export function CalendarPageClient({
                                                 <div key={exerciseId} className="px-4 py-3">
                                                     <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">{group.name}</h4>
                                                     <div className="flex flex-wrap gap-2">
-                                                        {group.sets.map((setLog) => (
-                                                            <div key={setLog.id} className="bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 rounded-lg text-xs font-mono">
-                                                                <span className="text-zinc-900 dark:text-white font-semibold">{setLog.weight_kg}</span>
-                                                                <span className="text-zinc-500 dark:text-zinc-400">{t('Calendar.kg')}</span>
-                                                                <span className="text-zinc-600 dark:text-zinc-400 mx-1">x</span>
-                                                                <span className="text-zinc-900 dark:text-white font-semibold">{setLog.reps}</span>
-                                                                <span className="text-zinc-500 dark:text-zinc-400">{t('Calendar.reps')}</span>
-                                                            </div>
-                                                        ))}
+                                                        {group.sets.map((setLog) => {
+                                                            const segments = normalizeSetLogSegments(setLog)
+                                                            return (
+                                                                <div key={setLog.id} className="rounded-xl bg-zinc-100 px-3 py-2 text-xs dark:bg-zinc-800">
+                                                                    <div className="mb-1 flex items-center justify-between gap-2">
+                                                                        <span className="font-semibold text-sky-700 dark:text-sky-300">
+                                                                            {t(`SetMethods.methods.${setLog.set_method}`)}
+                                                                        </span>
+                                                                        <span className="text-[10px] uppercase tracking-wide text-zinc-500">
+                                                                            {t(`Today.setStates.${setLog.state}`)}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="font-mono text-zinc-900 dark:text-white">
+                                                                        {segments
+                                                                            .filter((segment) => segment.completed)
+                                                                            .map((segment) => `${segment.weightKg ?? 0}${t('Calendar.kg')} x ${segment.reps ?? 0}${t('Calendar.reps')}`)
+                                                                            .join(' + ')}
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        })}
                                                     </div>
                                                 </div>
                                             ))}
@@ -865,7 +877,7 @@ export function CalendarPageClient({
                                             : hasCompletedSession
                                                 ? 'text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800'
                                                 : hasSkippedSession
-                                                    ? 'text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                                                    ? 'text-zinc-400 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                                                     : isMissed
                                                         ? 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                                                         : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'

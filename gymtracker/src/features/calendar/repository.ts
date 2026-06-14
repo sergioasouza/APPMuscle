@@ -64,14 +64,14 @@ export async function getCalendarMonthRepository(year: number, month: number) {
     const rotations = rotationSupportEnabled ? (rotationsResult.data as ScheduleRotationEntry[] | null) ?? [] : []
     const sessions = sessionsResult.data ?? []
     const sessionIds = sessions.map((session) => session.id)
-    let sessionSetLogs: Pick<SetLog, 'session_id' | 'exercise_id' | 'weight_kg' | 'reps'>[] = []
+    let sessionSetLogs: Pick<SetLog, 'session_id' | 'exercise_id' | 'weight_kg' | 'reps' | 'segments' | 'state'>[] = []
     let sessionCardioLogs: Array<{ session_id: string }> = []
 
     if (sessionIds.length > 0) {
         const [setLogsResult, cardioLogsResult] = await Promise.all([
             supabase
                 .from('set_logs')
-                .select('session_id, exercise_id, weight_kg, reps')
+                .select('session_id, exercise_id, weight_kg, reps, segments, state')
                 .in('session_id', sessionIds),
             supabase
                 .from('session_cardio_logs')

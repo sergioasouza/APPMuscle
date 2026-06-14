@@ -12,6 +12,7 @@ import type {
 } from '@/features/body-metrics/types'
 import type { BodyMeasurement, SetLog, WorkoutSession } from '@/lib/types'
 import { isAnalyticsExcludedWorkoutSession } from '@/lib/workout-session-status'
+import { getSetLogVolume, isConceptualSetCompleted } from '@/lib/set-methods'
 
 const NUMERIC_FIELDS: (keyof Omit<BodyMeasurementInput, 'measuredAt' | 'notes'>)[] = [
     'height_cm',
@@ -56,7 +57,9 @@ export function buildBodyMetricsPerformanceSnapshots(
     const validSessions = sessions
         .filter((session) => !isAnalyticsExcludedWorkoutSession(session.notes))
         .map((session) => {
-            const sessionSetLogs = setLogs.filter((setLog) => setLog.session_id === session.id)
+            const sessionSetLogs = setLogs.filter((setLog) =>
+                setLog.session_id === session.id && isConceptualSetCompleted(setLog)
+            )
             const peakEstimated1RM = sessionSetLogs.reduce((best, setLog) => {
                 const current = estimated1RM(Number(setLog.weight_kg), setLog.reps)
                 return current > best ? current : best
@@ -64,7 +67,7 @@ export function buildBodyMetricsPerformanceSnapshots(
 
             return {
                 ...session,
-                totalVolume: sessionSetLogs.reduce((sum, setLog) => sum + Number(setLog.weight_kg) * setLog.reps, 0),
+                totalVolume: sessionSetLogs.reduce((sum, setLog) => sum + getSetLogVolume(setLog), 0),
                 peakEstimated1RM: peakEstimated1RM > 0 ? peakEstimated1RM : null,
             }
         })

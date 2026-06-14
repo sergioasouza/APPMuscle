@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useOptimistic, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useMemo, useOptimistic, useRef, useState } from 'react'
+import { RotateCcw, SkipForward, TimerReset } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { FieldLabel, Input, Textarea } from '@/components/ui/fields'
@@ -18,6 +19,7 @@ import {
     saveExerciseTargetSetsAction,
     saveSessionNotesAction,
     saveSetAction,
+    saveSetLogAction,
     skipCardioAction,
     skipExerciseAction,
     skipWorkoutAction,
@@ -37,6 +39,11 @@ import type {
     TodayExerciseOption,
     TodayViewData,
 } from '@/features/today/types'
+import {
+    getRestSecondsAfterSegment,
+    type SetLogPayload,
+    type SetLogState,
+} from '@/lib/set-methods'
 
 interface PendingSetQueueItem {
     clientId: string
@@ -46,8 +53,10 @@ interface PendingSetQueueItem {
     exerciseId: string
     originalExerciseId?: string
     setNumber: number
-    weight: number
-    reps: number
+    prescriptionId?: string
+    payload?: SetLogPayload
+    weight?: number
+    reps?: number
     setLogId?: string
 }
 
@@ -58,6 +67,7 @@ interface SetPatchMutation {
 }
 
 const PENDING_SET_QUEUE_KEY = 'gymtracker.pending-set-queue'
+const ONLINE_AUTO_SYNC_DELAY_MS = 3000
 
 interface TodayPageClientProps {
     dateISO: string
@@ -69,10 +79,13 @@ interface TodayPageClientProps {
 function cloneLogs(logs: ExerciseLogState[]) {
     return logs.map((log) => ({
         ...log,
-        sets: log.sets.map((set) => ({ ...set })),
+        sets: log.sets.map((set) => ({
+            ...set,
+            prescription: structuredClone(set.prescription),
+            segments: set.segments.map((segment) => ({ ...segment })),
+        })),
     }))
 }
-
 function cloneCardioLogs(logs: CardioLogState[]) {
     return logs.map((log) => ({
         ...log,
@@ -177,7 +190,11 @@ function upsertQueueItem(queue: PendingSetQueueItem[], item: PendingSetQueueItem
     const nextQueue = queue.filter((queueItem) => !(
         queueItem.sessionId === item.sessionId
         && queueItem.exerciseId === item.exerciseId
-        && queueItem.setNumber === item.setNumber
+        && (
+            item.prescriptionId
+                ? queueItem.prescriptionId === item.prescriptionId
+                : queueItem.setNumber === item.setNumber
+        )
     ))
 
     nextQueue.push(item)
@@ -188,8 +205,8 @@ function removeQueueItem(queue: PendingSetQueueItem[], item: PendingSetQueueItem
     return queue.filter((queueItem) => queueItem.clientId !== item.clientId)
 }
 
-function setMutationKey(exerciseId: string, setNumber: number) {
-    return `${exerciseId}:${setNumber}`
+function setMutationKey(exerciseId: string, prescriptionId: string) {
+    return `${exerciseId}:${prescriptionId}`
 }
 
 function createClientMutationId() {
@@ -285,17 +302,51 @@ function applyPendingStateToLogsForSession(
     return logs.map((log) => ({
         ...log,
         sets: log.sets.map((set, index) => {
-            const match = sessionQueue.find((item) => item.exerciseId === log.exerciseId && item.setNumber === index + 1)
+            const match = sessionQueue.find((item) =>
+                item.exerciseId === log.exerciseId
+                && (
+                    item.prescriptionId === set.prescription.id
+                    || (!item.prescriptionId && item.setNumber === index + 1)
+                )
+            )
             if (!match) {
                 return set
             }
 
+            if (match.payload) {
+                return {
+                    ...set,
+                    id: match.payload.setLogId ?? set.id,
+                    segments: match.payload.segments.map((segment) => ({
+                        ...segment,
+                        weight: segment.weightKg == null ? '' : String(segment.weightKg),
+                        reps: segment.reps == null ? '' : String(segment.reps),
+                    })),
+                    actualRir: match.payload.actualRir == null ? '' : String(match.payload.actualRir),
+                    state: match.payload.state,
+                    saved: match.payload.state !== 'in_progress',
+                    started: true,
+                    saving: false,
+                    pendingSync: true,
+                }
+            }
+
+            const firstSegment = set.segments[0]
             return {
                 ...set,
                 id: match.setLogId ?? set.id,
-                weight: String(match.weight),
-                reps: String(match.reps),
+                segments: [
+                    {
+                        ...firstSegment,
+                        weight: match.weight == null ? firstSegment.weight : String(match.weight),
+                        reps: match.reps == null ? firstSegment.reps : String(match.reps),
+                        completed: true,
+                    },
+                    ...set.segments.slice(1),
+                ],
+                state: 'completed' as const,
                 saved: true,
+                started: true,
                 saving: false,
                 pendingSync: true,
             }
@@ -371,6 +422,11 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
     const [savingExerciseTargetIds, setSavingExerciseTargetIds] = useState<string[]>([])
     const [substitutionTarget, setSubstitutionTarget] = useState<ExerciseLogState | null>(null)
     const [substitutionSearch, setSubstitutionSearch] = useState('')
+    const [restTimer, setRestTimer] = useState<{
+        duration: number
+        remaining: number
+        label: string
+    } | null>(null)
     const latestMutationRef = useRef<Record<string, string>>({})
     const [optimisticExerciseLogs, addOptimisticSetPatch] = useOptimistic(
         exerciseLogs,
@@ -386,10 +442,12 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             options?: { optimistic?: boolean }
         ) => {
             if (options?.optimistic !== false) {
-                addOptimisticSetPatch({
-                    exerciseIndex,
-                    setIndex,
-                    patch,
+                startTransition(() => {
+                    addOptimisticSetPatch({
+                        exerciseIndex,
+                        setIndex,
+                        patch,
+                    })
                 })
             }
 
@@ -415,15 +473,19 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
 
         try {
             for (const item of queue) {
-                const result = await saveSetAction({
-                    sessionId: item.sessionId,
-                    exerciseId: item.exerciseId,
-                    originalExerciseId: item.originalExerciseId,
-                    setNumber: item.setNumber,
-                    weight: item.weight,
-                    reps: item.reps,
-                    setLogId: item.setLogId,
-                })
+                const result = item.payload
+                    ? await saveSetLogAction(item.payload)
+                    : item.weight != null && item.reps != null
+                        ? await saveSetAction({
+                            sessionId: item.sessionId,
+                            exerciseId: item.exerciseId,
+                            originalExerciseId: item.originalExerciseId,
+                            setNumber: item.setNumber,
+                            weight: item.weight,
+                            reps: item.reps,
+                            setLogId: item.setLogId,
+                        })
+                        : { ok: false, message: 'Invalid queued set' }
 
                 if (!result.ok || !result.data) {
                     continue
@@ -432,7 +494,10 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                 syncedCount += 1
                 nextQueue = removeQueueItem(nextQueue, item)
 
-                const mutationKey = setMutationKey(item.exerciseId, item.setNumber)
+                const mutationKey = setMutationKey(
+                    item.exerciseId,
+                    item.prescriptionId ?? String(item.setNumber),
+                )
                 const latestMutationId = latestMutationRef.current[mutationKey]
                 if (latestMutationId && latestMutationId !== item.clientMutationId) {
                     continue
@@ -445,14 +510,46 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                         return {
                             ...log,
                             sets: log.sets.map((set, index) => {
-                                if (index !== item.setNumber - 1) return set
+                                if (
+                                    item.prescriptionId
+                                        ? set.prescription.id !== item.prescriptionId
+                                        : index !== item.setNumber - 1
+                                ) return set
+
+                                if (item.payload) {
+                                    return {
+                                        ...set,
+                                        id: result.data!.id,
+                                        segments: item.payload.segments.map((segment) => ({
+                                            ...segment,
+                                            weight: segment.weightKg == null ? '' : String(segment.weightKg),
+                                            reps: segment.reps == null ? '' : String(segment.reps),
+                                        })),
+                                        actualRir: item.payload.actualRir == null ? '' : String(item.payload.actualRir),
+                                        state: item.payload.state,
+                                        saved: item.payload.state !== 'in_progress',
+                                        started: true,
+                                        saving: false,
+                                        pendingSync: false,
+                                    }
+                                }
 
                                 return {
                                     ...set,
                                     id: result.data!.id,
-                                    weight: String(item.weight),
-                                    reps: String(item.reps),
+                                    segments: set.segments.map((segment, segmentIndex) =>
+                                        segmentIndex === 0
+                                            ? {
+                                                ...segment,
+                                                weight: String(item.weight),
+                                                reps: String(item.reps),
+                                                completed: true,
+                                            }
+                                            : segment,
+                                    ),
+                                    state: 'completed',
                                     saved: true,
+                                    started: true,
                                     saving: false,
                                     pendingSync: false,
                                 }
@@ -484,9 +581,24 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
 
         setIsOnline(navigator.onLine)
 
+        let syncTimeout: number | null = null
+        const schedulePendingSync = (shouldNotifyOnSuccess: boolean, delayMs: number) => {
+            if (syncTimeout) {
+                window.clearTimeout(syncTimeout)
+            }
+
+            syncTimeout = window.setTimeout(() => {
+                syncTimeout = null
+                void processPendingQueue(shouldNotifyOnSuccess)
+            }, delayMs)
+        }
+
         const handleOnline = () => {
             setIsOnline(true)
-            void processPendingQueue(true)
+
+            if (readPendingQueue().length > 0) {
+                schedulePendingSync(true, ONLINE_AUTO_SYNC_DELAY_MS)
+            }
         }
         const handleOffline = () => {
             setIsOnline(false)
@@ -495,12 +607,8 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         window.addEventListener('online', handleOnline)
         window.addEventListener('offline', handleOffline)
 
-        let syncTimeout: number | null = null
-
         if (navigator.onLine && pendingQueue.length > 0) {
-            syncTimeout = window.setTimeout(() => {
-                void processPendingQueue(false)
-            }, 0)
+            schedulePendingSync(false, 0)
         }
 
         return () => {
@@ -659,28 +767,89 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         await refreshTodayView()
     }
 
-    async function handleSaveSet(exerciseIndex: number, setIndex: number) {
-        if (!session) return
+    function buildSetPayload(
+        exerciseLog: ExerciseLogState,
+        setIndex: number,
+        nextSet: ExerciseLogSetState,
+        state: SetLogState,
+    ): SetLogPayload | null {
+        const segments = nextSet.segments.map((segment) => {
+            const weightKg = parseNonNegativeNumber(segment.weight)
+            const reps = parsePositiveInteger(segment.reps)
+
+            return {
+                id: segment.id,
+                position: segment.position,
+                kind: segment.kind,
+                weightKg,
+                reps,
+                targetReps: segment.targetReps,
+                suggestedWeightKg: segment.suggestedWeightKg,
+                completed: segment.completed,
+            }
+        })
+        const completedSegments = segments.filter((segment) => segment.completed)
+
+        if (
+            completedSegments.some(
+                (segment) => segment.weightKg == null || segment.reps == null,
+            )
+        ) {
+            return null
+        }
+
+        const actualRir = nextSet.actualRir.trim() === ''
+            ? null
+            : Number.parseFloat(nextSet.actualRir.replace(',', '.'))
+
+        if (actualRir != null && (!Number.isFinite(actualRir) || actualRir < 0 || actualRir > 10)) {
+            return null
+        }
+
+        return {
+            sessionId: session!.id,
+            exerciseId: exerciseLog.exerciseId,
+            originalExerciseId: exerciseLog.originalExerciseId,
+            prescriptionId: nextSet.prescription.id,
+            setNumber: setIndex + 1,
+            setMethod: nextSet.prescription.method,
+            prescriptionSnapshot: nextSet.prescription,
+            segments,
+            actualRir,
+            state,
+            setLogId: nextSet.id,
+        }
+    }
+
+    async function persistSet(
+        exerciseIndex: number,
+        setIndex: number,
+        nextSet: ExerciseLogSetState,
+        state: SetLogState,
+    ) {
+        if (!session) return false
 
         const currentLog = optimisticExerciseLogs[exerciseIndex]
-        const currentSet = currentLog.sets[setIndex]
-        const weight = parseFloat(currentSet.weight)
-        const reps = parseInt(currentSet.reps)
+        const payload = buildSetPayload(currentLog, setIndex, nextSet, state)
 
-        if (Number.isNaN(weight) || Number.isNaN(reps) || weight < 0 || reps < 1) {
+        if (!payload) {
             showToast(t('Today.toastEnterValidWeightAndReps'), 'error')
-            return
+            return false
         }
 
         const previousLogs = cloneLogs(exerciseLogs)
         const clientMutationId = createClientMutationId()
-        const mutationKey = setMutationKey(currentLog.exerciseId, setIndex + 1)
+        const mutationKey = setMutationKey(
+            currentLog.exerciseId,
+            nextSet.prescription.id,
+        )
         latestMutationRef.current[mutationKey] = clientMutationId
 
         commitSetPatch(exerciseIndex, setIndex, {
-            weight: String(weight),
-            reps: String(reps),
-            saved: true,
+            ...nextSet,
+            state,
+            saved: state !== 'in_progress',
+            started: true,
             saving: true,
             pendingSync: false,
         })
@@ -688,15 +857,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         let result
 
         try {
-            result = await saveSetAction({
-                sessionId: session.id,
-                exerciseId: currentLog.exerciseId,
-                originalExerciseId: currentLog.originalExerciseId,
-                setNumber: setIndex + 1,
-                weight,
-                reps,
-                setLogId: currentSet.id,
-            })
+            result = await saveSetLogAction(payload)
         } catch (error) {
             result = {
                 ok: false,
@@ -705,16 +866,16 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         }
 
         const queueItem: PendingSetQueueItem = {
-            clientId: `${session.id}:${currentLog.exerciseId}:${setIndex + 1}`,
+            clientId: `${session.id}:${currentLog.exerciseId}:${nextSet.prescription.id}`,
             clientMutationId,
             dateISO,
             sessionId: session.id,
             exerciseId: currentLog.exerciseId,
             originalExerciseId: currentLog.originalExerciseId,
+            prescriptionId: nextSet.prescription.id,
             setNumber: setIndex + 1,
-            weight,
-            reps,
-            setLogId: currentSet.id,
+            payload,
+            setLogId: nextSet.id,
         }
 
         const shouldQueueOffline = !result.ok && (!navigator.onLine || isOfflineLikeError(result.message))
@@ -724,50 +885,113 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             writePendingQueue(nextQueue)
             setPendingQueue(nextQueue)
             commitSetPatch(exerciseIndex, setIndex, {
-                weight: String(weight),
-                reps: String(reps),
-                saved: true,
+                ...nextSet,
+                state,
+                saved: state !== 'in_progress',
+                started: true,
                 saving: false,
                 pendingSync: true,
             })
             showToast(t('Today.toastSetQueuedOffline'))
-            return
+            return true
         }
 
         if (!result.ok || !result.data) {
             if (latestMutationRef.current[mutationKey] !== clientMutationId) {
-                return
+                return false
             }
 
             setExerciseLogs(previousLogs)
-            showToast(
-                result.message === 'Invalid set values'
-                    ? t('Today.toastEnterValidWeightAndReps')
-                    : (result.message ?? 'Unable to save set'),
-                'error'
-            )
-            return
+            showToast(result.message ?? 'Unable to save set', 'error')
+            return false
         }
 
         if (latestMutationRef.current[mutationKey] !== clientMutationId) {
-            return
+            return false
         }
 
         commitSetPatch(
             exerciseIndex,
             setIndex,
             {
-                id: result.data!.id,
-                weight: String(weight),
-                reps: String(reps),
-                saved: true,
+                ...nextSet,
+                id: result.data.id,
+                state,
+                saved: state !== 'in_progress',
+                started: true,
                 saving: false,
                 pendingSync: false,
             },
             { optimistic: false }
         )
 
-        showToast(t('Today.toastSetSaved', { setNumber: setIndex + 1 }))
+        if (state !== 'in_progress') {
+            showToast(t('Today.toastSetSaved', { setNumber: setIndex + 1 }))
+        }
+
+        return true
+    }
+
+    async function handleSaveSegment(
+        exerciseIndex: number,
+        setIndex: number,
+        segmentIndex: number,
+    ) {
+        const currentSet = optimisticExerciseLogs[exerciseIndex].sets[setIndex]
+        const currentSegment = currentSet.segments[segmentIndex]
+        const weight = parseNonNegativeNumber(currentSegment.weight)
+        const reps = parsePositiveInteger(currentSegment.reps)
+
+        if (weight == null || reps == null) {
+            showToast(t('Today.toastEnterValidWeightAndReps'), 'error')
+            return
+        }
+
+        const nextSet = {
+            ...currentSet,
+            segments: currentSet.segments.map((segment, index) =>
+                index === segmentIndex
+                    ? { ...segment, weight: String(weight), reps: String(reps), completed: true }
+                    : segment,
+            ),
+        }
+        const saved = await persistSet(exerciseIndex, setIndex, nextSet, 'in_progress')
+
+        if (saved) {
+            const restSeconds = getRestSecondsAfterSegment(
+                currentSet.prescription,
+                segmentIndex + 1,
+            )
+            if (restSeconds > 0) {
+                setRestTimer({
+                    duration: restSeconds,
+                    remaining: restSeconds,
+                    label: `${optimisticExerciseLogs[exerciseIndex].exerciseName} • ${setIndex + 1}.${segmentIndex + 1}`,
+                })
+            }
+        }
+    }
+
+    async function handleFinishSet(
+        exerciseIndex: number,
+        setIndex: number,
+        state: 'completed' | 'stopped' = 'completed',
+    ) {
+        const currentSet = optimisticExerciseLogs[exerciseIndex].sets[setIndex]
+        const completedSegments = currentSet.segments.filter((segment) => segment.completed)
+
+        if (
+            completedSegments.length === 0
+            || (
+                state === 'completed'
+                && completedSegments.length !== currentSet.segments.length
+            )
+        ) {
+            showToast(t('Today.toastCompleteSegmentsFirst'), 'error')
+            return
+        }
+
+        await persistSet(exerciseIndex, setIndex, currentSet, state)
     }
 
     async function handleTargetSetsChange(exerciseIndex: number, nextTargetSets: number) {
@@ -815,9 +1039,32 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         showToast(message, 'error')
     }
 
-    function handleSetChange(exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: string) {
+    function handleSetSegmentChange(
+        exerciseIndex: number,
+        setIndex: number,
+        segmentIndex: number,
+        field: 'weight' | 'reps',
+        value: string,
+    ) {
+        const currentSet = optimisticExerciseLogs[exerciseIndex].sets[setIndex]
         commitSetPatch(exerciseIndex, setIndex, {
-            [field]: value,
+            segments: currentSet.segments.map((segment, index) =>
+                index === segmentIndex
+                    ? { ...segment, [field]: value, completed: false }
+                    : segment,
+            ),
+            saved: false,
+            pendingSync: false,
+        })
+    }
+
+    function handleActualRirChange(
+        exerciseIndex: number,
+        setIndex: number,
+        value: string,
+    ) {
+        commitSetPatch(exerciseIndex, setIndex, {
+            actualRir: value,
             saved: false,
             pendingSync: false,
         })
@@ -1045,6 +1292,22 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
         () => optimisticExerciseLogs.reduce((acc, exerciseLog) => acc + exerciseLog.targetSets, 0) + cardioLogs.length,
         [cardioLogs.length, optimisticExerciseLogs]
     )
+
+    useEffect(() => {
+        if (!restTimer || restTimer.remaining <= 0) {
+            return
+        }
+
+        const interval = window.setInterval(() => {
+            setRestTimer((current) =>
+                current
+                    ? { ...current, remaining: Math.max(0, current.remaining - 1) }
+                    : null
+            )
+        }, 1000)
+
+        return () => window.clearInterval(interval)
+    }, [restTimer])
     const completedProgressUnits = useMemo(
         () => {
             const exerciseUnits = optimisticExerciseLogs.reduce((acc, exerciseLog) => {
@@ -1258,6 +1521,44 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
     return (
         <PageShell>
             {syncStatusBar}
+            {restTimer ? (
+                <div
+                    role="timer"
+                    aria-live="polite"
+                    className="sticky top-20 z-20 mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-400/25 bg-sky-950/95 px-4 py-3 text-white shadow-xl backdrop-blur"
+                >
+                    <div className="flex items-center gap-3">
+                        <TimerReset className="h-5 w-5 text-sky-300" aria-hidden="true" />
+                        <div>
+                            <p className="text-xs text-sky-200">{t('Today.restTimer')} • {restTimer.label}</p>
+                            <p className="text-2xl font-black tabular-nums">
+                                {String(Math.floor(restTimer.remaining / 60)).padStart(2, '0')}:
+                                {String(restTimer.remaining % 60).padStart(2, '0')}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setRestTimer((current) =>
+                                current ? { ...current, remaining: current.duration } : null
+                            )}
+                            className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-xs font-semibold"
+                        >
+                            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                            {t('Today.restartTimer')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setRestTimer(null)}
+                            className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-sky-950"
+                        >
+                            <SkipForward className="h-4 w-4" aria-hidden="true" />
+                            {t('Today.skipTimer')}
+                        </button>
+                    </div>
+                </div>
+            ) : null}
             {isHistorical && (
                 <div className="mb-4 text-xs font-semibold text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
                     {t('Today.historicalView')}
@@ -1311,8 +1612,9 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
             <div className="space-y-4">
                 {optimisticExerciseLogs.map((exerciseLog, exerciseIndex) => {
                     const completed = getCompletedExerciseSetCount(exerciseLog)
-                    const minimumTargetSets = Math.max(1, completed)
-                    const hasSavedSets = exerciseLog.sets.some((set) => set.saved)
+                    const started = exerciseLog.sets.filter((set) => set.started).length
+                    const minimumTargetSets = Math.max(1, started)
+                    const hasSavedSets = exerciseLog.sets.some((set) => set.started)
                     const isSavingTargetSets = savingExerciseTargetIds.includes(exerciseLog.originalExerciseId)
 
                     return (
@@ -1374,7 +1676,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                                         <button
                                             onClick={() => handleUndoSubstitution(exerciseLog)}
                                             disabled={hasSavedSets || exerciseLog.skipped}
-                                            className="rounded-lg bg-violet-600/10 px-2.5 py-1 text-[11px] font-semibold text-violet-500 transition-colors hover:bg-violet-600/20 disabled:opacity-40"
+                                            className="rounded-lg bg-violet-600/10 px-2.5 py-1 text-[11px] font-semibold text-violet-600 dark:text-violet-300 transition-colors hover:bg-violet-600/20 disabled:opacity-40"
                                         >
                                             {t('Today.undoSubstitution')}
                                         </button>
@@ -1382,7 +1684,7 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                                         <button
                                             onClick={() => openSubstitutionModal(exerciseLog)}
                                             disabled={hasSavedSets || exerciseLog.skipped}
-                                            className="rounded-lg bg-violet-600/10 px-2.5 py-1 text-[11px] font-semibold text-violet-500 transition-colors hover:bg-violet-600/20 disabled:opacity-40"
+                                            className="rounded-lg bg-violet-600/10 px-2.5 py-1 text-[11px] font-semibold text-violet-600 dark:text-violet-300 transition-colors hover:bg-violet-600/20 disabled:opacity-40"
                                         >
                                             {t('Today.substituteToday')}
                                         </button>
@@ -1405,62 +1707,210 @@ export function TodayPageClient({ dateISO, dayOfWeek, isHistorical, initialData 
                                     {t('Today.exerciseSkippedDescription')}
                                 </div>
                             ) : (
-                            <div className="divide-y divide-zinc-800/30">
+                            <div className="space-y-3 p-3">
                                 {exerciseLog.sets.slice(0, exerciseLog.targetSets).map((set, setIndex) => {
                                     const prevMark = exerciseLog.previousSets?.[setIndex]
+                                    const setLabelInput = {
+                                        exercise: exerciseLog.exerciseName,
+                                        setNumber: setIndex + 1,
+                                    }
                                     return (
-                                    <div key={setIndex} className={`px-4 py-3 ${set.saved ? 'bg-zinc-100 dark:bg-zinc-800/20' : ''}`}>
-                                        <div className="flex items-center gap-3">
-                                        <span className={`text-xs font-bold w-6 text-center ${set.saved ? 'text-emerald-400' : 'text-zinc-600 dark:text-zinc-400 dark:text-zinc-600'}`}>
-                                            {set.saved ? '✓' : setIndex + 1}
-                                        </span>
-
-                                        <div className="flex-1">
-                                            <input
-                                                type="number"
-                                                inputMode="decimal"
-                                                step="0.5"
-                                                value={set.weight}
-                                                onChange={(event) => handleSetChange(exerciseIndex, setIndex, 'weight', event.target.value)}
-                                                placeholder={prevMark ? String(prevMark.weight) : '0'}
-                                                className="w-full px-3 py-2.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-white text-center text-base font-semibold placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-transparent"
-                                            />
-                                            <span className="text-[10px] text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 text-center block mt-0.5">{t('Today.kg')}</span>
-                                        </div>
-
-                                        <span className="text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 text-sm font-bold">×</span>
-
-                                        <div className="flex-1">
-                                            <input
-                                                type="number"
-                                                inputMode="numeric"
-                                                value={set.reps}
-                                                onChange={(event) => handleSetChange(exerciseIndex, setIndex, 'reps', event.target.value)}
-                                                placeholder={prevMark ? String(prevMark.reps) : '0'}
-                                                className="w-full px-3 py-2.5 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-white text-center text-base font-semibold placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-transparent"
-                                            />
-                                            <span className="text-[10px] text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 text-center block mt-0.5">{t('Today.reps')}</span>
-                                        </div>
-
-                                        <button
-                                            onClick={() => handleSaveSet(exerciseIndex, setIndex)}
-                                            disabled={!set.weight || !set.reps || set.saving}
-                                            className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 min-w-[60px] ${set.pendingSync
-                                                ? 'bg-amber-500/15 text-amber-500 hover:bg-amber-500/25'
-                                                : set.saved
-                                                    ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30'
-                                                    : 'bg-violet-600 text-zinc-900 dark:text-white hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed'}`}
-                                        >
-                                            {set.saving ? '...' : (set.pendingSync ? t('Today.pendingSync') : (set.saved ? t('Common.edit') : t('Common.save')))}
-                                        </button>
-                                        </div>
-
-                                        {prevMark && (
-                                            <div className="ml-6 mt-1.5 flex items-center gap-1 text-[10px] text-violet-400/70">
-                                                <span>▲</span>
-                                                <span>{t('Today.previousMark')}: {prevMark.weight}{t('Today.kg')} × {prevMark.reps}</span>
+                                    <div
+                                        key={set.prescription.id}
+                                        data-testid="conceptual-set"
+                                        data-set-method={set.prescription.method}
+                                        role="group"
+                                        aria-label={t('Today.setGroupLabel', setLabelInput)}
+                                        className={`rounded-2xl border p-4 ${
+                                            set.saved
+                                                ? 'border-emerald-500/25 bg-emerald-500/5'
+                                                : 'border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/50'
+                                        }`}
+                                    >
+                                        <div className="flex flex-wrap items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`flex h-8 w-8 items-center justify-center rounded-xl text-xs font-black ${
+                                                    set.saved
+                                                        ? 'bg-emerald-500/15 text-emerald-500'
+                                                        : 'bg-sky-500/10 text-sky-600 dark:text-sky-300'
+                                                }`}>
+                                                    {set.saved ? '✓' : setIndex + 1}
+                                                </span>
+                                                <div>
+                                                    <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                                                        {t(`SetMethods.methods.${set.prescription.method}`)}
+                                                    </p>
+                                                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                                                        {set.segments.length} {t('Today.segments')}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        )}
+                                            <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
+                                                set.pendingSync
+                                                    ? 'bg-amber-500/15 text-amber-500'
+                                                    : set.state === 'completed'
+                                                        ? 'bg-emerald-500/15 text-emerald-500'
+                                                        : set.state === 'stopped'
+                                                            ? 'bg-orange-500/15 text-orange-500'
+                                                            : 'bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'
+                                            }`}>
+                                                {set.pendingSync
+                                                    ? t('Today.pendingSync')
+                                                    : t(`Today.setStates.${set.state}`)}
+                                            </span>
+                                        </div>
+
+                                        <div className="mt-4 space-y-2">
+                                            {set.segments.map((segment, segmentIndex) => {
+                                                const previousSegment = prevMark?.segments[segmentIndex]
+                                                const previousSegmentsCompleted = set.segments
+                                                    .slice(0, segmentIndex)
+                                                    .every((current) => current.completed)
+                                                return (
+                                                    <div
+                                                        key={segment.id}
+                                                        className={`grid gap-2 rounded-xl border p-3 sm:grid-cols-[minmax(110px,0.8fr)_1fr_1fr_auto] sm:items-end ${
+                                                            segment.completed
+                                                                ? 'border-emerald-500/20 bg-emerald-500/5'
+                                                                : 'border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900'
+                                                        }`}
+                                                    >
+                                                        <div>
+                                                            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+                                                                {segmentIndex + 1}. {t(`SetMethods.segmentKinds.${segment.kind}`)}
+                                                            </p>
+                                                            {segment.targetReps != null ? (
+                                                                <p className="mt-1 text-[10px] text-zinc-500">
+                                                                    {t('Today.targetReps', { count: segment.targetReps })}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
+                                                        <label className="text-[10px] text-zinc-500">
+                                                            {t('Today.kg')}
+                                                            <input
+                                                                type="number"
+                                                                inputMode="decimal"
+                                                                step="0.5"
+                                                                value={segment.weight}
+                                                                onChange={(event) => handleSetSegmentChange(
+                                                                    exerciseIndex,
+                                                                    setIndex,
+                                                                    segmentIndex,
+                                                                    'weight',
+                                                                    event.target.value,
+                                                                )}
+                                                                aria-label={t('Today.segmentWeightLabel', {
+                                                                    exercise: exerciseLog.exerciseName,
+                                                                    setNumber: setIndex + 1,
+                                                                    segmentNumber: segmentIndex + 1,
+                                                                })}
+                                                                placeholder={
+                                                                    previousSegment?.weightKg != null
+                                                                        ? String(previousSegment.weightKg)
+                                                                        : segment.suggestedWeightKg != null
+                                                                            ? String(segment.suggestedWeightKg)
+                                                                            : '0'
+                                                                }
+                                                                className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-100 px-3 py-2.5 text-center text-base font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-sky-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                                                            />
+                                                        </label>
+                                                        <label className="text-[10px] text-zinc-500">
+                                                            {t('Today.reps')}
+                                                            <input
+                                                                type="number"
+                                                                inputMode="numeric"
+                                                                value={segment.reps}
+                                                                onChange={(event) => handleSetSegmentChange(
+                                                                    exerciseIndex,
+                                                                    setIndex,
+                                                                    segmentIndex,
+                                                                    'reps',
+                                                                    event.target.value,
+                                                                )}
+                                                                aria-label={t('Today.segmentRepsLabel', {
+                                                                    exercise: exerciseLog.exerciseName,
+                                                                    setNumber: setIndex + 1,
+                                                                    segmentNumber: segmentIndex + 1,
+                                                                })}
+                                                                placeholder={
+                                                                    previousSegment?.reps != null
+                                                                        ? String(previousSegment.reps)
+                                                                        : segment.targetReps != null
+                                                                            ? String(segment.targetReps)
+                                                                            : '0'
+                                                                }
+                                                                className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-100 px-3 py-2.5 text-center text-base font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-sky-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                                                            />
+                                                        </label>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => void handleSaveSegment(exerciseIndex, setIndex, segmentIndex)}
+                                                            disabled={!segment.weight || !segment.reps || set.saving || !previousSegmentsCompleted}
+                                                            className={`rounded-xl px-3 py-2.5 text-xs font-semibold transition disabled:opacity-30 ${
+                                                                segment.completed
+                                                                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300'
+                                                                    : 'bg-sky-600 text-white hover:bg-sky-500'
+                                                            }`}
+                                                        >
+                                                            {segment.completed
+                                                                ? t('Today.segmentSaved')
+                                                                : t('Today.saveSegment')}
+                                                        </button>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+
+                                        <div className="mt-4 flex flex-col gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800 sm:flex-row sm:items-end sm:justify-between">
+                                            <label className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                                                {t('Today.actualRir')}
+                                                <input
+                                                    type="number"
+                                                    inputMode="decimal"
+                                                    min="0"
+                                                    max="10"
+                                                    step="0.5"
+                                                    value={set.actualRir}
+                                                    onChange={(event) => handleActualRirChange(
+                                                        exerciseIndex,
+                                                        setIndex,
+                                                        event.target.value,
+                                                    )}
+                                                    className="mt-1 block w-28 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                                />
+                                            </label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {set.prescription.method === 'myo_reps'
+                                                && set.segments.some((segment) => segment.completed)
+                                                && set.segments.some((segment) => !segment.completed) ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void handleFinishSet(exerciseIndex, setIndex, 'stopped')}
+                                                        disabled={set.saving}
+                                                        className="rounded-xl border border-orange-400/30 bg-orange-500/10 px-3 py-2 text-xs font-semibold text-orange-600 dark:text-orange-300"
+                                                    >
+                                                        {t('Today.stopMyoReps')}
+                                                    </button>
+                                                ) : null}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void handleFinishSet(exerciseIndex, setIndex)}
+                                                    disabled={set.saving || set.segments.some((segment) => !segment.completed)}
+                                                    className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-30"
+                                                >
+                                                    {set.saving ? t('Common.loading') : t('Today.finishSet')}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {prevMark ? (
+                                            <p className="mt-3 text-[10px] text-violet-500 dark:text-violet-300">
+                                                {t('Today.previousMark')}: {prevMark.segments
+                                                    .filter((segment) => segment.completed)
+                                                    .map((segment) => `${segment.weightKg ?? 0}${t('Today.kg')} × ${segment.reps ?? 0}`)
+                                                    .join(' + ')}
+                                            </p>
+                                        ) : null}
                                     </div>
                                     )
                                 })}

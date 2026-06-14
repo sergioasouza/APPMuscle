@@ -8,6 +8,7 @@ import {
     saveCardioLogRepository,
     saveExerciseTargetSetsRepository,
     saveSessionNotesRepository,
+    saveSetLogRepository,
     saveSetRepository,
     skipCardioRepository,
     skipExerciseRepository,
@@ -20,6 +21,12 @@ import {
     undoSkipWorkoutRepository,
 } from '@/features/today/repository'
 import type { SaveCardioLogInput, TodayExerciseOption, TodayViewData } from '@/features/today/types'
+import {
+    buildSetSegments,
+    normalizeSetLogSegments,
+    normalizeSetPrescriptions,
+    type SetLogPayload,
+} from '@/lib/set-methods'
 
 export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<TodayViewData> {
     const data = await getTodayViewRepository(dateISO, dayOfWeek)
@@ -50,10 +57,14 @@ export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<
         const originalExerciseName = workoutExercise.exercises?.display_name ?? '(deleted)'
         const existingSets = data.setLogs.filter((setLog) => setLog.exercise_id === effectiveExerciseId)
         const prevSetsForExercise = data.previousSetLogs.filter((setLog) => setLog.exercise_id === effectiveExerciseId)
-        const savedSetCount = existingSets.reduce((accumulator, setLog) => Math.max(accumulator, setLog.set_number), 0)
+        const prescriptions = normalizeSetPrescriptions(
+            workoutExercise.set_prescriptions,
+            workoutExercise.target_sets,
+        )
+        const savedSetCount = existingSets.filter((setLog) => setLog.state === 'completed').length
         const desiredTargetSets = validTargetByExerciseId.get(workoutExercise.exercise_id) ?? workoutExercise.target_sets
         const effectiveTargetSets = Math.min(
-            workoutExercise.target_sets,
+            prescriptions.length,
             Math.max(desiredTargetSets, savedSetCount || 1)
         )
 
@@ -69,20 +80,34 @@ export async function getTodayView(dateISO: string, dayOfWeek: number): Promise<
                 }
                 : null,
             targetSets: effectiveTargetSets,
-            plannedTargetSets: workoutExercise.target_sets,
-            sets: Array.from({ length: workoutExercise.target_sets }, (_, index) => {
-                const existingSet = existingSets.find((setLog) => setLog.set_number === index + 1)
+            plannedTargetSets: prescriptions.length,
+            sets: prescriptions.map((prescription, index) => {
+                const existingSet = existingSets.find((setLog) =>
+                    setLog.prescription_id === prescription.id
+                    || (!setLog.prescription_id && setLog.set_number === index + 1)
+                )
+                const segments = existingSet
+                    ? normalizeSetLogSegments(existingSet)
+                    : buildSetSegments(prescription)
 
                 return {
-                    weight: existingSet ? String(existingSet.weight_kg) : '',
-                    reps: existingSet ? String(existingSet.reps) : '',
-                    saved: !!existingSet,
+                    prescription,
+                    segments: segments.map((segment) => ({
+                        ...segment,
+                        weight: segment.weightKg == null ? '' : String(segment.weightKg),
+                        reps: segment.reps == null ? '' : String(segment.reps),
+                    })),
+                    actualRir: existingSet?.actual_rir == null ? '' : String(existingSet.actual_rir),
+                    state: existingSet?.state ?? 'in_progress',
+                    saved: existingSet?.state === 'completed',
+                    started: !!existingSet,
                     id: existingSet?.id,
                 }
             }),
             previousSets: prevSetsForExercise.map((setLog) => ({
-                weight: Number(setLog.weight_kg),
-                reps: setLog.reps,
+                method: setLog.set_method,
+                segments: normalizeSetLogSegments(setLog),
+                actualRir: setLog.actual_rir,
             })),
             skipped: skippedExerciseIds.has(workoutExercise.exercise_id),
         }
@@ -197,6 +222,14 @@ export async function saveSet(
     }
 
     return saveSetRepository({ sessionId, exerciseId, originalExerciseId, setNumber, weight, reps, setLogId })
+}
+
+export async function saveSetLog(payload: SetLogPayload) {
+    if (!payload.sessionId || !payload.exerciseId) {
+        throw new Error('Session and exercise are required')
+    }
+
+    return saveSetLogRepository(payload)
 }
 
 export async function saveExerciseTargetSets(

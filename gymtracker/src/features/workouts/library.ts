@@ -23,6 +23,7 @@ export interface ExerciseLogSummaryRow {
     performedAt: string
     weightKg: number
     reps: number
+    volume?: number
 }
 
 export function buildExerciseUsageSummary(input: {
@@ -39,7 +40,7 @@ export function buildExerciseUsageSummary(input: {
         return latest
     }, null)
     const totalVolume = input.logRows.reduce(
-        (sum, row) => sum + row.weightKg * row.reps,
+        (sum, row) => sum + (row.volume ?? row.weightKg * row.reps),
         0,
     )
     const deleteMode = input.exercise.source === 'system'

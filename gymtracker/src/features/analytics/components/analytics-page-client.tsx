@@ -33,6 +33,10 @@ import type {
   SessionWithTotals,
 } from "@/features/analytics/types";
 import type { Workout, WorkoutExerciseWithExercise, SetLog } from "@/lib/types";
+import {
+  isConceptualSetCompleted,
+  normalizeSetLogSegments,
+} from "@/lib/set-methods";
 
 interface AnalyticsPageClientProps {
   initialWorkouts: Workout[];
@@ -79,6 +83,7 @@ export function AnalyticsPageClient({
   initialWorkouts,
 }: AnalyticsPageClientProps) {
   const t = useTranslations("Analytics");
+  const tSetMethods = useTranslations("SetMethods");
   const { palette, paletteId } = useAnalyticsPalettePreference();
 
   const [workouts] = useState(initialWorkouts);
@@ -217,7 +222,8 @@ export function AnalyticsPageClient({
           .filter(
             (setLog) =>
               setLog.session_id === session.id &&
-              setLog.exercise_id === exercise.exercise_id,
+              setLog.exercise_id === exercise.exercise_id &&
+              isConceptualSetCompleted(setLog),
           )
           .sort((first, second) => first.set_number - second.set_number);
 
@@ -786,8 +792,13 @@ export function AnalyticsPageClient({
                                     : "text-zinc-700 dark:text-zinc-200"
                                 }`}
                               >
-                                {set.weight_kg}
-                                {t("kg")} × {set.reps}
+                                <span className="block text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
+                                  {tSetMethods(`methods.${set.set_method}`)}
+                                </span>
+                                {normalizeSetLogSegments(set)
+                                  .filter((segment) => segment.completed)
+                                  .map((segment) => `${segment.weightKg ?? 0}${t("kg")} × ${segment.reps ?? 0}`)
+                                  .join(" + ")}
                                 {isPersonalRecord ? (
                                   <span className="ml-2 text-xs">🏆</span>
                                 ) : null}

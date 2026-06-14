@@ -1,6 +1,7 @@
 import { buildBodyMetricsPerformanceSnapshots } from '@/features/body-metrics/service'
 import { buildRescheduledFromWorkoutSessionNote, buildRescheduledToWorkoutSessionNote } from '@/lib/workout-session-status'
-import type { BodyMeasurement, SetLog, WorkoutSession } from '@/lib/types'
+import type { BodyMeasurement, Json, SetLog, WorkoutSession } from '@/lib/types'
+import { createDefaultSetPrescription } from '@/lib/set-methods'
 
 function createMeasurement(params: {
     id: string
@@ -50,6 +51,7 @@ function createSetLog(params: {
     weightKg: number
     reps: number
 }): SetLog {
+    const prescription = createDefaultSetPrescription('straight', 1)
     return {
         id: params.id,
         session_id: params.sessionId,
@@ -57,6 +59,21 @@ function createSetLog(params: {
         set_number: 1,
         weight_kg: params.weightKg,
         reps: params.reps,
+        prescription_id: prescription.id,
+        set_method: prescription.method,
+        prescription_snapshot: prescription as unknown as Json,
+        segments: [{
+            id: '33333333-3333-4333-8333-333333333333',
+            position: 1,
+            kind: 'work',
+            weightKg: params.weightKg,
+            reps: params.reps,
+            targetReps: null,
+            suggestedWeightKg: null,
+            completed: true,
+        }],
+        actual_rir: null,
+        state: 'completed',
         created_at: '2026-04-01T08:00:00.000Z',
     }
 }

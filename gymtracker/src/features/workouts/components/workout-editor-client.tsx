@@ -21,22 +21,23 @@ import {
   listAvailableExercisesAction,
   reorderWorkoutExercisesAction,
   updateWorkoutCardioBlockAction,
-  updateWorkoutExerciseTargetSetsAction,
+  updateWorkoutExerciseSetPrescriptionsAction,
   updateWorkoutNameAction,
 } from "@/features/workouts/actions";
+import { SetPrescriptionBuilder } from "@/features/workouts/components/set-prescription-builder";
 import { WorkoutsSectionNav } from "@/features/workouts/components/workouts-section-nav";
 import type { Workout } from "@/lib/types";
 import type {
   WorkoutEditorCardioBlock,
   WorkoutEditorExercise,
 } from "@/features/workouts/types";
+import type { SetPrescription } from "@/lib/set-methods";
 
 interface WorkoutEditorClientProps {
   initialWorkout: Workout;
   initialWorkoutExercises: WorkoutEditorExercise[];
   initialCardioBlocks: WorkoutEditorCardioBlock[];
 }
-
 function createClientMutationId() {
   if (
     typeof crypto !== "undefined" &&
@@ -259,11 +260,10 @@ export function WorkoutEditorClient({
     );
   }
 
-  async function handleUpdateSets(workoutExerciseId: string, newSets: number) {
-    if (newSets < 1 || newSets > 20) {
-      return;
-    }
-
+  async function handlePrescriptionsChange(
+    workoutExerciseId: string,
+    prescriptions: SetPrescription[],
+  ) {
     if (savingSetByExerciseId[workoutExerciseId]) {
       return;
     }
@@ -282,15 +282,19 @@ export function WorkoutEditorClient({
     setWorkoutExercises((prev) =>
       prev.map((exercise) =>
         exercise.id === workoutExerciseId
-          ? { ...exercise, target_sets: newSets }
+          ? {
+              ...exercise,
+              target_sets: prescriptions.length,
+              set_prescriptions: prescriptions,
+            }
           : exercise,
       ),
     );
 
-    const result = await updateWorkoutExerciseTargetSetsAction(
+    const result = await updateWorkoutExerciseSetPrescriptionsAction(
       initialWorkout.id,
       workoutExerciseId,
-      newSets,
+      prescriptions,
     );
 
     if (
@@ -692,7 +696,7 @@ export function WorkoutEditorClient({
         <h2 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
           {t("Workouts.exercises")}
         </h2>
-        <span className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-600">
+        <span className="text-xs text-zinc-600 dark:text-zinc-400">
           {workoutExercises.length} {t("Workouts.itemsCount")}
         </span>
       </div>
@@ -719,7 +723,7 @@ export function WorkoutEditorClient({
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 bg-zinc-100 dark:bg-zinc-800 w-6 h-6 rounded-lg flex items-center justify-center">
+                        <span className="text-xs font-mono text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 w-6 h-6 rounded-lg flex items-center justify-center">
                           {index + 1}
                         </span>
                         {workoutExercise.exercises ? (
@@ -754,44 +758,6 @@ export function WorkoutEditorClient({
                         </p>
                       )}
 
-                      <div className="flex items-center gap-3 mt-3">
-                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {t("Workouts.targetSets")}
-                        </span>
-                        <div className="flex items-center gap-0">
-                          <button
-                            onClick={() =>
-                              handleUpdateSets(
-                                workoutExercise.id,
-                                workoutExercise.target_sets - 1,
-                              )
-                            }
-                            disabled={
-                              workoutExercise.target_sets <= 1 || isSavingSets
-                            }
-                            className="w-9 h-9 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-l-xl flex items-center justify-center hover:bg-zinc-700 disabled:opacity-30 active:scale-95 transition-all border border-zinc-300 dark:border-zinc-700"
-                          >
-                            −
-                          </button>
-                          <div className="w-10 h-9 bg-zinc-100 dark:bg-zinc-800/50 text-zinc-900 dark:text-white flex items-center justify-center text-sm font-bold border-y border-zinc-300 dark:border-zinc-700">
-                            {workoutExercise.target_sets}
-                          </div>
-                          <button
-                            onClick={() =>
-                              handleUpdateSets(
-                                workoutExercise.id,
-                                workoutExercise.target_sets + 1,
-                              )
-                            }
-                            disabled={
-                              workoutExercise.target_sets >= 20 || isSavingSets
-                            }
-                            className="w-9 h-9 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-r-xl flex items-center justify-center hover:bg-zinc-700 disabled:opacity-30 active:scale-95 transition-all border border-zinc-300 dark:border-zinc-700"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
                     </div>
 
                     <div className="flex flex-col gap-2">
@@ -800,7 +766,7 @@ export function WorkoutEditorClient({
                           aria-label={t("Workouts.moveExerciseUp", { name: workoutExercise.exercises?.display_name ?? t("Workouts.exerciseNoExtraMeta") })}
                           onClick={() => handleReorder(index, "up")}
                           disabled={index === 0 || reordering}
-                          className="p-1.5 text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 hover:text-white disabled:opacity-20 disabled:hover:text-zinc-600 transition-colors"
+                          className="p-1.5 text-zinc-600 dark:text-zinc-400 hover:text-white disabled:opacity-20 disabled:hover:text-zinc-600 transition-colors"
                         >
                           <svg
                             className="w-5 h-5"
@@ -822,7 +788,7 @@ export function WorkoutEditorClient({
                           disabled={
                             index === workoutExercises.length - 1 || reordering
                           }
-                          className="p-1.5 text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 hover:text-white disabled:opacity-20 disabled:hover:text-zinc-600 transition-colors"
+                          className="p-1.5 text-zinc-600 dark:text-zinc-400 hover:text-white disabled:opacity-20 disabled:hover:text-zinc-600 transition-colors"
                         >
                           <svg
                             className="w-5 h-5"
@@ -848,7 +814,7 @@ export function WorkoutEditorClient({
                           onClick={() =>
                             handleClickRemoveExercise(workoutExercise)
                           }
-                          className="p-1.5 text-zinc-600 dark:text-zinc-400 dark:text-zinc-600 hover:text-red-400 transition-colors ml-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="p-1.5 text-zinc-600 dark:text-zinc-400 hover:text-red-400 transition-colors ml-1 disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           {isCheckingLogs ? (
                             <svg
@@ -889,6 +855,16 @@ export function WorkoutEditorClient({
                       </div>
                     </div>
                   </div>
+                  <SetPrescriptionBuilder
+                    prescriptions={workoutExercise.set_prescriptions}
+                    disabled={isSavingSets}
+                    onChange={(prescriptions) =>
+                      void handlePrescriptionsChange(
+                        workoutExercise.id,
+                        prescriptions,
+                      )
+                    }
+                  />
                 </Surface>
               );
             })(),
@@ -1108,7 +1084,7 @@ export function WorkoutEditorClient({
 
           <div className="flex items-center gap-3 my-3">
             <div className="flex-1 h-px bg-zinc-100 dark:bg-zinc-800" />
-            <span className="text-xs text-zinc-600 dark:text-zinc-400 dark:text-zinc-600">
+            <span className="text-xs text-zinc-600 dark:text-zinc-400">
               {t("Workouts.orCreateNew")}
             </span>
             <div className="flex-1 h-px bg-zinc-100 dark:bg-zinc-800" />
@@ -1175,10 +1151,9 @@ export function WorkoutEditorClient({
       <ConfirmDialog
         open={!!deleteTarget && deleteTargetHasLogs === false}
         title={t("Workouts.removeConfirmTitle")}
-        description={t("Workouts.removeConfirmDesc").replace(
-          "{name}",
-          deleteTarget?.exercises?.name ?? "",
-        )}
+        description={t("Workouts.removeConfirmDesc", {
+          name: deleteTarget?.exercises?.name ?? "",
+        })}
         confirmLabel={t("Workouts.remove")}
         variant="danger"
         onConfirm={handleRemoveExercise}
